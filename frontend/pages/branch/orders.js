@@ -167,7 +167,7 @@ const OrderListPage = ({ branchId }) => {
     }
   };
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://apib.dinasuvadu.in";
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");

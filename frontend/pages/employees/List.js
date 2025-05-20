@@ -19,7 +19,7 @@ const EmployeeListPage = () => {
   const [selectedStatus, setSelectedStatus] = useState('Active'); // Default to "Active"
   const router = useRouter();
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
 
   useEffect(() => {
     const token = localStorage.getItem('token');

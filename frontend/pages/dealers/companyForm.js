@@ -6,7 +6,7 @@ const CompanyForm = () => {
   const [form] = Form.useForm();
   const [companies, setCompanies] = useState([]);
   const router = useRouter();
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
 
   const fetchCompanies = async () => {
     try {

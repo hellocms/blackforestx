@@ -123,7 +123,7 @@ const ClosingEntry = () => {
   const fetchBranches = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/branches/public', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/branches/public', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -223,7 +223,7 @@ const ClosingEntry = () => {
 
     setSubmitting(true);
     try {
-      const response = await fetch('http://localhost:5001/api/closing-entries', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/closing-entries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -271,7 +271,7 @@ const ClosingEntry = () => {
 
     setSubmitting(true);
     try {
-      const response = await fetch(`http://localhost:5001/api/closing-entries/${closingEntryId}`, {
+      const response = await fetch(`https://apib.dinasuvadu.in/api/closing-entries/${closingEntryId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

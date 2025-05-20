@@ -18,7 +18,7 @@ const CreateStockEntry = () => {
   useEffect(() => {
     const fetchDealers = async () => {
       try {
-        const response = await fetch('http://localhost:5001/api/dealers', {
+        const response = await fetch('https://apib.dinasuvadu.in/api/dealers', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -43,7 +43,7 @@ const CreateStockEntry = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('http://localhost:5001/api/dealer/categories', {
+        const response = await fetch('https://apib.dinasuvadu.in/api/dealer/categories', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -74,7 +74,7 @@ const CreateStockEntry = () => {
       }
 
       try {
-        const response = await fetch(`http://localhost:5001/api/dealer/products?category=${selectedCategory}`, {
+        const response = await fetch(`https://apib.dinasuvadu.in/api/dealer/products?category=${selectedCategory}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ const CreateStockEntry = () => {
     setLoading(true);
     setErrors({ dealer: '', category: '', product: '', pcs_count: '', amount: '' }); // Clear previous errors
     try {
-      const response = await fetch('http://localhost:5001/api/dealer/stock-entries', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/dealer/stock-entries', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

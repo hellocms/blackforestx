@@ -9,7 +9,7 @@ const LoginPage = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001'}/api/auth/login`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),

@@ -37,7 +37,7 @@ const ExpenseEntry = () => {
   const fetchBills = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/dealers/bills', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/dealers/bills', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
@@ -59,7 +59,7 @@ const ExpenseEntry = () => {
 
   const fetchDealers = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/dealers', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/dealers', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -77,7 +77,7 @@ const ExpenseEntry = () => {
 
   const fetchBranches = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/branches/public', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/branches/public', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -179,7 +179,7 @@ const ExpenseEntry = () => {
     formData.append('paid', bill.paid);
 
     try {
-      const response = await fetch(`http://localhost:5001/api/dealers/bills/${bill._id}`, {
+      const response = await fetch(`https://apib.dinasuvadu.in/api/dealers/bills/${bill._id}`, {
         method: 'PUT',
         body: formData,
       });
@@ -395,13 +395,13 @@ const ExpenseEntry = () => {
               type="default"
               size="large"
               icon={<StockOutlined />}
-              href="http://localhost:3000/dealers/stock-entry/create"
+              href="https://app.theblackforestcakes.com/dealers/stock-entry/create"
             />
             {/* Stock List Button */}
             <Button
               type="default"
               size="large"
-              href="http://localhost:3000/dealers/stock-entry/list"
+              href="https://app.theblackforestcakes.com/dealers/stock-entry/list"
             >
               Stock List
             </Button>
@@ -410,13 +410,13 @@ const ExpenseEntry = () => {
               type="default"
               size="large"
               icon={<FileTextOutlined />}
-              href="http://localhost:3000/dealers/bill-entry/create"
+              href="https://app.theblackforestcakes.com/dealers/bill-entry/create"
             />
             {/* Bill Entry List Button */}
             <Button
               type="default"
               size="large"
-              href="http://localhost:3000/dealers/bill-entry/list"
+              href="https://app.theblackforestcakes.com/dealers/bill-entry/list"
             >
               Bill Entry
             </Button>
@@ -425,13 +425,13 @@ const ExpenseEntry = () => {
               type="default"
               size="large"
               icon={<FileDoneOutlined />}
-              href="http://localhost:3000/dealers/closing-entry/closingentry"
+              href="https://app.theblackforestcakes.com/dealers/closing-entry/closingentry"
             />
             {/* Closing Entry List Button */}
             <Button
               type="default"
               size="large"
-              href="http://localhost:3000/dealers/closing-entry/list"
+              href="https://app.theblackforestcakes.com/dealers/closing-entry/list"
             >
               Closing Entry List
             </Button>
@@ -440,7 +440,7 @@ const ExpenseEntry = () => {
               type="default"
               size="large"
               icon={<DollarOutlined />}
-              href="http://localhost:3000/dealers/expense/ExpenseEntry"
+              href="https://app.theblackforestcakes.com/dealers/expense/ExpenseEntry"
             >
               Expense Entry
             </Button>

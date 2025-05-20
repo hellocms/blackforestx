@@ -51,7 +51,7 @@ const ClosingEntryList = () => {
 
   const fetchBranches = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/branches/public', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/branches/public', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -67,7 +67,7 @@ const ClosingEntryList = () => {
   const fetchClosingEntries = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/closing-entries', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/closing-entries', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -330,12 +330,12 @@ const ClosingEntryList = () => {
               type="default"
               size="large"
               icon={<StockOutlined />}
-              href="http://localhost:3000/dealers/stock-entry/create"
+              href="https://app.theblackforestcakes.com/dealers/stock-entry/create"
             />
             <Button
               type="default"
               size="large"
-              href="http://localhost:3000/dealers/stock-entry/list"
+              href="https://app.theblackforestcakes.com/dealers/stock-entry/list"
             >
               Stock List
             </Button>
@@ -343,12 +343,12 @@ const ClosingEntryList = () => {
               type="default"
               size="large"
               icon={<FileTextOutlined />}
-              href="http://localhost:3000/dealers/bill-entry/create"
+              href="https://app.theblackforestcakes.com/dealers/bill-entry/create"
             />
             <Button
               type="default"
               size="large"
-              href="http://localhost:3000/dealers/bill-entry/list"
+              href="https://app.theblackforestcakes.com/dealers/bill-entry/list"
             >
               Bill Entry List
             </Button>
@@ -356,7 +356,7 @@ const ClosingEntryList = () => {
               type="default"
               size="large"
               icon={<DollarOutlined />}
-              href="http://localhost:3000/dealers/expense/ExpenseEntry"
+              href="https://app.theblackforestcakes.com/dealers/expense/ExpenseEntry"
             >
               Expense Entry
             </Button>
@@ -445,7 +445,7 @@ const ClosingEntryList = () => {
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
-                    href="http://localhost:3000/dealers/closing-entry/closingentry"
+                    href="https://app.theblackforestcakes.com/dealers/closing-entry/closingentry"
                   >
                     Create Closing Bill
                   </Button>
