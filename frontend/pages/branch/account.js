@@ -19,7 +19,7 @@ const CategoryDashboard = () => {
   const [selectedManager, setSelectedManager] = useState(null);
   const router = useRouter();
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in';
 
   const fetchBranchDetails = async (token, branchId) => {
     try {

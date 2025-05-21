@@ -35,7 +35,7 @@ const BillEntryList = () => {
   const [previewImage, setPreviewImage] = useState('');
   const router = useRouter();
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in';
 
   useEffect(() => {
     fetchBills();

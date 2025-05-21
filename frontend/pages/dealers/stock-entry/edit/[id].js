@@ -20,7 +20,7 @@ const EditStockEntry = () => {
     if (!id) return; // Wait until id is available
     const fetchStockEntry = async () => {
       try {
-        const response = await fetch(`https://apib.dinasuvadu.in/api/dealer/stock-entries/${id}`, {
+        const response = await fetch(`http://apib.dinasuvadu.in/api/dealer/stock-entries/${id}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -53,7 +53,7 @@ const EditStockEntry = () => {
   useEffect(() => {
     const fetchDealers = async () => {
       try {
-        const response = await fetch('https://apib.dinasuvadu.in/api/dealers', {
+        const response = await fetch('http://apib.dinasuvadu.in/api/dealers', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ const EditStockEntry = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('https://apib.dinasuvadu.in/api/dealer/categories', {
+        const response = await fetch('http://apib.dinasuvadu.in/api/dealer/categories', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ const EditStockEntry = () => {
       }
 
       try {
-        const response = await fetch(`https://apib.dinasuvadu.in/api/dealer/products?category=${selectedCategory}`, {
+        const response = await fetch(`http://apib.dinasuvadu.in/api/dealer/products?category=${selectedCategory}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ const EditStockEntry = () => {
     setLoading(true);
     setErrors({ dealer: '', category: '', product: '', pcs_count: '', amount: '' }); // Clear previous errors
     try {
-      const response = await fetch(`https://apib.dinasuvadu.in/api/dealer/stock-entries/${id}`, {
+      const response = await fetch(`http://apib.dinasuvadu.in/api/dealer/stock-entries/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

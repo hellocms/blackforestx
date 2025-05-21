@@ -11,7 +11,7 @@ const BranchHeader = () => {
   const [branchName, setBranchName] = useState('');
   const router = useRouter();
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in';
 
   // Copy-pasted from your product bill page
   const fetchBranchDetails = async (token, branchId) => {

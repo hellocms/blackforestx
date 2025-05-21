@@ -25,7 +25,7 @@ const CreateBillEntry = () => {
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [selectedDealer, setSelectedDealer] = useState(null);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in';
 
   // Fetch Branch Details
   const fetchBranchDetails = async (token, branchId) => {

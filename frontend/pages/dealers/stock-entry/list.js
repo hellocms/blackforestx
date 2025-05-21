@@ -34,7 +34,7 @@ const StockEntryList = () => {
   const fetchStockEntries = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://apib.dinasuvadu.in/api/dealer/stock-entries', {
+      const response = await fetch('http://apib.dinasuvadu.in/api/dealer/stock-entries', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -57,7 +57,7 @@ const StockEntryList = () => {
   // Fetch dealers
   const fetchDealers = async () => {
     try {
-      const response = await fetch('https://apib.dinasuvadu.in/api/dealers', {
+      const response = await fetch('http://apib.dinasuvadu.in/api/dealers', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -76,7 +76,7 @@ const StockEntryList = () => {
   // Fetch categories
   const fetchCategories = async () => {
     try {
-      const response = await fetch('https://apib.dinasuvadu.in/api/dealer/categories', {
+      const response = await fetch('http://apib.dinasuvadu.in/api/dealer/categories', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -95,7 +95,7 @@ const StockEntryList = () => {
   // Fetch products
   const fetchProducts = async () => {
     try {
-      const response = await fetch('https://apib.dinasuvadu.in/api/dealer/products', {
+      const response = await fetch('http://apib.dinasuvadu.in/api/dealer/products', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -114,7 +114,7 @@ const StockEntryList = () => {
   // Handle delete action with confirmation
   const handleDelete = async (id) => {
     try {
-      const response = await fetch(`https://apib.dinasuvadu.in/api/dealer/stock-entries/${id}`, {
+      const response = await fetch(`http://apib.dinasuvadu.in/api/dealer/stock-entries/${id}`, {
         method: 'DELETE',
       });
       const result = await response.json();

@@ -42,7 +42,7 @@ const BillingPage = ({ branchId }) => {
   const [touchStartX, setTouchStartX] = useState(null);
 
   const contentRef = useRef(null);
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in';
 
   // Fetch Functions
   const fetchBranchDetails = async (token, branchId) => {
