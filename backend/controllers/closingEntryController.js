@@ -53,10 +53,13 @@ exports.createClosingEntry = async (req, res) => {
     for (const detail of expenseDetails) {
       if (
         detail.serialNo === undefined ||
-        !detail.purpose ||
+        (detail.amount > 0 && (!detail.reason || !detail.recipient)) ||
         detail.amount === undefined
       ) {
-        return res.status(400).json({ success: false, message: 'All expense details fields (serialNo, purpose, amount) are required' });
+        return res.status(400).json({
+          success: false,
+          message: 'All expense details fields (serialNo, reason, recipient, amount) are required when amount is greater than 0',
+        });
       }
       if (detail.amount < 0) {
         return res.status(400).json({ success: false, message: 'Expense amounts must be non-negative' });
@@ -123,7 +126,7 @@ exports.createClosingEntry = async (req, res) => {
       manualSales,
       onlineSales,
       expenses,
-      expenseDetails, // Include the detailed expense breakdown
+      expenseDetails,
       netResult,
       creditCardPayment,
       upiPayment,
@@ -201,10 +204,13 @@ exports.updateClosingEntry = async (req, res) => {
     for (const detail of expenseDetails) {
       if (
         detail.serialNo === undefined ||
-        !detail.purpose ||
+        (detail.amount > 0 && (!detail.reason || !detail.recipient)) ||
         detail.amount === undefined
       ) {
-        return res.status(400).json({ success: false, message: 'All expense details fields (serialNo, purpose, amount) are required' });
+        return res.status(400).json({
+          success: false,
+          message: 'All expense details fields (serialNo, reason, recipient, amount) are required when amount is greater than 0',
+        });
       }
       if (detail.amount < 0) {
         return res.status(400).json({ success: false, message: 'Expense amounts must be non-negative' });
@@ -286,7 +292,7 @@ exports.updateClosingEntry = async (req, res) => {
         denom20,
         denom10,
       },
-      { new: true, runValidators: true } // Return the updated document and run schema validators
+      { new: true, runValidators: true }
     );
 
     if (!updatedClosingEntry) {
@@ -304,8 +310,8 @@ exports.updateClosingEntry = async (req, res) => {
 exports.getClosingEntries = async (req, res) => {
   try {
     const closingEntries = await ClosingEntry.find()
-      .populate('branchId', 'name') // Populate branch name
-      .sort({ date: -1 }); // Sort by date, newest first
+      .populate('branchId', 'name')
+      .sort({ date: -1 });
 
     res.status(200).json(closingEntries);
   } catch (error) {
