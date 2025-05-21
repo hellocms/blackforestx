@@ -88,7 +88,7 @@ const ExpenseEntry = () => {
 
   const fetchBranches = async () => {
     try {
-      const response = await fetch('http://apib.dinasuvadu.in/api/branches/public', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/branches/public', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -104,7 +104,7 @@ const ExpenseEntry = () => {
   const fetchClosingEntries = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://apib.dinasuvadu.in/api/closing-entries', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/closing-entries', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });

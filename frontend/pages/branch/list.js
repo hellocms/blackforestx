@@ -23,7 +23,7 @@ const BranchListPage = () => {
   const fetchBranches = async (token) => {
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in'}/api/branches`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/branches`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
@@ -51,7 +51,7 @@ const BranchListPage = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in'}/api/branches/${selectedBranch._id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/branches/${selectedBranch._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

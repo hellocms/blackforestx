@@ -37,7 +37,7 @@ const ExpenseEntry = () => {
   const fetchBills = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://apib.dinasuvadu.in/api/dealers/bills', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/dealers/bills', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
@@ -59,7 +59,7 @@ const ExpenseEntry = () => {
 
   const fetchDealers = async () => {
     try {
-      const response = await fetch('http://apib.dinasuvadu.in/api/dealers', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/dealers', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -77,7 +77,7 @@ const ExpenseEntry = () => {
 
   const fetchBranches = async () => {
     try {
-      const response = await fetch('http://apib.dinasuvadu.in/api/branches/public', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/branches/public', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -179,7 +179,7 @@ const ExpenseEntry = () => {
     formData.append('paid', bill.paid);
 
     try {
-      const response = await fetch(`http://apib.dinasuvadu.in/api/dealers/bills/${bill._id}`, {
+      const response = await fetch(`https://apib.dinasuvadu.in/api/dealers/bills/${bill._id}`, {
         method: 'PUT',
         body: formData,
       });

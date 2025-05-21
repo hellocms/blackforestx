@@ -44,7 +44,7 @@ const FinancialManagement = () => {
   // Fetch balances
   const fetchBalances = async () => {
     try {
-      const response = await fetch('http://apib.dinasuvadu.in/api/financial/balances', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/financial/balances', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -80,7 +80,7 @@ const FinancialManagement = () => {
   // Fetch transactions
   const fetchTransactions = async () => {
     try {
-      const response = await fetch('http://apib.dinasuvadu.in/api/financial/transactions', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/financial/transactions', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -111,7 +111,7 @@ const FinancialManagement = () => {
   // Fetch branches
   const fetchBranches = async () => {
     try {
-      const response = await fetch('http://apib.dinasuvadu.in/api/branches/public', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/branches/public', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -148,7 +148,7 @@ const FinancialManagement = () => {
     console.log('Deposit form values:', { source, amount, branch, remarks });
 
     try {
-      const response = await fetch('http://apib.dinasuvadu.in/api/financial/deposit', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/financial/deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source, amount, branch, remarks }),
@@ -206,7 +206,7 @@ const FinancialManagement = () => {
     console.log('Expense form values:', { source, category, amount, branch, remarks });
 
     try {
-      const response = await fetch('http://apib.dinasuvadu.in/api/financial/expense', {
+      const response = await fetch('https://apib.dinasuvadu.in/api/financial/expense', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source, category, amount, branch, remarks }),

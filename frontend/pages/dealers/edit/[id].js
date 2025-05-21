@@ -14,7 +14,7 @@ const EditDealer = () => {
     if (id) {
       const fetchDealer = async () => {
         try {
-          const response = await fetch(`http://apib.dinasuvadu.in/api/dealers/${id}`, {
+          const response = await fetch(`https://apib.dinasuvadu.in/api/dealers/${id}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -41,7 +41,7 @@ const EditDealer = () => {
     setLoading(true);
     setErrors({ phone_no: '', gst: '' });
     try {
-      const response = await fetch(`http://apib.dinasuvadu.in/api/dealers/${id}`, {
+      const response = await fetch(`https://apib.dinasuvadu.in/api/dealers/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

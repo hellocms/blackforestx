@@ -31,7 +31,7 @@ const UserListPage = () => {
   const fetchUsers = async (token) => {
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in'}/api/users`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/users`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
@@ -49,7 +49,7 @@ const UserListPage = () => {
 
   const fetchBranches = async (token) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in'}/api/branches`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/branches`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
@@ -103,7 +103,7 @@ const UserListPage = () => {
   const handleToggleStatus = async (userId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in'}/api/users/${userId}/toggle`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/users/${userId}/toggle`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -122,7 +122,7 @@ const UserListPage = () => {
   const handleDelete = async (userId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in'}/api/users/${userId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/users/${userId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -142,7 +142,7 @@ const UserListPage = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://apib.dinasuvadu.in'}/api/users/${selectedUser._id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/users/${selectedUser._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
