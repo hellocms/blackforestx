@@ -61,7 +61,7 @@ const ClosingEntry = () => {
   const [discrepancy, setDiscrepancy] = useState(0);
   const [lastSubmittedDate, setLastSubmittedDate] = useState(null);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
 
   // Fetch branch details for the logged-in user's branch
   const fetchBranchDetails = async (token, branchId) => {
