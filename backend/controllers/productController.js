@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'Uploads/'),
+  destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
 const upload = multer({ storage }).array('images', 5);
@@ -66,7 +66,7 @@ exports.createProduct = async (req, res) => {
       const checkDigit = calculateEAN13CheckDigit(eanWithoutCheckDigit);
       const generatedUPC = eanWithoutCheckDigit + checkDigit;
 
-      const barcodePath = `Uploads/barcodes/${nextProductId}.png`;
+      const barcodePath = `uploads/barcodes/${nextProductId}.png`;
       await generateBarcode(generatedUPC, barcodePath);
 
       const newProduct = new Product({

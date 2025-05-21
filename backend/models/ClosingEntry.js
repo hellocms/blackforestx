@@ -37,9 +37,18 @@ const closingEntrySchema = new mongoose.Schema(
           type: Number,
           required: true,
         },
-        purpose: {
+        reason: {
           type: String,
-          required: true,
+          required: function () {
+            return this.amount > 0;
+          },
+          trim: true,
+        },
+        recipient: {
+          type: String,
+          required: function () {
+            return this.amount > 0;
+          },
           trim: true,
         },
         amount: {

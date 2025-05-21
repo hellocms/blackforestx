@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Select, DatePicker, Button, Spin, Typography, Space, Card, Modal, Tooltip } from 'antd';
-import { RedoOutlined, PrinterOutlined, PlusOutlined, StockOutlined, FileTextOutlined, DollarOutlined, EyeOutlined } from '@ant-design/icons';
+import { RedoOutlined, PrinterOutlined, PlusOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -11,7 +11,7 @@ dayjs.extend(timezone);
 dayjs.extend(isBetween);
 
 const { Option } = Select;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const ClosingEntryList = () => {
@@ -22,10 +22,10 @@ const ClosingEntryList = () => {
   const [branchFilter, setBranchFilter] = useState(null);
   const [dateRangeFilter, setDateRangeFilter] = useState(null);
   const [dateFilterType, setDateFilterType] = useState('Created');
+  const [expenseFilter, setExpenseFilter] = useState(null);
   const [isExpenseModalVisible, setIsExpenseModalVisible] = useState(false);
   const [expenseDetails, setExpenseDetails] = useState([]);
   const [selectedEntryId, setSelectedEntryId] = useState(null);
-  // New state for modal title
   const [modalTitle, setModalTitle] = useState('Expense Details');
 
   useEffect(() => {
@@ -46,8 +46,13 @@ const ClosingEntryList = () => {
         return entryDate.isValid() && entryDate.isBetween(startDate, endDate, null, '[]');
       });
     }
+    if (expenseFilter) {
+      filtered = filtered.filter((entry) =>
+        entry.expenseDetails.some((detail) => detail.reason === expenseFilter)
+      );
+    }
     setFilteredEntries(filtered);
-  }, [closingEntries, branchFilter, dateRangeFilter, dateFilterType]);
+  }, [closingEntries, branchFilter, dateRangeFilter, dateFilterType, expenseFilter]);
 
   const fetchBranches = async () => {
     try {
@@ -85,9 +90,8 @@ const ClosingEntryList = () => {
 
   const handleViewExpenses = (entry) => {
     setSelectedEntryId(entry._id);
-    const expenses = entry.expenseDetails || []; // Adjust field name if different
+    const expenses = entry.expenseDetails || [];
     setExpenseDetails(expenses);
-    // Set modal title with branch name and date
     const branchName = entry.branchId?.name || 'Unknown Branch';
     const formattedDate = dayjs(entry.date).format('YYYY-MM-DD');
     setModalTitle(`Expense Details for ${branchName} on ${formattedDate}`);
@@ -98,13 +102,14 @@ const ClosingEntryList = () => {
     setIsExpenseModalVisible(false);
     setExpenseDetails([]);
     setSelectedEntryId(null);
-    setModalTitle('Expense Details'); // Reset title
+    setModalTitle('Expense Details');
   };
 
   const handleReset = () => {
     setBranchFilter(null);
     setDateRangeFilter(null);
     setDateFilterType('Created');
+    setExpenseFilter(null);
   };
 
   const handlePrint = () => {
@@ -188,9 +193,15 @@ const ClosingEntryList = () => {
       width: 80,
     },
     {
-      title: 'Purpose',
-      dataIndex: 'purpose',
-      key: 'purpose',
+      title: 'Reason',
+      dataIndex: 'reason',
+      key: 'reason',
+      render: (value) => value || 'N/A',
+    },
+    {
+      title: 'Recipient',
+      dataIndex: 'recipient',
+      key: 'recipient',
       render: (value) => value || 'N/A',
     },
     {
@@ -317,67 +328,6 @@ const ClosingEntryList = () => {
       }}
     >
       <div style={{ maxWidth: '1600px', width: '100%' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '20px',
-          }}
-        >
-          <Space>
-            <Button
-              type="default"
-              size="large"
-              icon={<StockOutlined />}
-              href="https://app.theblackforestcakes.com/dealers/stock-entry/create"
-            />
-            <Button
-              type="default"
-              size="large"
-              href="https://app.theblackforestcakes.com/dealers/stock-entry/list"
-            >
-              Stock List
-            </Button>
-            <Button
-              type="default"
-              size="large"
-              icon={<FileTextOutlined />}
-              href="https://app.theblackforestcakes.com/dealers/bill-entry/create"
-            />
-            <Button
-              type="default"
-              size="large"
-              href="https://app.theblackforestcakes.com/dealers/bill-entry/list"
-            >
-              Bill Entry List
-            </Button>
-            <Button
-              type="default"
-              size="large"
-              icon={<DollarOutlined />}
-              href="https://app.theblackforestcakes.com/dealers/expense/ExpenseEntry"
-            >
-              Expense Entry
-            </Button>
-          </Space>
-
-          <Title
-            level={2}
-            style={{
-              margin: 0,
-              color: '#1a3042',
-              fontWeight: 'bold',
-              flexGrow: 1,
-              textAlign: 'center',
-            }}
-          >
-            Closing Entry List
-          </Title>
-
-          <div style={{ width: '300px' }}></div>
-        </div>
-
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px' }}>
             <Spin size="large" />
@@ -430,6 +380,27 @@ const ClosingEntryList = () => {
                   </Space>
                 </div>
 
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <Text strong>Expense Reason</Text>
+                  <Select
+                    placeholder="All Expenses"
+                    value={expenseFilter}
+                    onChange={(value) => setExpenseFilter(value)}
+                    allowClear
+                    style={{ width: '200px' }}
+                  >
+                    <Option value={null}>All Expenses</Option>
+                    <Option value="MAINTENANCE">Maintenance</Option>
+                    <Option value="TRANSPORT">Transport</Option>
+                    <Option value="FUEL">Fuel</Option>
+                    <Option value="PACKING">Packing</Option>
+                    <Option value="STAFF WELFARE">Staff Welfare</Option>
+                    <Option value="ADVERTISEMENT">Advertisement</Option>
+                    <Option value="ADVANCE">Advance</Option>
+                    <Option value="OTHERS">Others</Option>
+                  </Select>
+                </div>
+
                 <Space style={{ marginTop: '20px' }}>
                   <Button
                     icon={<PrinterOutlined />}
@@ -445,7 +416,7 @@ const ClosingEntryList = () => {
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
-                    href="https://app.theblackforestcakes.com/dealers/closing-entry/closingentry"
+                    href="http://localhost:3000/dealers/closing-entry/closingentry"
                   >
                     Create Closing Bill
                   </Button>
@@ -470,7 +441,7 @@ const ClosingEntryList = () => {
             </Card>
 
             <Modal
-              title={modalTitle} // Updated to use dynamic title
+              title={modalTitle}
               open={isExpenseModalVisible}
               onCancel={handleModalClose}
               footer={null}
@@ -489,10 +460,10 @@ const ClosingEntryList = () => {
                   bordered
                   summary={() => (
                     <Table.Summary.Row>
-                      <Table.Summary.Cell index={0} colSpan={2} align="right">
+                      <Table.Summary.Cell index={0} colSpan={3} align="right">
                         <Text strong>Total Amount</Text>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={2} align="right">
+                      <Table.Summary.Cell index={3} align="right">
                         <Text strong>
                           ₹{expenseDetails.reduce((sum, item) => sum + (item.amount || 0), 0)}
                         </Text>
@@ -509,5 +480,4 @@ const ClosingEntryList = () => {
   );
 };
 
-ClosingEntryList.useLayout = false;
 export default ClosingEntryList;
