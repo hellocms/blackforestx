@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Table, Select, DatePicker, Button, Spin, Typography, Space, Card, Modal, Tooltip } from 'antd';
 import { RedoOutlined, PrinterOutlined, PlusOutlined, EyeOutlined } from '@ant-design/icons';
+import { Line, Pie } from 'react-chartjs-2';
+import { Chart as ChartJS, LineElement, PointElement, ArcElement, CategoryScale, LinearScale, Tooltip as ChartTooltip, Legend } from 'chart.js';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -9,6 +11,9 @@ import isBetween from 'dayjs/plugin/isBetween';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isBetween);
+
+// Register Chart.js components
+ChartJS.register(LineElement, PointElement, ArcElement, CategoryScale, LinearScale, ChartTooltip, Legend);
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -27,6 +32,17 @@ const ClosingEntryList = () => {
   const [expenseDetails, setExpenseDetails] = useState([]);
   const [selectedEntryId, setSelectedEntryId] = useState(null);
   const [modalTitle, setModalTitle] = useState('Expense Details');
+
+  const expenseCategories = [
+    'MAINTENANCE',
+    'TRANSPORT',
+    'FUEL',
+    'PACKING',
+    'STAFF WELFARE',
+    'ADVERTISEMENT',
+    'ADVANCE',
+    'OTHERS',
+  ];
 
   useEffect(() => {
     fetchBranches();
@@ -185,6 +201,223 @@ const ClosingEntryList = () => {
     printWindow.print();
   };
 
+  const lineChartData = useMemo(() => {
+    const currentDate = dayjs('2025-05-23'); // Current date: May 23, 2025
+    const targetMonth = currentDate.month(); // 4 (May)
+    const targetYear = currentDate.year(); // 2025
+    const currentDay = currentDate.date(); // 23
+
+    // Create labels for the X-axis (dates 1 to 23)
+    const labels = Array.from({ length: currentDay }, (_, i) => (i + 1).toString());
+
+    // Initialize arrays to store daily totals
+    const dailySales = Array(currentDay).fill(0);
+    const dailyPayments = Array(currentDay).fill(0);
+    const dailyExpenses = Array(currentDay).fill(0);
+
+    // Process filtered entries to sum metrics by day
+    filteredEntries.forEach((entry) => {
+      const entryDate = dayjs(entry.date);
+      if (
+        entryDate.month() === targetMonth &&
+        entryDate.year() === targetYear &&
+        entryDate.date() <= currentDay
+      ) {
+        const dayIndex = entryDate.date() - 1; // 0-based index
+        const sales = (entry.systemSales || 0) + (entry.manualSales || 0) + (entry.onlineSales || 0);
+        const payments = (entry.creditCardPayment || 0) + (entry.upiPayment || 0) + (entry.cashPayment || 0) + (entry.expenses || 0);
+        dailySales[dayIndex] += sales;
+        dailyPayments[dayIndex] += payments;
+        dailyExpenses[dayIndex] += entry.expenses || 0;
+      }
+    });
+
+    // Calculate the maximum value for Y-axis scaling
+    const maxValue = Math.max(
+      ...dailySales,
+      ...dailyPayments,
+      ...dailyExpenses,
+      1 // Avoid 0 max
+    );
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Total Sales',
+          data: dailySales,
+          borderColor: '#36A2EB',
+          backgroundColor: '#36A2EB',
+          fill: false,
+          tension: 0.1,
+        },
+        {
+          label: 'Total Payments',
+          data: dailyPayments,
+          borderColor: '#52C41A',
+          backgroundColor: '#52C41A',
+          fill: false,
+          tension: 0.1,
+        },
+        {
+          label: 'Expenses',
+          data: dailyExpenses,
+          borderColor: '#FF4D4F',
+          backgroundColor: '#FF4D4F',
+          fill: false,
+          tension: 0.1,
+        },
+      ],
+      maxValue,
+    };
+  }, [filteredEntries]);
+
+  const lineChartOptions = {
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          font: {
+            weight: 'bold',
+          },
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const label = context.dataset.label || '';
+            const value = context.raw || 0;
+            return `${label}: ₹${value}`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Date',
+          font: {
+            weight: 'bold',
+          },
+        },
+        ticks: {
+          autoSkip: false,
+        },
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Amount (₹)',
+          font: {
+            weight: 'bold',
+          },
+        },
+        beginAtZero: true,
+        max: Math.ceil(lineChartData.maxValue * 1.1), // 10% padding
+        ticks: {
+          callback: (value) => `₹${value}`,
+        },
+      },
+    },
+    maintainAspectRatio: false,
+  };
+
+  const pieChartData = useMemo(() => {
+    const expenseTotals = {};
+    let totalExpenses = 0;
+
+    filteredEntries.forEach((entry) => {
+      entry.expenseDetails.forEach((detail) => {
+        const reason = expenseCategories.includes(detail.reason) ? detail.reason : 'OTHERS';
+        const amount = detail.amount || 0;
+        expenseTotals[reason] = (expenseTotals[reason] || 0) + amount;
+        totalExpenses += amount;
+      });
+    });
+
+    const labels = [];
+    const data = [];
+    const colors = [
+      '#FF6384',
+      '#36A2EB',
+      '#FFCE56',
+      '#4BC0C0',
+      '#9966FF',
+      '#FF9F40',
+      '#C9CBCF',
+      '#7BC225',
+    ];
+
+    const allCategories = [...expenseCategories];
+    allCategories.forEach((category) => {
+      const amount = expenseTotals[category] || 0;
+      const percentage = totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(2) : 0;
+      if (amount > 0) {
+        labels.push(`${category}: ${percentage}%`);
+        data.push(amount);
+      }
+    });
+
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor: colors.slice(0, data.length),
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [filteredEntries]);
+
+  const pieChartOptions = {
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: {
+          font: {
+            weight: 'bold',
+          },
+          boxWidth: 20,
+          padding: 10,
+          generateLabels: (chart) => {
+            const { data } = chart;
+            if (data.labels.length && data.datasets.length) {
+              return data.labels.map((label, i) => {
+                const meta = chart.getDatasetMeta(0);
+                const style = meta.controller.getStyle(i);
+                const [name, percentage] = label.split(': ');
+                return {
+                  text: [name, `: ${percentage}`],
+                  fillStyle: style.backgroundColor,
+                  strokeStyle: style.borderColor,
+                  lineWidth: style.borderWidth,
+                  hidden: !chart.getDataVisibility(i),
+                  index: i,
+                };
+              });
+            }
+            return [];
+          },
+        },
+        maxWidth: 250,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const label = context.label || '';
+            const value = context.raw || 0;
+            const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : 0;
+            return `${label}: ₹${value} (${percentage}%)`;
+          },
+        },
+      },
+    },
+    maintainAspectRatio: false,
+  };
+
   const expenseColumns = [
     {
       title: 'S.No',
@@ -327,6 +560,86 @@ const ClosingEntryList = () => {
         alignItems: 'flex-start',
       }}
     >
+      <style>
+        {`
+          @media print {
+            body {
+              margin: 0;
+              padding: 0;
+              background: #fff;
+            }
+            .ant-card, .graphs-section {
+              display: none;
+            }
+            .ant-table {
+              font-size: 10px;
+            }
+            .ant-table th, .ant-table td {
+              padding: 4px !important;
+            }
+            @page {
+              size: A4;
+              margin: 10mm;
+            }
+          }
+          .chart-container.line {
+            width: 60vw;
+            max-width: 900px;
+            height: 50vh;
+            min-height: 400px;
+            min-width: 600px;
+          }
+          .chart-container.pie {
+            width: 30vw;
+            max-width: 500px;
+            height: 50vh;
+            min-height: 400px;
+            min-width: 400px;
+          }
+          @media (max-width: 1024px) {
+            .chart-container.line {
+              width: 95vw;
+              min-width: 600px;
+              height: 45vh;
+              min-height: 350px;
+            }
+            .chart-container.pie {
+              width: 50vw;
+              min-width: 350px;
+              height: 40vh;
+              min-height: 350px;
+            }
+          }
+          @media (max-width: 768px) {
+            .chart-container.line {
+              width: 98vw;
+              min-width: 400px;
+              height: 40vh;
+              min-height: 300px;
+            }
+            .chart-container.pie {
+              width: 98vw;
+              min-width: 300px;
+              height: 35vh;
+              min-height: 300px;
+            }
+          }
+          @media (max-width: 480px) {
+            .chart-container.line {
+              width: 98vw;
+              min-width: 300px;
+              height: 35vh;
+              min-height: 250px;
+            }
+            .chart-container.pie {
+              width: 98vw;
+              min-width: 300px;
+              height: 30vh;
+              min-height: 250px;
+            }
+          }
+        `}
+      </style>
       <div style={{ maxWidth: '1600px', width: '100%' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -429,6 +742,7 @@ const ClosingEntryList = () => {
                 borderRadius: '12px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                 background: '#fff',
+                marginBottom: '20px',
               }}
             >
               <Table
@@ -438,6 +752,49 @@ const ClosingEntryList = () => {
                 pagination={{ pageSize: 10 }}
                 bordered
               />
+            </Card>
+
+            <Card
+              className="graphs-section"
+              style={{
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                background: '#fff',
+                marginBottom: '20px',
+              }}
+            >
+              {filteredEntries.length > 0 ? (
+                <Space
+                  direction="horizontal"
+                  style={{
+                    width: '100%',
+                    padding: '20px',
+                    justifyContent: 'space-around',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ textAlign: 'center' }}>
+                    <Text strong style={{ fontSize: '16px', display: 'block', marginBottom: '10px' }}>
+                      Daily Trends (May 2025)
+                    </Text>
+                    <div className="chart-container line">
+                      <Line data={lineChartData} options={lineChartOptions} />
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <Text strong style={{ fontSize: '16px', display: 'block', marginBottom: '10px' }}>
+                      Expense Breakdown
+                    </Text>
+                    <div className="chart-container pie">
+                      <Pie data={pieChartData} options={pieChartOptions} />
+                    </div>
+                  </div>
+                </Space>
+              ) : (
+                <Text style={{ display: 'block', textAlign: 'center', padding: '20px' }}>
+                  No data to display
+                </Text>
+              )}
             </Card>
 
             <Modal
