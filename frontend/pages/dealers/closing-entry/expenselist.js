@@ -23,37 +23,6 @@ dayjs.extend(isBetween);
 // Register Chart.js components and the datalabels plugin
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels, BarElement, CategoryScale, LinearScale);
 
-// Custom plugin to display title in the center of the doughnut chart
-const centerTitlePlugin = {
-  id: 'centerTitle',
-  afterDraw(chart) {
-    const { ctx, chartArea, options } = chart;
-    const centerTitle = options.plugins.centerTitle?.text || '';
-    if (!centerTitle) return;
-
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillStyle = '#000';
-
-    const centerX = (chartArea.left + chartArea.right) / 2;
-    const centerY = (chartArea.top + chartArea.bottom) / 2;
-
-    const words = centerTitle.split(' ');
-    if (words.length > 1) {
-      ctx.fillText(words[0], centerX, centerY - 10);
-      ctx.fillText(words[1], centerX, centerY + 10);
-    } else {
-      ctx.fillText(centerTitle, centerX, centerY);
-    }
-
-    ctx.restore();
-  },
-};
-
-ChartJS.register(centerTitlePlugin);
-
 const ExpenseEntry = () => {
   const [closingEntries, setClosingEntries] = useState([]);
   const [filteredEntries, setFilteredEntries] = useState([]);
@@ -188,13 +157,12 @@ const ExpenseEntry = () => {
       '#7BC225',
     ];
 
-    Object.entries(branchTotals).forEach(([branchName, amount], index) => {
-      const percentage = totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(2) : 0;
-      labels.push(`${branchName}: ${percentage}%`);
-      data.push(amount);
+    Object.entries(branchTotals).forEach(([branchName, amount]) => {
+      if (amount > 0) {
+        labels.push(branchName);
+        data.push(amount);
+      }
     });
-
-    console.log('Branch Chart Labels:', labels);
 
     return {
       labels,
@@ -237,14 +205,11 @@ const ExpenseEntry = () => {
     const allCategories = [...expenseCategories];
     allCategories.forEach((category) => {
       const amount = categoryTotals[category] || 0;
-      const percentage = totalCategoryExpenses > 0 ? ((amount / totalCategoryExpenses) * 100).toFixed(2) : 0;
       if (amount > 0) {
-        labels.push(`${category}: ${percentage}%`);
+        labels.push(category);
         data.push(amount);
       }
     });
-
-    console.log('Category Chart Labels:', labels);
 
     return {
       labels,
@@ -261,23 +226,27 @@ const ExpenseEntry = () => {
   const chartOptions = {
     plugins: {
       legend: {
-        position: 'right',
+        position: 'bottom',
+        align: 'start',
         labels: {
+          color: '#000',
           font: {
             weight: 'bold',
+            size: 14,
           },
           boxWidth: 20,
           padding: 10,
-          usePointStyle: false,
           generateLabels: (chart) => {
             const { data } = chart;
             if (data.labels.length && data.datasets.length) {
               return data.labels.map((label, i) => {
                 const meta = chart.getDatasetMeta(0);
                 const style = meta.controller.getStyle(i);
-                const [name, percentage] = label.split(': ');
+                const value = data.datasets[0].data[i];
+                const total = data.datasets[0].data.reduce((sum, val) => sum + val, 0);
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : 0;
                 return {
-                  text: [name, `: ${percentage}`],
+                  text: `${label}: ₹${value} (${percentage}%)`,
                   fillStyle: style.backgroundColor,
                   strokeStyle: style.borderColor,
                   lineWidth: style.borderWidth,
@@ -289,32 +258,69 @@ const ExpenseEntry = () => {
             return [];
           },
         },
-        maxWidth: 250,
       },
       tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: '#fff',
+        borderWidth: 1,
         callbacks: {
           label: (context) => {
             const label = context.label || '';
             const value = context.raw || 0;
             const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
             const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : 0;
-            return `${label}: ₹${value} (${percentage}%)`;
+            return [`${label}: ₹${value}`, `(${percentage}%)`];
           },
         },
       },
       datalabels: {
+        display: (context) => {
+          const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+          const percentage = total > 0 ? (context.dataset.data[context.dataIndex] / total) * 100 : 0;
+          return percentage >= 0.5;
+        },
         color: '#fff',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        borderRadius: 3,
+        padding: 6,
         formatter: (value, context) => {
           const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
           const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : 0;
-          return `${percentage}%`;
+          return `₹${value} (${percentage}%)`;
         },
-        font: {
-          weight: 'bold',
-          size: 14,
+        align: (context) => {
+          const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+          const percentage = total > 0 ? (context.dataset.data[context.dataIndex] / total) * 100 : 0;
+          return percentage >= 1 && percentage <= 3 ? 'end' : 'center';
         },
-        anchor: 'center',
-        align: 'center',
+        anchor: (context) => {
+          const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+          const percentage = total > 0 ? (context.dataset.data[context.dataIndex] / total) * 100 : 0;
+          return percentage >= 1 && percentage <= 3 ? 'end' : 'center';
+        },
+        offset: (context) => {
+          const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+          const percentage = total > 0 ? (context.dataset.data[context.dataIndex] / total) * 100 : 0;
+          return percentage >= 1 && percentage <= 3 ? -10 : 0;
+        },
+        font: (context) => {
+          const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+          const percentage = total > 0 ? (context.dataset.data[context.dataIndex] / total) * 100 : 0;
+          let fontSize;
+          if (percentage < 1) {
+            fontSize = 10;
+          } else if (percentage <= 5) {
+            fontSize = 14;
+          } else {
+            fontSize = 16;
+          }
+          return {
+            weight: 'bold',
+            size: fontSize,
+          };
+        },
         textAlign: 'center',
       },
     },
@@ -323,54 +329,35 @@ const ExpenseEntry = () => {
 
   const branchChartOptions = {
     ...chartOptions,
-    plugins: {
-      ...chartOptions.plugins,
-      centerTitle: {
-        text: 'Branch-Wise',
-      },
-    },
   };
 
   const categoryChartOptions = {
     ...chartOptions,
-    plugins: {
-      ...chartOptions.plugins,
-      centerTitle: {
-        text: 'Category-Wise',
-      },
-    },
   };
 
   const barChartData = useMemo(() => {
-    const currentDate = dayjs('2025-05-23'); // Current date: May 23, 2025
-    const targetMonth = currentDate.month(); // 4 (May)
-    const targetYear = currentDate.year(); // 2025
-    const daysInMonth = currentDate.daysInMonth(); // 31 days for May
-    const currentDay = currentDate.date(); // 23
-
-    // Create labels for the X-axis (dates 1 to 23)
-    const labels = Array.from({ length: currentDay }, (_, i) => (i + 1).toString());
-
-    // Initialize arrays to store daily expenses and category-wise breakdown
-    const dailyExpenses = Array(currentDay).fill(0);
-    const dailyCategoryExpenses = Array(currentDay).fill().map(() => ({}));
-
-    // Process filtered entries to sum expenses by day and category
+    const currentDate = dayjs('2025-05-23');
+    const targetMonth = currentDate.month();
+    const targetYear = currentDate.year();
+    const daysInMonth = currentDate.daysInMonth();
+  
+    // Create labels for all days in the month
+    const labels = Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString());
+  
+    // Initialize arrays for all days in the month
+    const dailyExpenses = Array(daysInMonth).fill(0);
+    const dailyCategoryExpenses = Array(daysInMonth).fill().map(() => ({}));
+  
     const dateEntries = filteredEntries.map(entry => ({
       date: dayjs(entry.date),
       entry,
     }));
-
+  
     dateEntries.forEach(({ date, entry }) => {
-      if (
-        date.month() === targetMonth &&
-        date.year() === targetYear &&
-        date.date() <= currentDay
-      ) {
-        const dayIndex = date.date() - 1; // 0-based index for the array
+      if (date.month() === targetMonth && date.year() === targetYear) {
+        const dayIndex = date.date() - 1;
         dailyExpenses[dayIndex] += entry.expenses || 0;
-
-        // Sum expenses by category for this day
+  
         entry.expenseDetails.forEach((detail) => {
           const reason = expenseCategories.includes(detail.reason) ? detail.reason : 'OTHERS';
           const amount = detail.amount || 0;
@@ -378,10 +365,9 @@ const ExpenseEntry = () => {
         });
       }
     });
-
-    // Calculate the maximum expense for Y-axis scaling
-    const maxExpense = Math.max(...dailyExpenses, 1); // Avoid 0 max
-
+  
+    const maxExpense = Math.max(...dailyExpenses, 1);
+  
     return {
       labels,
       datasets: [
@@ -394,10 +380,10 @@ const ExpenseEntry = () => {
         },
       ],
       maxExpense,
-      dailyCategoryExpenses, // Pass category-wise data for tooltip
+      dailyCategoryExpenses,
     };
   }, [filteredEntries]);
-
+  
   const barChartOptions = {
     plugins: {
       legend: {
@@ -414,21 +400,34 @@ const ExpenseEntry = () => {
             const dayIndex = context.dataIndex;
             const totalAmount = context.raw || 0;
             const categories = barChartData.dailyCategoryExpenses[dayIndex];
-
-            // Start with the total amount
+  
             const tooltipLines = [`Amount: ₹${totalAmount}`];
-
-            // Add category-wise breakdown
+  
             expenseCategories.forEach((category) => {
               const amount = categories[category] || 0;
               if (amount > 0) {
                 tooltipLines.push(`${category}: ₹${amount}`);
               }
             });
-
+  
             return tooltipLines;
           },
         },
+      },
+      datalabels: {
+        display: true,
+        color: '#FFFFFF', // White text
+        backgroundColor: '#000000', // Black background
+        borderRadius: 3, // Rounded corners for the label background
+        padding: 4, // Padding inside the label
+        formatter: (value) => (value > 0 ? `₹${value}` : ''), // Only show label if value is greater than 0
+        anchor: 'end', // Position at the top of the bar
+        align: 'top', // Align label above the bar
+        font: {
+          weight: 'bold',
+          size: 12,
+        },
+        textAlign: 'center',
       },
     },
     scales: {
@@ -453,7 +452,7 @@ const ExpenseEntry = () => {
           },
         },
         beginAtZero: true,
-        max: Math.ceil(barChartData.maxExpense * 1.1), // 10% padding above the max expense
+        max: Math.ceil(barChartData.maxExpense * 1.1),
         ticks: {
           callback: (value) => `₹${value}`,
         },
@@ -467,21 +466,21 @@ const ExpenseEntry = () => {
       title: 'Serial No',
       key: 'sno',
       render: (text, record, index) => index + 1,
-      width: 80,
+      width: 50,
     },
     {
       title: 'Branch',
       dataIndex: ['branchId', 'name'],
       key: 'branch',
       render: (value) => value || 'N/A',
-      width: 120,
+      width: 80,
     },
     {
       title: 'Total Expense',
       dataIndex: 'expenses',
       key: 'totalExpense',
       render: (value) => `₹${value || 0}`,
-      width: 120,
+      width: 80,
     },
     {
       title: 'Maintenance',
@@ -491,7 +490,9 @@ const ExpenseEntry = () => {
         return expenses.length > 0 ? (
           expenses.map((exp, index) => (
             <React.Fragment key={index}>
-              {exp.recipient || 'N/A'}: <strong>₹{exp.amount || 0}</strong>
+              <div>
+                <strong>₹{exp.amount || 0}</strong> {exp.recipient || 'N/A'}
+              </div>
               {index < expenses.length - 1 && <br />}
             </React.Fragment>
           ))
@@ -499,7 +500,7 @@ const ExpenseEntry = () => {
           '-'
         );
       },
-      width: 150,
+      width: 100,
     },
     {
       title: 'Transport',
@@ -509,7 +510,9 @@ const ExpenseEntry = () => {
         return expenses.length > 0 ? (
           expenses.map((exp, index) => (
             <React.Fragment key={index}>
-              {exp.recipient || 'N/A'}: <strong>₹{exp.amount || 0}</strong>
+              <div>
+                <strong>₹{exp.amount || 0}</strong> {exp.recipient || 'N/A'}
+              </div>
               {index < expenses.length - 1 && <br />}
             </React.Fragment>
           ))
@@ -517,7 +520,7 @@ const ExpenseEntry = () => {
           '-'
         );
       },
-      width: 150,
+      width: 100,
     },
     {
       title: 'Fuel',
@@ -527,7 +530,9 @@ const ExpenseEntry = () => {
         return expenses.length > 0 ? (
           expenses.map((exp, index) => (
             <React.Fragment key={index}>
-              {exp.recipient || 'N/A'}: <strong>₹{exp.amount || 0}</strong>
+              <div>
+                <strong>₹{exp.amount || 0}</strong> {exp.recipient || 'N/A'}
+              </div>
               {index < expenses.length - 1 && <br />}
             </React.Fragment>
           ))
@@ -535,7 +540,7 @@ const ExpenseEntry = () => {
           '-'
         );
       },
-      width: 150,
+      width: 100,
     },
     {
       title: 'Packing',
@@ -545,7 +550,9 @@ const ExpenseEntry = () => {
         return expenses.length > 0 ? (
           expenses.map((exp, index) => (
             <React.Fragment key={index}>
-              {exp.recipient || 'N/A'}: <strong>₹{exp.amount || 0}</strong>
+              <div>
+                <strong>₹{exp.amount || 0}</strong> {exp.recipient || 'N/A'}
+              </div>
               {index < expenses.length - 1 && <br />}
             </React.Fragment>
           ))
@@ -553,7 +560,7 @@ const ExpenseEntry = () => {
           '-'
         );
       },
-      width: 150,
+      width: 100,
     },
     {
       title: 'Staff Welfare',
@@ -563,7 +570,9 @@ const ExpenseEntry = () => {
         return expenses.length > 0 ? (
           expenses.map((exp, index) => (
             <React.Fragment key={index}>
-              {exp.recipient || 'N/A'}: <strong>₹{exp.amount || 0}</strong>
+              <div>
+                <strong>₹{exp.amount || 0}</strong> {exp.recipient || 'N/A'}
+              </div>
               {index < expenses.length - 1 && <br />}
             </React.Fragment>
           ))
@@ -571,7 +580,7 @@ const ExpenseEntry = () => {
           '-'
         );
       },
-      width: 150,
+      width: 100,
     },
     {
       title: 'Advertisement',
@@ -581,7 +590,9 @@ const ExpenseEntry = () => {
         return expenses.length > 0 ? (
           expenses.map((exp, index) => (
             <React.Fragment key={index}>
-              {exp.recipient || 'N/A'}: <strong>₹{exp.amount || 0}</strong>
+              <div>
+                <strong>₹{exp.amount || 0}</strong> {exp.recipient || 'N/A'}
+              </div>
               {index < expenses.length - 1 && <br />}
             </React.Fragment>
           ))
@@ -589,7 +600,7 @@ const ExpenseEntry = () => {
           '-'
         );
       },
-      width: 150,
+      width: 100,
     },
     {
       title: 'Advance',
@@ -599,7 +610,9 @@ const ExpenseEntry = () => {
         return expenses.length > 0 ? (
           expenses.map((exp, index) => (
             <React.Fragment key={index}>
-              {exp.recipient || 'N/A'}: <strong>₹{exp.amount || 0}</strong>
+              <div>
+                <strong>₹{exp.amount || 0}</strong> {exp.recipient || 'N/A'}
+              </div>
               {index < expenses.length - 1 && <br />}
             </React.Fragment>
           ))
@@ -607,7 +620,7 @@ const ExpenseEntry = () => {
           '-'
         );
       },
-      width: 150,
+      width: 100,
     },
     {
       title: 'Others',
@@ -619,7 +632,9 @@ const ExpenseEntry = () => {
         return expenses.length > 0 ? (
           expenses.map((exp, index) => (
             <React.Fragment key={index}>
-              {exp.recipient || 'N/A'}: <strong>₹{exp.amount || 0}</strong>
+              <div>
+                <strong>₹{exp.amount || 0}</strong> {exp.recipient || 'N/A'}
+              </div>
               {index < expenses.length - 1 && <br />}
             </React.Fragment>
           ))
@@ -627,15 +642,15 @@ const ExpenseEntry = () => {
           '-'
         );
       },
-      width: 150,
+      width: 100,
     },
     {
       title: 'Date',
       dataIndex: 'date',
       key: 'date',
       sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
-      render: (date) => dayjs(date).format('YYYY-MM-DD'),
-      width: 100,
+      render: (date) => dayjs(date).format('DD-MM-YYYY'),
+      width: 80,
     },
   ];
 
@@ -676,62 +691,8 @@ const ExpenseEntry = () => {
             }
             .charts-section {
               display: flex;
-              justifyContent: 'space-around',
+              justify-content: center;
               page-break-before: auto;
-            }
-            .chart-container.doughnut {
-              width: 500px !important;
-              height: 300px !important;
-            }
-            .chart-container.bar {
-              width: 90vw;
-              max-width: 1400px;
-              height: 60vh;
-              min-height: 500px;
-              min-width: 800px;
-              margin: 0 auto;
-            }
-            @media (max-width: 1024px) {
-              .chart-container.bar {
-                width: 95vw;
-                min-width: 600px;
-                height: 50vh;
-                min-height: 400px;
-              }
-              .chart-container.doughnut {
-                width: 400px !important;
-                height: 250px !important;
-              }
-            }
-            @media (max-width: 768px) {
-              .chart-container.bar {
-                width: 98vw;
-                min-width: 400px;
-                height: 40vh;
-                min-height: 350px;
-              }
-              .chart-container.doughnut {
-                width: 350px !important;
-                height: 200px !important;
-              }
-            }
-            @media (max-width: 480px) {
-              .chart-container.bar {
-                width: 98vw;
-                min-width: 300px;
-                height: 35vh;
-                min-height: 300px;
-              }
-              .chart-container.doughnut {
-                width: 300px !important;
-                height: 180px !important;
-              }
-            }
-            @media print {
-              .chart-container.doughnut {
-                width: 300px !important;
-                height: 300px !important;
-              }
             }
             @page {
               size: A4;
@@ -756,6 +717,142 @@ const ExpenseEntry = () => {
           .circle-radio .ant-radio-button-wrapper:hover {
             background-color: #e6f7ff;
             border-color: #1890ff;
+          }
+          .charts-section {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            width: 100%;
+            max-width: 1600px;
+            gap: 20px;
+            margin-bottom: 40px;
+          }
+          .chart-container.doughnut {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 50%;
+            max-width: 800px;
+            height: 60vh;
+            min-height: 450px;
+            min-width: 450px;
+          }
+          .doughnut-card {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #fff;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+          .chart-container.bar {
+            width: 100%;
+            max-width: 1600px;
+            height: 50vh;
+            min-height: 400px;
+            min-width: 900px;
+          }
+          .bar-card {
+            width: 100%;
+            max-width: 1600px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #fff;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+          .chart-legend-bottom-left {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 10px 0;
+          }
+          .chart-legend-bottom-left .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+          }
+          .chart-legend-bottom-left .legend-item span {
+            margin-right: 8px;
+          }
+          .ant-table td.date-column {
+            white-space: nowrap;
+          }
+          @media (max-width: 1200px) {
+            .charts-section {
+              flex-direction: column;
+              align-items: center;
+            }
+            .chart-container.doughnut {
+              width: 95vw;
+              max-width: 600px;
+              min-width: 500px;
+              height: 55vh;
+              min-height: 400px;
+            }
+            .chart-container.bar {
+              width: 95vw;
+              max-width: 1200px;
+              min-width: 700px;
+              height: 45vh;
+              min-height: 350px;
+            }
+            .doughnut-card, .bar-card {
+              max-width: 100%;
+            }
+          }
+          @media (max-width: 768px) {
+            .chart-container.doughnut {
+              width: 98vw;
+              max-width: 500px;
+              min-width: 400px;
+              height: 50vh;
+              min-height: 350px;
+            }
+            .chart-container.bar {
+              width: 98vw;
+              max-width: 1000px;
+              min-width: 400px;
+              height: 40vh;
+              min-height: 300px;
+            }
+          }
+          @media (max-width: 480px) {
+            .chart-container.doughnut {
+              width: 98vw;
+              max-width: 400px;
+              min-width: 350px;
+              height: 45vh;
+              min-height: 300px;
+            }
+            .chart-container.bar {
+              width: 98vw;
+              max-width: 850px;
+              min-width: 300px;
+              height: 35vh;
+              min-height: 250px;
+            }
+          }
+          @media print {
+            .chart-container.doughnut {
+              width: 40%;
+              max-width: 400px;
+              height: 40vh;
+              min-height: 300px;
+              min-width: 350px;
+            }
+            .chart-container.bar {
+              width: 100%;
+              max-width: 1200px;
+              height: 40vh;
+              min-height: 300px;
+              min-width: 700px;
+            }
           }
         `}
       </style>
@@ -889,42 +986,50 @@ const ExpenseEntry = () => {
                 rowKey="_id"
                 pagination={{ pageSize: 10 }}
                 bordered
-                scroll={{ x: 'max-content' }}
+                rowClassName={(record, index) => (index === filteredEntries.length - 1 ? 'last-row' : '')}
               />
             </Card>
 
-            <Card
-              className="charts-section"
-              style={{
-                borderRadius: '12px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                background: '#fff',
-                marginBottom: '20px',
-              }}
-            >
+            <div className="charts-section">
               {filteredEntries.length > 0 ? (
-                <Space
-                  direction="horizontal"
+                <>
+                  <Card className="doughnut-card">
+                    <div style={{ textAlign: 'center' }}>
+                      <Text strong style={{ fontSize: '16px', display: 'block', marginBottom: '10px' }}>
+                        Branch-Wise Expenses
+                      </Text>
+                      <div className="chart-container doughnut">
+                        <Doughnut data={branchChartData} options={branchChartOptions} />
+                      </div>
+                    </div>
+                  </Card>
+                  <Card className="doughnut-card">
+                    <div style={{ textAlign: 'center' }}>
+                      <Text strong style={{ fontSize: '16px', display: 'block', marginBottom: '10px' }}>
+                        Category-Wise Expenses
+                      </Text>
+                      <div className="chart-container doughnut">
+                        <Doughnut data={categoryChartData} options={categoryChartOptions} />
+                      </div>
+                    </div>
+                  </Card>
+                </>
+              ) : (
+                <Card
                   style={{
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    background: '#fff',
+                    marginBottom: '20px',
                     width: '100%',
-                    padding: '20px',
-                    justifyContent: 'space-around',
-                    flexWrap: 'wrap',
                   }}
                 >
-                  <div className="chart-container doughnut" style={{ width: '500px', height: '300px' }}>
-                    <Doughnut data={branchChartData} options={branchChartOptions} />
-                  </div>
-                  <div className="chart-container doughnut" style={{ width: '500px', height: '300px' }}>
-                    <Doughnut data={categoryChartData} options={categoryChartOptions} />
-                  </div>
-                </Space>
-              ) : (
-                <Text style={{ display: 'block', textAlign: 'center', padding: '20px' }}>
-                  No data to display
-                </Text>
+                  <Text style={{ display: 'block', textAlign: 'center', padding: '20px' }}>
+                    No data to display
+                  </Text>
+                </Card>
               )}
-            </Card>
+            </div>
 
             <Card
               className="bar-chart-section"
@@ -936,8 +1041,8 @@ const ExpenseEntry = () => {
               }}
             >
               {filteredEntries.length > 0 ? (
-                <div style={{ padding: '20px' }}>
-                  <Text strong style={{ fontSize: '16px', display: 'block', textAlign: 'center', marginBottom: '10px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <Text strong style={{ fontSize: '16px', display: 'block', marginBottom: '10px' }}>
                     Date-Wise Expenses (May 2025)
                   </Text>
                   <div className="chart-container bar">
