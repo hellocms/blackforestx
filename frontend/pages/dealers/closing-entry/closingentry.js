@@ -20,7 +20,6 @@ import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
-import minmax from 'dayjs/plugin/minmax'; // Import minmax plugin
 import BranchHeader from '../../../components/BranchHeader';
 import Chart from 'chart.js/auto';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
@@ -29,11 +28,9 @@ Chart.register(ChartDataLabels);
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-dayjs.extend(minmax); // Extend Day.js with minmax plugin
 
 const { Option } = Select;
 const { Text, Title } = Typography;
-const { RangePicker } = DatePicker;
 
 const ClosingEntry = () => {
   const router = useRouter();
@@ -67,12 +64,11 @@ const ClosingEntry = () => {
   const [discrepancy, setDiscrepancy] = useState(0);
   const [lastSubmittedDate, setLastSubmittedDate] = useState(null);
   const [closingEntries, setClosingEntries] = useState([]);
-  const [dateRange, setDateRange] = useState([null, null]);
 
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || https://apib.dinasuvadu.in';
 
   const fetchBranchDetails = async (token, branchId) => {
     try {
@@ -255,55 +251,33 @@ const ClosingEntry = () => {
     return () => clearInterval(interval);
   }, [lastSubmittedDate]);
 
-  // Filter closing entries based on date range
-  const filteredEntries = closingEntries.filter(entry => {
-    if (!dateRange[0] || !dateRange[1]) return true; // Show all if no range selected
-    const entryDate = dayjs(entry.date);
-    return entryDate.isAfter(dateRange[0].startOf('day')) && entryDate.isBefore(dateRange[1].endOf('day'));
-  });
-
   useEffect(() => {
-    if (filteredEntries.length === 0 || !chartRef.current) return;
+    if (closingEntries.length === 0 || !chartRef.current) return;
 
     if (chartInstanceRef.current) {
       chartInstanceRef.current.destroy();
     }
 
-    // Determine the date range for the chart
-      let startDate, endDate, daysInRange, labels, titleText;
-      if (dateRange[0] && dateRange[1]) {
-        startDate = dateRange[0];
-        endDate = dateRange[1];
-        daysInRange = endDate.diff(startDate, 'day') + 1;
-        labels = Array.from({ length: daysInRange }, (_, i) => {
-          const currentDate = startDate.add(i, 'day');
-          return currentDate.format('DD'); // Changed from 'MMM DD' to 'DD'
-        });
-        titleText = `Financial Overview (${startDate.format('MMM DD, YYYY')} to ${endDate.format('MMM DD, YYYY')})`;
-      } else {
-        // Default to the range of available data
-        const dates = closingEntries.map(entry => dayjs(entry.date));
-        startDate = dayjs.min(dates);
-        endDate = dayjs.max(dates);
-        daysInRange = endDate.diff(startDate, 'day') + 1;
-        labels = Array.from({ length: daysInRange }, (_, i) => {
-          const currentDate = startDate.add(i, 'day');
-          return currentDate.format('DD'); // Changed from 'MMM DD' to 'DD'
-        });
-        titleText = `Financial Overview (All Data: ${startDate.format('MMM DD, YYYY')} to ${endDate.format('MMM DD, YYYY')})`;
-      }
+    const currentMonth = 4; // May (0-based index)
+    const currentYear = 2025;
+    const daysInMonth = 31;
 
-    const totalSalesData = new Array(daysInRange).fill(0);
-    const totalPaymentsData = new Array(daysInRange).fill(0);
-    const totalExpensesData = new Array(daysInRange).fill(0);
+    const labels = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
 
-    filteredEntries.forEach(entry => {
+    const totalSalesData = new Array(daysInMonth).fill(0);
+    const totalPaymentsData = new Array(daysInMonth).fill(0);
+    const totalExpensesData = new Array(daysInMonth).fill(0);
+
+    closingEntries.forEach(entry => {
       const entryDate = dayjs(entry.date);
-      const dayIndex = entryDate.diff(startDate, 'day');
-      if (dayIndex >= 0 && dayIndex < daysInRange) {
-        totalSalesData[dayIndex] = (entry.systemSales || 0) + (entry.manualSales || 0) + (entry.onlineSales || 0);
-        totalPaymentsData[dayIndex] = (entry.creditCardPayment || 0) + (entry.upiPayment || 0) + (entry.cashPayment || 0) + (entry.expenses || 0);
-        totalExpensesData[dayIndex] = entry.expenses || 0;
+      if (
+        entryDate.year() === currentYear &&
+        entryDate.month() === currentMonth
+      ) {
+        const day = entryDate.date() - 1;
+        totalSalesData[day] = (entry.systemSales || 0) + (entry.manualSales || 0) + (entry.onlineSales || 0);
+        totalPaymentsData[day] = (entry.creditCardPayment || 0) + (entry.upiPayment || 0) + (entry.cashPayment || 0) + (entry.expenses || 0);
+        totalExpensesData[day] = entry.expenses || 0;
       }
     });
 
@@ -343,7 +317,7 @@ const ClosingEntry = () => {
           x: {
             title: {
               display: true,
-              text: 'Date',
+              text: 'Day of Month (May 2025)',
             },
             grid: {
               display: false,
@@ -368,7 +342,7 @@ const ClosingEntry = () => {
           },
           title: {
             display: true,
-            text: titleText,
+            text: 'Monthly Financial Overview (May 2025)',
             font: {
               size: 16,
             },
@@ -380,7 +354,7 @@ const ClosingEntry = () => {
               const index = context.dataIndex;
               const sales = totalSalesData[index];
               const payments = totalPaymentsData[index];
-              return (sales === payments && sales !== 0) ? 15 : 0;
+              return (sales === payments && sales !== 0) ? 15 : 0; // Increase offset for common label
             },
             font: {
               size: 12,
@@ -408,17 +382,20 @@ const ClosingEntry = () => {
               const sales = totalSalesData[index];
               const payments = totalPaymentsData[index];
 
+              // Skip formatter for Total Expenses (datasetIndex 2)
               if (datasetIndex === 2) {
                 return value === 0 ? '0' : `₹${value}`;
               }
 
+              // If sales and payments are equal and not zero, show label only for Total Sales
               if (sales === payments && sales !== 0) {
                 if (datasetIndex === 0) {
-                  return `₹${value}`;
+                  return `₹${value}`; // Show common label for Total Sales
                 }
-                return '';
+                return ''; // Skip label for Total Payments
               }
 
+              // Default behavior for different values
               return value === 0 ? '0' : `₹${value}`;
             },
             display: (context) => {
@@ -427,14 +404,17 @@ const ClosingEntry = () => {
               const sales = totalSalesData[index];
               const payments = totalPaymentsData[index];
 
+              // Always display for Total Expenses (datasetIndex 2)
               if (datasetIndex === 2) {
                 return true;
               }
 
+              // If sales and payments are equal, only show label for Total Sales (datasetIndex 0)
               if (sales === payments && sales !== 0) {
                 return datasetIndex === 0;
               }
 
+              // Otherwise, show label if value is not zero
               return context.dataset.data[context.dataIndex] !== 0;
             },
           },
@@ -447,7 +427,7 @@ const ClosingEntry = () => {
         chartInstanceRef.current.destroy();
       }
     };
-  }, [filteredEntries, dateRange]);
+  }, [closingEntries]);
 
   const handleAddExpense = () => {
     setExpenseDetails([...expenseDetails, { serialNo: expenseDetails.length + 1, reason: '', recipient: '', amount: 0 }]);
@@ -1378,19 +1358,7 @@ const ClosingEntry = () => {
               </div>
 
               <Card
-                title={
-                  <Space>
-                    <Title level={4} style={{ margin: 0, color: '#34495e' }}>
-                      Closing Entries
-                    </Title>
-                    <RangePicker
-                      value={dateRange}
-                      onChange={(dates) => setDateRange(dates || [null, null])}
-                      format="YYYY-MM-DD"
-                      style={{ width: 300 }}
-                    />
-                  </Space>
-                }
+                title={<Title level={4} style={{ margin: 0, color: '#34495e' }}>Closing Entries</Title>}
                 style={{
                   borderRadius: '12px',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
@@ -1398,14 +1366,14 @@ const ClosingEntry = () => {
                   marginTop: '40px',
                 }}
               >
-                {filteredEntries.length === 0 ? (
+                {closingEntries.length === 0 ? (
                   <Text style={{ display: 'block', textAlign: 'center', padding: '20px' }}>
-                    No closing entries found for the selected date range.
+                    No closing entries found for this branch.
                   </Text>
                 ) : (
                   <Table
                     columns={columns}
-                    dataSource={filteredEntries}
+                    dataSource={closingEntries}
                     rowKey="_id"
                     pagination={{ pageSize: 5 }}
                     bordered
@@ -1414,7 +1382,7 @@ const ClosingEntry = () => {
               </Card>
 
               <Card
-                title={<Title level={4} style={{ margin: 0, color: '#34495e' }}>Financial Overview</Title>}
+                title={<Title level={4} style={{ margin: 0, color: '#34495e' }}>Monthly Financial Overview</Title>}
                 style={{
                   borderRadius: '12px',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
@@ -1423,9 +1391,9 @@ const ClosingEntry = () => {
                   marginBottom: '40px',
                 }}
               >
-                {filteredEntries.length === 0 ? (
+                {closingEntries.length === 0 ? (
                   <Text style={{ display: 'block', textAlign: 'center', padding: '20px' }}>
-                    No data available for the selected date range.
+                    No data available for the current month.
                   </Text>
                 ) : (
                   <div style={{ position: 'relative', height: '400px', width: '100%' }}>
