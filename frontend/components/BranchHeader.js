@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Space, Typography, Button, message } from 'antd';
-import { UserOutlined, LogoutOutlined } from '@ant-design/icons';
+import { Layout, Space, Typography, Button, Menu } from 'antd';
+import { UserOutlined, LogoutOutlined, ShopOutlined, FileTextOutlined, FileDoneOutlined, DollarOutlined, BankOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
 
@@ -10,10 +10,16 @@ const { Text } = Typography;
 const BranchHeader = () => {
   const [branchName, setBranchName] = useState('');
   const router = useRouter();
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.dinasuvadu.in';
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
+  const menuItems = [
+    { key: '/branch/[branchId]', label: 'Billing', link: `/branch/${branchName ? branchName.replace(/\s+/g, '-').toLowerCase() : 'unknown'}`, icon: <ShopOutlined /> },
+    { key: '/dealers/bill-entry/create', label: 'Stock Entry', link: '/dealers/bill-entry/create', icon: <FileTextOutlined /> },
+    { key: '/dealers/closing-entry/closingentry', label: 'Closing Entry', link: '/dealers/closing-entry/closingentry', icon: <FileDoneOutlined /> },
+    { key: '/dealers/expense/ExpenseEntry', label: 'Expense Entry', link: '/dealers/expense/ExpenseEntry', icon: <DollarOutlined /> },
+    { key: '/FinancialManagement', label: 'Financial Management', link: '/FinancialManagement', icon: <BankOutlined /> },
+  ];
 
-  // Copy-pasted from your product bill page
   const fetchBranchDetails = async (token, branchId) => {
     try {
       const response = await fetch(`${BACKEND_URL}/api/branches`, {
@@ -64,6 +70,27 @@ const BranchHeader = () => {
     }
   }, [router]);
 
+  const handleMenuClick = ({ key }) => {
+    const item = menuItems.find(menu => menu.key === key);
+    if (item && item.key === '/branch/[branchId]') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const decoded = jwtDecode(token);
+          if (decoded.branchId) {
+            router.push(`/branch/${decoded.branchId}`);
+          } else {
+            message.error('Branch ID not available');
+          }
+        } catch (error) {
+          message.error('Error decoding token');
+        }
+      }
+    } else if (item) {
+      router.push(item.link);
+    }
+  };
+
   return (
     <Header
       style={{
@@ -90,7 +117,33 @@ const BranchHeader = () => {
           </Text>
         </Space>
       </div>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}></div>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Menu
+          theme="dark"
+          mode="horizontal"
+          selectedKeys={[router.pathname]}
+          onClick={handleMenuClick}
+          items={menuItems.map(item => ({
+            key: item.key,
+            label: item.label,
+            icon: item.icon,
+            style: {
+              color: router.pathname === item.key ? '#FFFF00' : '#FFFFFF',
+              fontWeight: router.pathname === item.key ? 'bold' : 'normal',
+              background: router.pathname === item.key ? '#1a1a1a' : 'transparent',
+              margin: '0 10px',
+            },
+          }))}
+          style={{ 
+            background: 'transparent', 
+            borderBottom: 'none', 
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'center',
+            lineHeight: '64px',
+          }}
+        />
+      </div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <Button
           type="text"

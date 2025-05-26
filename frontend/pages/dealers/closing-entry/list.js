@@ -1057,7 +1057,7 @@ const ClosingEntryList = () => {
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
-                    href="http://localhost:3000/dealers/closing-entry/closingentry"
+                    href="https://app.theblackforestcakes.com/dealers/closing-entry/closingentry"
                   >
                     Create Closing Bill
                   </Button>
