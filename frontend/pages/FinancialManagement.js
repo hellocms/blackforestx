@@ -774,4 +774,5 @@ const FinancialManagement = () => {
   );
 };
 
+FinancialManagement.useLayout = false;
 export default FinancialManagement;
