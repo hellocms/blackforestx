@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Space, Typography, Button, message } from 'antd';
-import { UserOutlined, LogoutOutlined } from '@ant-design/icons';
+import { Layout, Space, Typography, Button, Menu, message } from 'antd';
+import { UserOutlined, LogoutOutlined, ShopOutlined, FileTextOutlined, FileDoneOutlined, DollarOutlined, BankOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
 
@@ -10,32 +10,56 @@ const { Text } = Typography;
 const BranchHeader = () => {
   const [branchName, setBranchName] = useState('');
   const router = useRouter();
-
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.dinasuvadu.in';
 
-  // Copy-pasted from your product bill page
-  const fetchBranchDetails = async (token, branchId) => {
+  const menuItems = [
+    { key: '/branch/[branchId]', label: 'Billing', link: `/branch/${branchName ? branchName.replace(/\s+/g, '-').toLowerCase() : 'unknown'}`, icon: <ShopOutlined /> },
+    { key: '/dealers/bill-entry/create', label: 'Stock Entry', link: '/dealers/bill-entry/create', icon: <FileTextOutlined /> },
+    { key: '/dealers/closing-entry/closingentry', label: 'Closing Entry', link: '/dealers/closing-entry/closingentry', icon: <FileDoneOutlined /> },
+    { key: '/dealers/expense/ExpenseEntry', label: 'Expense Entry', link: '/dealers/expense/ExpenseEntry', icon: <DollarOutlined /> },
+    { key: '/FinancialManagement', label: 'Financial Management', link: '/FinancialManagement', icon: <BankOutlined /> },
+  ];
+
+  const fetchBranchDetails = async (token, branchId, retryCount = 0) => {
     try {
+      console.log(`Fetching branch details from ${BACKEND_URL}/api/branches with branchId: ${branchId}`);
       const response = await fetch(`${BACKEND_URL}/api/branches`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      if (response.ok) {
-        const data = await response.json();
-        const branch = data.find(b => b._id === branchId);
-        if (branch) {
-          setBranchName(branch.name || 'Unknown Branch');
-        } else {
-          message.error('Branch not found');
-          setBranchName('Unknown Branch');
-        }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Failed to fetch branches: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(`HTTP error ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Branches response:', data);
+
+      // Handle case where data might not be an array
+      const branches = Array.isArray(data) ? data : data.branches || [];
+      const branch = branches.find(b => b._id === branchId);
+
+      if (branch) {
+        setBranchName(branch.name || 'Unknown Branch');
+        console.log(`Branch found: ${branch.name}`);
       } else {
-        message.error('Failed to fetch branches');
+        console.warn(`Branch with ID ${branchId} not found in response`);
         setBranchName('Unknown Branch');
+        message.error('Branch not found');
       }
     } catch (error) {
-      console.error('Fetch branches error:', error);
-      message.error('Error fetching branches');
-      setBranchName('Unknown Branch');
+      console.error('Fetch branches error:', error.message);
+      if (retryCount < 2) {
+        console.log(`Retrying fetch branch details (${retryCount + 1}/2)`);
+        setTimeout(() => fetchBranchDetails(token, branchId, retryCount + 1), 1000);
+      } else {
+        setBranchName('Unknown Branch');
+        message.error('Error fetching branches: ' + error.message);
+      }
     }
   };
 
@@ -47,22 +71,49 @@ const BranchHeader = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
+      console.warn('No token found in localStorage');
       router.push('/login');
       return;
     }
 
     try {
       const decoded = jwtDecode(token);
+      console.log('Decoded JWT:', decoded);
       if (decoded.branchId) {
         fetchBranchDetails(token, decoded.branchId);
       } else {
+        console.warn('No branchId found in token');
         setBranchName('Unknown Branch');
+        message.error('Branch ID not available in token');
       }
     } catch (error) {
+      console.error('JWT decode error:', error);
       setBranchName('Unknown Branch');
       router.push('/login');
+      message.error('Invalid token');
     }
   }, [router]);
+
+  const handleMenuClick = ({ key }) => {
+    const item = menuItems.find(menu => menu.key === key);
+    if (item && item.key === '/branch/[branchId]') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const decoded = jwtDecode(token);
+          if (decoded.branchId) {
+            router.push(`/branch/${decoded.branchId}`);
+          } else {
+            message.error('Branch ID not available');
+          }
+        } catch (error) {
+          message.error('Error decoding token');
+        }
+      }
+    } else if (item) {
+      router.push(item.link);
+    }
+  };
 
   return (
     <Header
@@ -90,7 +141,33 @@ const BranchHeader = () => {
           </Text>
         </Space>
       </div>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}></div>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Menu
+          theme="dark"
+          mode="horizontal"
+          selectedKeys={[router.pathname]}
+          onClick={handleMenuClick}
+          items={menuItems.map(item => ({
+            key: item.key,
+            label: item.label,
+            icon: item.icon,
+            style: {
+              color: router.pathname === item.key ? '#FFFF00' : '#FFFFFF',
+              fontWeight: router.pathname === item.key ? 'bold' : 'normal',
+              background: router.pathname === item.key ? '#1a1a1a' : 'transparent',
+              margin: '0 10px',
+            },
+          }))}
+          style={{ 
+            background: 'transparent', 
+            borderBottom: 'none', 
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'center',
+            lineHeight: '64px',
+          }}
+        />
+      </div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <Button
           type="text"
