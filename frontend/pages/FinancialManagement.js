@@ -1,12 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Typography, Form, Select, InputNumber, Input, Button, Table, Space, DatePicker, message, Layout } from 'antd';
-import { BankOutlined, MoneyCollectOutlined, PrinterOutlined, ClearOutlined } from '@ant-design/icons';
+import { BankOutlined, MoneyCollectOutlined, PrinterOutlined, ClearOutlined, SearchOutlined } from '@ant-design/icons';
+import { useRouter } from 'next/router';
+import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import isBetween from 'dayjs/plugin/isBetween';
-import { useRouter } from 'next/router';
-import { jwtDecode } from 'jwt-decode';
 import BranchHeader from '../components/BranchHeader';
 
 dayjs.extend(utc);
@@ -18,52 +19,96 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const FinancialManagement = () => {
+  // State for balances
   const [bankABalance, setBankABalance] = useState(0);
   const [bankBBalance, setBankBBalance] = useState(0);
   const [bankCBalance, setBankCBalance] = useState(0);
   const [cashBalance, setCashBalance] = useState(0);
+
+  // State for transactions and filters
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [selectedSourceFilter, setSelectedSourceFilter] = useState(null);
   const [selectedBranchFilter, setSelectedBranchFilter] = useState(null);
   const [selectedTypeFilter, setSelectedTypeFilter] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState(null);
-  const [branchName, setBranchName] = useState('Loading...');
-  const [branchId, setBranchId] = useState(null);
+
+  // State for branch handling
+  const [userBranchId, setUserBranchId] = useState(null);
+  const [userBranchName, setUserBranchName] = useState('Loading...');
+  const [isOfficeBranch, setIsOfficeBranch] = useState(false);
+
+  // Form instances
   const [depositForm] = Form.useForm();
   const [expenseForm] = Form.useForm();
+
   const router = useRouter();
+  const BACKEND_URL = 'https://apib.dinasuvadu.in';
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.dinasuvadu.in';
-
-  // Fetch Branch Details
+  // Fetch branch details
   const fetchBranchDetails = async (token, branchId) => {
     try {
       const response = await fetch(`${BACKEND_URL}/api/branches`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
-        const branch = data.find((b) => b._id === branchId);
+        const branch = data.find(b => b._id === branchId);
         if (branch) {
-          setBranchName(branch.name || 'Unknown Branch');
-          setBranchId(branchId);
-          depositForm.setFieldsValue({ branch: branchId });
-          expenseForm.setFieldsValue({ branch: branchId });
+          setUserBranchName(branch.name || 'Unknown Branch');
+          setIsOfficeBranch(branch.name.toLowerCase() === 'office');
         } else {
           message.error('Branch not found');
-          setBranchName('Unknown Branch');
+          setUserBranchName('Unknown Branch');
         }
       } else {
-        message.error('Failed to fetch branches');
-        setBranchName('Unknown Branch');
+        message.error('Failed to fetch branch details');
+        setUserBranchName('Unknown Branch');
       }
     } catch (error) {
-      console.error('Fetch branches error:', error);
-      message.error('Error fetching branches');
-      setBranchName('Unknown Branch');
+      console.error('Error fetching branch details:', error);
+      message.error('Error fetching branch details');
+      setUserBranchName('Unknown Branch');
     }
   };
+
+  // Fetch initial data
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      message.info('Please log in to access the page');
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const decoded = jwtDecode(token);
+      if (decoded.branchId) {
+        setUserBranchId(decoded.branchId);
+        fetchBranchDetails(token, decoded.branchId);
+      } else {
+        message.error('No branch associated with this user');
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      message.error('Invalid token, please log in again');
+      router.push('/login');
+    }
+
+    fetchBalances();
+    fetchTransactions();
+    fetchBranches();
+  }, [router]);
+
+  // Set form branch values
+  useEffect(() => {
+    if (userBranchId && !isOfficeBranch) {
+      depositForm.setFieldsValue({ branch: userBranchId });
+      expenseForm.setFieldsValue({ branch: userBranchId });
+    }
+  }, [userBranchId, isOfficeBranch, depositForm, expenseForm]);
 
   // Fetch balances
   const fetchBalances = async () => {
@@ -132,6 +177,25 @@ const FinancialManagement = () => {
     }
   };
 
+  // Fetch branches
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/branches/public`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const result = await response.json();
+      if (response.ok) {
+        setBranches(result);
+      } else {
+        message.error('Failed to fetch branches');
+      }
+    } catch (err) {
+      message.error('Server error while fetching branches');
+      console.error('Error:', err);
+    }
+  };
+
   // Custom validator for amount
   const validateAmount = (_, value) => {
     if (value === undefined || value === null) {
@@ -148,16 +212,19 @@ const FinancialManagement = () => {
 
   // Handle deposit form submission
   const handleDeposit = async (values) => {
-    const { source, amount, remarks } = values;
+    const { source, amount, branch, remarks } = values;
+
+    console.log('Deposit form values:', { source, amount, branch, remarks });
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/financial/deposit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ source, amount, branch: branchId, remarks }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, amount, branch, remarks }),
       });
       const result = await response.json();
       if (response.ok) {
+        // Update balance
         switch (source) {
           case 'Bank A':
             setBankABalance(result.balance.balance);
@@ -175,6 +242,7 @@ const FinancialManagement = () => {
             break;
         }
 
+        // Add transaction to history
         const newTransaction = {
           id: result.transaction._id,
           date: result.transaction.date,
@@ -202,16 +270,19 @@ const FinancialManagement = () => {
 
   // Handle expense form submission
   const handleExpense = async (values) => {
-    const { source, category, amount, remarks } = values;
+    const { source, category, amount, branch, remarks } = values;
+
+    console.log('Expense form values:', { source, category, amount, branch, remarks });
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/financial/expense`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ source, category, amount, branch: branchId, remarks }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, category, amount, branch, remarks }),
       });
       const result = await response.json();
       if (response.ok) {
+        // Update balance
         switch (source) {
           case 'Bank A':
             setBankABalance(result.balance.balance);
@@ -229,6 +300,7 @@ const FinancialManagement = () => {
             break;
         }
 
+        // Add transaction to history
         const newTransaction = {
           id: result.transaction._id,
           date: result.transaction.date,
@@ -417,44 +489,22 @@ const FinancialManagement = () => {
     },
   ];
 
-  // Initial data fetch
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      message.info('Please log in to access the form');
-      router.push('/login');
-      return;
-    }
-
-    try {
-      const decoded = jwtDecode(token);
-      if (decoded.branchId) {
-        setBranchId(decoded.branchId);
-        fetchBranchDetails(token, decoded.branchId);
-      } else {
-        message.error('No branch associated with this user');
-        router.push('/login');
-      }
-      fetchBalances();
-      fetchTransactions();
-    } catch (error) {
-      console.error('Error decoding token:', error);
-      message.error('Invalid token, please log in again');
-      router.push('/login');
-    }
-  }, [router, depositForm, expenseForm]);
-
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <BranchHeader />
       <div
         style={{
-          padding: '104px 20px 40px 20px',
+          padding: '40px 20px',
           background: 'linear-gradient(to bottom, #f0f2f5, #e6e9f0)',
           minHeight: 'calc(100vh - 64px)',
+          marginTop: '64px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
         }}
       >
-        <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto' }}>
+        <div style={{ maxWidth: '1200px', width: '100%' }}>
+          {/* Page Title */}
           <Title
             level={2}
             style={{
@@ -590,19 +640,31 @@ const FinancialManagement = () => {
               </Row>
               <Row gutter={16}>
                 <Col xs={24} sm={12}>
-                  <Form.Item label="Branch (Fixed)">
-                    <Input
-                      value={branchName}
-                      readOnly
-                      style={{ background: '#f5f5f5', color: '#000' }}
-                    />
-                  </Form.Item>
                   <Form.Item
+                    label="Branch"
                     name="branch"
-                    rules={[{ required: true, message: 'Branch is required' }]}
-                    hidden
+                    rules={[{ required: true, message: 'Please select a branch' }]}
                   >
-                    <Input hidden />
+                    {isOfficeBranch ? (
+                      <Select placeholder="Select Branch">
+                        {branches.map((branch) => (
+                          <Option key={branch._id} value={branch._id}>
+                            {branch.name}
+                          </Option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <>
+                        <Input
+                          value={userBranchName}
+                          readOnly
+                          style={{ width: '100%', color: '#000000', background: '#f5f5f5', borderColor: '#d3d3d3' }}
+                        />
+                        <Form.Item name="branch" hidden>
+                          <Input hidden value={userBranchId} />
+                        </Form.Item>
+                      </>
+                    )}
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
@@ -679,19 +741,31 @@ const FinancialManagement = () => {
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
-                  <Form.Item label="Branch (Fixed)">
-                    <Input
-                      value={branchName}
-                      readOnly
-                      style={{ background: '#f5f5f5', color: '#000' }}
-                    />
-                  </Form.Item>
                   <Form.Item
+                    label="Branch"
                     name="branch"
-                    rules={[{ required: true, message: 'Branch is required' }]}
-                    hidden
+                    rules={[{ required: true, message: 'Please select a branch' }]}
                   >
-                    <Input hidden />
+                    {isOfficeBranch ? (
+                      <Select placeholder="Select Branch">
+                        {branches.map((branch) => (
+                          <Option key={branch._id} value={branch._id}>
+                            {branch.name}
+                          </Option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <>
+                        <Input
+                          value={userBranchName}
+                          readOnly
+                          style={{ width: '100%', color: '#000000', background: '#f5f5f5', borderColor: '#d3d3d3' }}
+                        />
+                        <Form.Item name="branch" hidden>
+                          <Input hidden value={userBranchId} />
+                        </Form.Item>
+                      </>
+                    )}
                   </Form.Item>
                 </Col>
               </Row>
@@ -721,6 +795,7 @@ const FinancialManagement = () => {
               marginBottom: '40px',
             }}
           >
+            {/* Transaction History Filters */}
             <Space wrap style={{ marginBottom: '20px', width: '100%' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <Text strong>Source</Text>
@@ -746,9 +821,11 @@ const FinancialManagement = () => {
                   allowClear
                   style={{ width: '200px' }}
                 >
-                  {branchId && branchName && (
-                    <Option value={branchId}>{branchName}</Option>
-                  )}
+                  {branches.map((branch) => (
+                    <Option key={branch._id} value={branch._id}>
+                      {branch.name}
+                    </Option>
+                  ))}
                 </Select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -781,6 +858,7 @@ const FinancialManagement = () => {
               </Space>
             </Space>
 
+            {/* Transaction History Table */}
             <Table
               columns={columns}
               dataSource={filteredTransactions}
@@ -794,5 +872,6 @@ const FinancialManagement = () => {
     </Layout>
   );
 };
+
 FinancialManagement.useLayout = false;
 export default FinancialManagement;
