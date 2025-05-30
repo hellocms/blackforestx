@@ -7,7 +7,7 @@ import timezone from 'dayjs/plugin/timezone';
 import isBetween from 'dayjs/plugin/isBetween';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
-import BranchHeader from '../../../components/BranchHeader';
+import BranchHeader from '../components/BranchHeader';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
