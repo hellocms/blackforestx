@@ -30,7 +30,6 @@ const FinancialManagement = () => {
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [branches, setBranches] = useState([]);
   const [selectedSourceFilter, setSelectedSourceFilter] = useState(null);
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState(null);
   const [selectedTypeFilter, setSelectedTypeFilter] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState(null);
 
@@ -110,6 +109,13 @@ const FinancialManagement = () => {
     }
   }, [userBranchId, isOfficeBranch, depositForm, expenseForm]);
 
+  // Filter transactions when userBranchId or other filters change
+  useEffect(() => {
+    if (userBranchId) {
+      filterTransactions(selectedSourceFilter, selectedTypeFilter, selectedDateRange);
+    }
+  }, [transactions, userBranchId, selectedSourceFilter, selectedTypeFilter, selectedDateRange]);
+
   // Fetch balances
   const fetchBalances = async () => {
     try {
@@ -167,7 +173,6 @@ const FinancialManagement = () => {
           remarks: t.remarks,
         }));
         setTransactions(formattedTransactions);
-        setFilteredTransactions(formattedTransactions);
       } else {
         message.error(result.message || 'Failed to fetch transactions');
       }
@@ -327,15 +332,16 @@ const FinancialManagement = () => {
   };
 
   // Filter transactions
-  const filterTransactions = (source, branch, type, dateRange) => {
+  const filterTransactions = (source, type, dateRange) => {
     let filtered = [...transactions];
+
+    // Always filter by userBranchId
+    if (userBranchId) {
+      filtered = filtered.filter((t) => t.branchId === userBranchId);
+    }
 
     if (source) {
       filtered = filtered.filter((t) => t.source === source);
-    }
-
-    if (branch) {
-      filtered = filtered.filter((t) => t.branchId === branch);
     }
 
     if (type) {
@@ -356,30 +362,24 @@ const FinancialManagement = () => {
 
   const handleSourceFilter = (value) => {
     setSelectedSourceFilter(value);
-    filterTransactions(value, selectedBranchFilter, selectedTypeFilter, selectedDateRange);
-  };
-
-  const handleBranchFilter = (value) => {
-    setSelectedBranchFilter(value);
-    filterTransactions(selectedSourceFilter, value, selectedTypeFilter, selectedDateRange);
+    filterTransactions(value, selectedTypeFilter, selectedDateRange);
   };
 
   const handleTypeFilter = (value) => {
     setSelectedTypeFilter(value);
-    filterTransactions(selectedSourceFilter, selectedBranchFilter, value, selectedDateRange);
+    filterTransactions(selectedSourceFilter, value, selectedDateRange);
   };
 
   const handleDateFilter = (dates) => {
     setSelectedDateRange(dates);
-    filterTransactions(selectedSourceFilter, selectedBranchFilter, selectedTypeFilter, dates);
+    filterTransactions(selectedSourceFilter, selectedTypeFilter, dates);
   };
 
   const clearFilters = () => {
     setSelectedSourceFilter(null);
-    setSelectedBranchFilter(null);
     setSelectedTypeFilter(null);
     setSelectedDateRange(null);
-    setFilteredTransactions(transactions);
+    filterTransactions(null, null, null);
   };
 
   // Print transaction history
@@ -814,19 +814,11 @@ const FinancialManagement = () => {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <Text strong>Branch</Text>
-                <Select
-                  placeholder="Filter by Branch"
-                  value={selectedBranchFilter}
-                  onChange={handleBranchFilter}
-                  allowClear
-                  style={{ width: '200px' }}
-                >
-                  {branches.map((branch) => (
-                    <Option key={branch._id} value={branch._id}>
-                      {branch.name}
-                    </Option>
-                  ))}
-                </Select>
+                <Input
+                  value={userBranchName}
+                  readOnly
+                  style={{ width: '200px', color: '#000000', background: '#f5f5f5', borderColor: '#d3d3d3' }}
+                />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <Text strong>Type</Text>
