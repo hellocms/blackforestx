@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Typography, Form, Select, InputNumber, Input, Button, Table, Space, DatePicker, message, Layout } from 'antd';
-import { BankOutlined, MoneyCollectOutlined, PrinterOutlined, ClearOutlined, DollarOutlined } from '@ant-design/icons';
+import { BankOutlined, MoneyCollectOutlined, PrinterOutlined, ClearOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import isBetween from 'dayjs/plugin/isBetween';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
-import BranchHeader from '../components/BranchHeader';
+import BranchHeader from '../../../components/BranchHeader';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -36,9 +36,6 @@ const FinancialManagement = () => {
   const router = useRouter();
 
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.dinasuvadu.in';
-
-  // Calculate total balance
-  const totalBalance = bankABalance + bankBBalance + bankCBalance + cashBalance;
 
   // Fetch Branch Details
   const fetchBranchDetails = async (token, branchId) => {
@@ -622,24 +619,6 @@ const FinancialManagement = () => {
                 <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
                 <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
                   Cash-in-Hand: ₹{cashBalance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <DollarOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px', color: '#52c41a' }}>
-                  Total: ₹{totalBalance.toFixed(2)}
                 </Text>
               </Card>
             </Col>
