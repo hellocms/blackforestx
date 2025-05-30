@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Space, Typography, Button, Menu, message } from 'antd';
+import { Layout, Space, Typography, Button, Menu } from 'antd';
 import { UserOutlined, LogoutOutlined, ShopOutlined, FileTextOutlined, FileDoneOutlined, DollarOutlined, BankOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
@@ -20,46 +20,28 @@ const BranchHeader = () => {
     { key: '/FinancialManagement', label: 'Financial Management', link: '/FinancialManagement', icon: <BankOutlined /> },
   ];
 
-  const fetchBranchDetails = async (token, branchId, retryCount = 0) => {
+  const fetchBranchDetails = async (token, branchId) => {
     try {
-      console.log(`Fetching branch details from ${BACKEND_URL}/api/branches with branchId: ${branchId}`);
       const response = await fetch(`${BACKEND_URL}/api/branches`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Failed to fetch branches: ${response.status} ${response.statusText} - ${errorText}`);
-        throw new Error(`HTTP error ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Branches response:', data);
-
-      // Handle case where data might not be an array
-      const branches = Array.isArray(data) ? data : data.branches || [];
-      const branch = branches.find(b => b._id === branchId);
-
-      if (branch) {
-        setBranchName(branch.name || 'Unknown Branch');
-        console.log(`Branch found: ${branch.name}`);
+      if (response.ok) {
+        const data = await response.json();
+        const branch = data.find(b => b._id === branchId);
+        if (branch) {
+          setBranchName(branch.name || 'Unknown Branch');
+        } else {
+          message.error('Branch not found');
+          setBranchName('Unknown Branch');
+        }
       } else {
-        console.warn(`Branch with ID ${branchId} not found in response`);
+        message.error('Failed to fetch branches');
         setBranchName('Unknown Branch');
-        message.error('Branch not found');
       }
     } catch (error) {
-      console.error('Fetch branches error:', error.message);
-      if (retryCount < 2) {
-        console.log(`Retrying fetch branch details (${retryCount + 1}/2)`);
-        setTimeout(() => fetchBranchDetails(token, branchId, retryCount + 1), 1000);
-      } else {
-        setBranchName('Unknown Branch');
-        message.error('Error fetching branches: ' + error.message);
-      }
+      console.error('Fetch branches error:', error);
+      message.error('Error fetching branches');
+      setBranchName('Unknown Branch');
     }
   };
 
@@ -71,26 +53,20 @@ const BranchHeader = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
-      console.warn('No token found in localStorage');
       router.push('/login');
       return;
     }
 
     try {
       const decoded = jwtDecode(token);
-      console.log('Decoded JWT:', decoded);
       if (decoded.branchId) {
         fetchBranchDetails(token, decoded.branchId);
       } else {
-        console.warn('No branchId found in token');
         setBranchName('Unknown Branch');
-        message.error('Branch ID not available in token');
       }
     } catch (error) {
-      console.error('JWT decode error:', error);
       setBranchName('Unknown Branch');
       router.push('/login');
-      message.error('Invalid token');
     }
   }, [router]);
 
