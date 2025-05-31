@@ -748,7 +748,7 @@ const ClosingEntry = () => {
       key: 'serialNo',
       width: 80,
       align: 'center',
-      render: (text) => <Input value={text} disabled style={{ textAlign: 'center' }} />,
+      render: (text) => <Input value={text} disabled style={{ textAlign: 'center', height: '48px', lineHeight: '48px' }} />,
     },
     {
       title: 'Reason',
@@ -760,9 +760,10 @@ const ClosingEntry = () => {
           value={text}
           onChange={(value) => handleReasonChange(index, value)}
           placeholder="Select reason"
-          style={{ width: '100%' }}
+          style={{ width: '100%', height: '48px' }}
           size="large"
           allowClear
+          dropdownStyle={{ fontSize: '16px' }}
         >
           <Option value="MAINTENANCE">Maintenance</Option>
           <Option value="TRANSPORT">Transport</Option>
@@ -785,6 +786,7 @@ const ClosingEntry = () => {
           value={text}
           onChange={(e) => handleRecipientChange(index, e.target.value)}
           placeholder="Enter recipient or reason (e.g., John Doe)"
+          style={{ height: '48px', lineHeight: '48px' }}
           size="large"
         />
       ),
@@ -802,7 +804,7 @@ const ClosingEntry = () => {
           min={0}
           formatter={(value) => `₹${value}`}
           parser={(value) => value.replace('₹', '')}
-          style={{ width: '100%' }}
+          style={{ width: '100%', height: '48px', lineHeight: '48px' }}
           size="large"
           controls={false}
         />
@@ -1303,6 +1305,19 @@ const ClosingEntry = () => {
                       <InputNumber
                         value={denom500}
                         onChange={(value) => setDenom500(value)}
+                        min={0}
+                        size="large"
+                        controls={false}
+                      />
+                      <Text strong>
+                        200 ×
+                        <Tooltip title="Enter the count of 200 denomination notes">
+                          <DollarOutlined style={{ marginLeft: '8px', color: '#1890ff' }} />
+                        </Tooltip>
+                      </Text>
+                      <InputNumber
+                        value={denom200}
+                        onChange={(value) => setDenom200(value)}
                         min={0}
                         size="large"
                         controls={false}
