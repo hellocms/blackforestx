@@ -68,7 +68,7 @@ const ClosingEntry = () => {
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.dinasuvadu.in';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
 
   const fetchBranchDetails = async (token, branchId) => {
     try {
@@ -992,7 +992,7 @@ const ClosingEntry = () => {
                       transition: 'all 0.3s ease',
                       marginTop: '20px',
                       gridColumn: '1 / 2',
-                      width: '900px', // Increased width for Expense Details section
+                      width: '700px', // Increased width for Expense Details section
                     }}
                     hoverable
                   >
