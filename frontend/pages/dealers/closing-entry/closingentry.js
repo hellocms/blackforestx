@@ -763,13 +763,13 @@ const ClosingEntry = () => {
       title: 'Reason',
       dataIndex: 'reason',
       key: 'reason',
-      width: 200, // Increased width to accommodate "Advertisement"
+      width: 150,
       render: (text, record, index) => (
         <Select
           value={text}
           onChange={(value) => handleReasonChange(index, value)}
           placeholder="Select reason"
-          style={{ width: '100%', height: '40px' }} // Increased height for consistency
+          style={{ width: '100%' }}
           size="large"
           allowClear
         >
@@ -788,14 +788,12 @@ const ClosingEntry = () => {
       title: 'Recipient/Reason',
       dataIndex: 'recipient',
       key: 'recipient',
-      width: 200, // Match Reason column width
       render: (text, record, index) => (
         <Input
           value={text}
           onChange={(e) => handleRecipientChange(index, e.target.value)}
           placeholder="Enter recipient or reason (e.g., John Doe)"
           size="large"
-          style={{ height: '40px' }} // Match Reason column height
         />
       ),
     },
@@ -803,7 +801,7 @@ const ClosingEntry = () => {
       title: 'Amount',
       dataIndex: 'amount',
       key: 'amount',
-      width: 200, // Match Reason column width
+      width: 120,
       align: 'center',
       render: (text, record, index) => (
         <InputNumber
@@ -812,7 +810,7 @@ const ClosingEntry = () => {
           min={0}
           formatter={(value) => `₹${value}`}
           parser={(value) => value.replace('₹', '')}
-          style={{ width: '100%', height: '40px' }} // Match Reason column height
+          style={{ width: '100%' }}
           size="large"
         />
       ),
@@ -828,7 +826,9 @@ const ClosingEntry = () => {
           onClick={() => handleRemoveExpense(index)}
           style={{ color: '#ff4d4f' }}
           size="small"
-        />
+        >
+          Remove
+        </Button>
       ),
     },
   ];
@@ -992,6 +992,7 @@ const ClosingEntry = () => {
                       transition: 'all 0.3s ease',
                       marginTop: '20px',
                       gridColumn: '1 / 2',
+                      width: '900px', // Increased width for Expense Details section
                     }}
                     hoverable
                   >
