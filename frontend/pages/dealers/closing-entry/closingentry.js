@@ -68,7 +68,7 @@ const ClosingEntry = () => {
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
 
   const fetchBranchDetails = async (token, branchId) => {
     try {
@@ -992,7 +992,6 @@ const ClosingEntry = () => {
                       transition: 'all 0.3s ease',
                       marginTop: '20px',
                       gridColumn: '1 / 2',
-                      width: '700px', // Increased width for Expense Details section
                     }}
                     hoverable
                   >
@@ -1020,173 +1019,6 @@ const ClosingEntry = () => {
                     >
                       Add Expense
                     </Button>
-                  </Card>
-
-                  <Card
-                    title={<Title level={4} style={{ margin: 0, color: '#34495e' }}>Summary</Title>}
-                    style={{
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      background: '#fff',
-                      transition: 'all 0.3s ease',
-                      marginTop: '20px',
-                      gridColumn: '1 / 2',
-                    }}
-                    hoverable
-                  >
-                    <Space direction="vertical" style={{ width: '100%', fontSize: '14px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>System Sales:</Text>
-                        <Text>₹{systemSales || 0}</Text>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Manual Sales:</Text>
-                        <Text>₹{manualSales || 0}</Text>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>Online Sales:</Text>
-                        <Text>₹{onlineSales || 0}</Text>
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          padding: '8px 0',
-                          borderTop: '1px solid #e8e8e8',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        <Text strong>Total Sales:</Text>
-                        <Text strong>₹{totalSales}</Text>
-                      </div>
-
-                      <div style={{ marginTop: '20px' }}>
-                        <Title level={5} style={{ margin: 0, color: '#34495e' }}>
-                          Payment Breakdown
-                        </Title>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
-                          <Text>
-                            <CreditCardOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                            Credit Card:
-                          </Text>
-                          <Text>₹{creditCardPayment || 0}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>
-                            <MobileOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                            UPI:
-                          </Text>
-                          <Text>₹{upiPayment || 0}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>
-                            <DollarOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                            Cash:
-                          </Text>
-                          <Text>₹{cashPayment || 0}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>Expenses:</Text>
-                          <Text>₹{expenses || 0}</Text>
-                        </div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            padding: '8px 0',
-                            borderTop: '1px solid #e8e8e8',
-                            fontWeight: 'bold',
-                          }}
-                        >
-                          <Text strong>Total Payments:</Text>
-                          <Text strong>₹{totalPayments}</Text>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: '20px' }}>
-                        <Title level={5} style={{ margin: 0, color: '#34495e' }}>
-                          Cash Denomination Breakdown
-                        </Title>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
-                          <Text>2000 × {denom2000}:</Text>
-                          <Text>₹{(denom2000 || 0) * 2000}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>500 × {denom500}:</Text>
-                          <Text>₹{(denom500 || 0) * 500}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>200 × {denom200}:</Text>
-                          <Text>₹{(denom200 || 0) * 200}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>100 × {denom100}:</Text>
-                          <Text>₹{(denom100 || 0) * 100}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>50 × {denom50}:</Text>
-                          <Text>₹{(denom50 || 0) * 50}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>20 × {denom20}:</Text>
-                          <Text>₹{(denom20 || 0) * 20}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>10 × {denom10}:</Text>
-                          <Text>₹{(denom10 || 0) * 10}</Text>
-                        </div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            padding: '8px 0',
-                            borderTop: '1px solid #e8e8e8',
-                            fontWeight: 'bold',
-                          }}
-                        >
-                          <Text strong>Total Cash Amount:</Text>
-                          <Text strong>₹{cashPayment || 0}</Text>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: '20px' }}>
-                        <Title level={5} style={{ margin: 0, color: '#34495e' }}>
-                          Discrepancy
-                        </Title>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
-                          <Text>Total Sales:</Text>
-                          <Text>₹{totalSales}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>Total Payments:</Text>
-                          <Text>₹{totalPayments}</Text>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
-                          <Text>Status:</Text>
-                          {(() => {
-                            let backgroundColor, textColor, statusText;
-                            if (discrepancy === 0) {
-                              backgroundColor = '#52c41a';
-                              textColor = '#ffffff';
-                              statusText = 'Everything OK';
-                            } else if (discrepancy < 0) {
-                              backgroundColor = '#ff4d4f';
-                              textColor = '#ffffff';
-                              statusText = `Difference: ₹${discrepancy}`;
-                            } else {
-                              backgroundColor = '#fadb14';
-                              textColor = '#000000';
-                              statusText = `Difference: ₹${discrepancy}`;
-                            }
-                            return (
-                              <Text style={{ backgroundColor, color: textColor, fontWeight: 'bold', padding: '4px 8px', borderRadius: '4px' }}>
-                                {statusText}
-                              </Text>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </Space>
                   </Card>
 
                   <Space
@@ -1354,6 +1186,174 @@ const ClosingEntry = () => {
                       size="large"
                     />
                   </div>
+                </Card>
+
+                <Card
+                  title={<Title level={4} style={{ margin: 0, color: '#34495e' }}>Summary</Title>}
+                  style={{
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    background: '#fff',
+                    transition: 'all 0.3s ease',
+                    position: 'sticky',
+                    top: '104px',
+                    gridColumn: '3 / 4',
+                  }}
+                  hoverable
+                >
+                  <Space direction="vertical" style={{ width: '100%', fontSize: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text>System Sales:</Text>
+                      <Text>₹{systemSales || 0}</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text>Manual Sales:</Text>
+                      <Text>₹{manualSales || 0}</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text>Online Sales:</Text>
+                      <Text>₹{onlineSales || 0}</Text>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '8px 0',
+                        borderTop: '1px solid #e8e8e8',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      <Text strong>Total Sales:</Text>
+                      <Text strong>₹{totalSales}</Text>
+                    </div>
+
+                    <div style={{ marginTop: '20px' }}>
+                      <Title level={5} style={{ margin: 0, color: '#34495e' }}>
+                        Payment Breakdown
+                      </Title>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+                        <Text>
+                          <CreditCardOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                          Credit Card:
+                        </Text>
+                        <Text>₹{creditCardPayment || 0}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>
+                          <MobileOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                          UPI:
+                        </Text>
+                        <Text>₹{upiPayment || 0}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>
+                          <DollarOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                          Cash:
+                        </Text>
+                        <Text>₹{cashPayment || 0}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>Expenses:</Text>
+                        <Text>₹{expenses || 0}</Text>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          padding: '8px 0',
+                          borderTop: '1px solid #e8e8e8',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        <Text strong>Total Payments:</Text>
+                        <Text strong>₹{totalPayments}</Text>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '20px' }}>
+                      <Title level={5} style={{ margin: 0, color: '#34495e' }}>
+                        Cash Denomination Breakdown
+                      </Title>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+                        <Text>2000 × {denom2000}:</Text>
+                        <Text>₹{(denom2000 || 0) * 2000}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>500 × {denom500}:</Text>
+                        <Text>₹{(denom500 || 0) * 500}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>200 × {denom200}:</Text>
+                        <Text>₹{(denom200 || 0) * 200}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>100 × {denom100}:</Text>
+                        <Text>₹{(denom100 || 0) * 100}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>50 × {denom50}:</Text>
+                        <Text>₹{(denom50 || 0) * 50}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>20 × {denom20}:</Text>
+                        <Text>₹{(denom20 || 0) * 20}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>10 × {denom10}:</Text>
+                        <Text>₹{(denom10 || 0) * 10}</Text>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          padding: '8px 0',
+                          borderTop: '1px solid #e8e8e8',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        <Text strong>Total Cash Amount:</Text>
+                        <Text strong>₹{cashPayment || 0}</Text>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '20px' }}>
+                      <Title level={5} style={{ margin: 0, color: '#34495e' }}>
+                        Discrepancy
+                      </Title>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+                        <Text>Total Sales:</Text>
+                        <Text>₹{totalSales}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>Total Payments:</Text>
+                        <Text>₹{totalPayments}</Text>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+                        <Text>Status:</Text>
+                        {(() => {
+                          let backgroundColor, textColor, statusText;
+                          if (discrepancy === 0) {
+                            backgroundColor = '#52c41a';
+                            textColor = '#ffffff';
+                            statusText = 'Everything OK';
+                          } else if (discrepancy < 0) {
+                            backgroundColor = '#ff4d4f';
+                            textColor = '#ffffff';
+                            statusText = `Difference: ₹${discrepancy}`;
+                          } else {
+                            backgroundColor = '#fadb14';
+                            textColor = '#000000';
+                            statusText = `Difference: ₹${discrepancy}`;
+                          }
+                          return (
+                            <Text style={{ backgroundColor, color: textColor, fontWeight: 'bold', padding: '4px 8px', borderRadius: '4px' }}>
+                              {statusText}
+                            </Text>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </Space>
                 </Card>
               </div>
 
