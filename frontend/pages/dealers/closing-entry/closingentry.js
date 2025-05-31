@@ -991,6 +991,18 @@ const ClosingEntry = () => {
                       transition: 'all 0.3s ease',
                       marginTop: '20px',
                       gridColumn: '1 / 2',
+                      width: '100%',
+                    }}
+                    styles={{
+                      body: {
+                        '@media (min-width: 768px) and (max-width: 1024px)': {
+                          width: '100vw',
+                          marginLeft: 'calc(-50vw + 50%)',
+                          marginRight: 'calc(-50vw + 50%)',
+                          paddingLeft: '20px',
+                          paddingRight: '20px',
+                        },
+                      },
                     }}
                     hoverable
                   >
@@ -1000,7 +1012,13 @@ const ClosingEntry = () => {
                       pagination={false}
                       bordered
                       rowKey={(record, index) => index}
-                      style={{ marginBottom: '20px' }}
+                      style={{
+                        marginBottom: '20px',
+                        width: '100%',
+                        '@media (min-width: 768px) and (max-width: 1024px)': {
+                          width: '100%',
+                        },
+                      }}
                     />
                     <Button
                       icon={<PlusOutlined />}
@@ -1305,19 +1323,6 @@ const ClosingEntry = () => {
                       <InputNumber
                         value={denom500}
                         onChange={(value) => setDenom500(value)}
-                        min={0}
-                        size="large"
-                        controls={false}
-                      />
-                      <Text strong>
-                        200 ×
-                        <Tooltip title="Enter the count of 200 denomination notes">
-                          <DollarOutlined style={{ marginLeft: '8px', color: '#1890ff' }} />
-                        </Tooltip>
-                      </Text>
-                      <InputNumber
-                        value={denom200}
-                        onChange={(value) => setDenom200(value)}
                         min={0}
                         size="large"
                         controls={false}
