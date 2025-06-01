@@ -16,6 +16,19 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
+const ErrorBoundary = ({ children }) => {
+  const [hasError, setHasError] = useState(false);
+  useEffect(() => {
+    const errorHandler = (error) => {
+      console.error('Chart Error:', error);
+      setHasError(true);
+    };
+    window.addEventListener('error', errorHandler);
+    return () => window.removeEventListener('error', errorHandler);
+  }, []);
+  return hasError ? <div>Chart failed to load. Check console for details.</div> : children;
+};
+
 const PaymentHistory = () => {
   // State for transactions and filters
   const [transactions, setTransactions] = useState([]);
@@ -105,10 +118,9 @@ const PaymentHistory = () => {
       endDate = dayjs(dateRange[1]).endOf('day');
       daysInRange = endDate.diff(startDate, 'day') + 1;
     } else {
-      // Default to current month (June 2025)
-      startDate = dayjs().startOf('month'); // Uses current date (June 1, 2025)
+      startDate = dayjs().startOf('month');
       endDate = dayjs().endOf('month');
-      daysInRange = startDate.daysInMonth(); // 30 for June
+      daysInRange = startDate.daysInMonth();
     }
 
     const labels = Array.from({ length: daysInRange }, (_, i) =>
@@ -210,7 +222,7 @@ const PaymentHistory = () => {
 
   const handleDateFilter = (dates) => {
     setSelectedDateRange(dates);
-    setSelectedPredefinedRange(null); // Clear predefined range when custom range is selected
+    setSelectedPredefinedRange(null);
     filterTransactions(selectedSourceFilter, selectedTypeFilter, dates, selectedBranchFilter);
   };
 
@@ -221,9 +233,9 @@ const PaymentHistory = () => {
 
   const handlePredefinedRangeFilter = (value) => {
     setSelectedPredefinedRange(value);
-    setSelectedDateRange(null); // Clear custom date range when predefined range is selected
+    setSelectedDateRange(null);
     let dateRange = null;
-    const today = dayjs(); // Uses current date (June 1, 2025)
+    const today = dayjs();
 
     switch (value) {
       case 'today':
@@ -393,7 +405,7 @@ const PaymentHistory = () => {
           },
           footer: (tooltipItems) => {
             const dayIndex = tooltipItems[0].dataIndex;
-            const total = (chartData.datasets[0].data[dayIndex] || 0) + (chartData.datasets[1].data[dayIndex] || 0);
+            const total = (chartData?.datasets[0]?.data[dayIndex] || 0) + (chartData?.datasets[1]?.data[dayIndex] || 0);
             return `Total: ₹${total.toFixed(2)}`;
           },
         },
@@ -448,13 +460,9 @@ const PaymentHistory = () => {
               marginBottom: '40px',
             }}
           >
-            {chartData && (
-              <Bar
-                data={chartData}
-                options={chartOptions}
-                style={{ maxHeight: '400px' }}
-              />
-            )}
+            <ErrorBoundary>
+              {chartData && <Bar data={chartData} options={chartOptions} style={{ maxHeight: '400px' }} />}
+            </ErrorBoundary>
           </Card>
 
           {/* Transaction History */}
@@ -557,6 +565,5 @@ const PaymentHistory = () => {
     </Layout>
   );
 };
-
 
 export default PaymentHistory;
