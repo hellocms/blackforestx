@@ -40,7 +40,7 @@ const menuItems = [
   { key: "Expense List", label: "Expense List", icon: <FileTextOutlined />, path: "/dealers/closing-entry/expenselist" },
   { key: "delivery", label: "Company", icon: <DeliveredProcedureOutlined />, path: "/dealers/companyForm" },
   { key: "delivery", label: "Dealer", icon: <DeliveredProcedureOutlined />, path: "/dealers/list" },
-  { key: "payments", label: "FinancialManagement", icon: <CreditCardOutlined />, path: "/FinancialManagement", newTab: true },
+  { key: "payments", label: "FinancialManagement", icon: <CreditCardOutlined />, path: "/Financelist", newTab: true },
 
 
   { key: "others_2", label: "Account Creations", isGroup: true },
