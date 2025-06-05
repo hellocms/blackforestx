@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Typography, Form, Select, InputNumber, Input, Button, Table, Space, DatePicker, message, Layout } from 'antd';
 import { BankOutlined, MoneyCollectOutlined, PrinterOutlined, ClearOutlined, SearchOutlined } from '@ant-design/icons';
@@ -19,12 +20,9 @@ const { RangePicker } = DatePicker;
 
 const FinancialManagement = () => {
   // State for balances
-  const [idfcBc1Balance, setIdfcBc1Balance] = useState(0);
-  const [idfcBc2Balance, setIdfcBc2Balance] = useState(0);
-  const [idfcMi1Balance, setIdfcMi1Balance] = useState(0);
-  const [idfcMi2Balance, setIdfcMi2Balance] = useState(0);
-  const [centralBankBalance, setCentralBankBalance] = useState(0);
-  const [iciciBalance, setIciciBalance] = useState(0);
+  const [bankABalance, setBankABalance] = useState(0);
+  const [bankBBalance, setBankBBalance] = useState(0);
+  const [bankCBalance, setBankCBalance] = useState(0);
   const [cashBalance, setCashBalance] = useState(0);
 
   // State for transactions and filters
@@ -45,7 +43,7 @@ const FinancialManagement = () => {
   const [expenseForm] = Form.useForm();
 
   const router = useRouter();
-  const BACKEND_URL = 'https://api.dinasuvadu.in';
+  const BACKEND_URL = 'https://apib.dinasuvadu.in';
 
   // Fetch branch details
   const fetchBranchDetails = async (token, branchId) => {
@@ -129,25 +127,16 @@ const FinancialManagement = () => {
       if (response.ok) {
         result.forEach((balance) => {
           switch (balance.source) {
-            case 'IDFC BC-1':
-              setIdfcBc1Balance(balance.balance);
+            case 'Bank A':
+              setBankABalance(balance.balance);
               break;
-            case 'IDFC BC-2':
-              setIdfcBc2Balance(balance.balance);
+            case 'Bank B':
+              setBankBBalance(balance.balance);
               break;
-            case 'IDFC MI-1':
-              setIdfcMi1Balance(balance.balance);
+            case 'Bank C':
+              setBankCBalance(balance.balance);
               break;
-            case 'IDFC MI-2':
-              setIdfcMi2Balance(balance.balance);
-              break;
-            case 'CENTRAL BANK':
-              setCentralBankBalance(balance.balance);
-              break;
-            case 'ICICI':
-              setIciciBalance(balance.balance);
-              break;
-            case 'CASH IN HAND':
+            case 'Cash-in-Hand':
               setCashBalance(balance.balance);
               break;
             default:
@@ -242,25 +231,16 @@ const FinancialManagement = () => {
       if (response.ok) {
         // Update balance
         switch (source) {
-          case 'IDFC BC-1':
-            setIdfcBc1Balance(result.balance.balance);
+          case 'Bank A':
+            setBankABalance(result.balance.balance);
             break;
-          case 'IDFC BC-2':
-            setIdfcBc2Balance(result.balance.balance);
+          case 'Bank B':
+            setBankBBalance(result.balance.balance);
             break;
-          case 'IDFC MI-1':
-            setIdfcMi1Balance(result.balance.balance);
+          case 'Bank C':
+            setBankCBalance(result.balance.balance);
             break;
-          case 'IDFC MI-2':
-            setIdfcMi2Balance(result.balance.balance);
-            break;
-          case 'CENTRAL BANK':
-            setCentralBankBalance(result.balance.balance);
-            break;
-          case 'ICICI':
-            setIciciBalance(result.balance.balance);
-            break;
-          case 'CASH IN HAND':
+          case 'Cash-in-Hand':
             setCashBalance(result.balance.balance);
             break;
           default:
@@ -309,25 +289,16 @@ const FinancialManagement = () => {
       if (response.ok) {
         // Update balance
         switch (source) {
-          case 'IDFC BC-1':
-            setIdfcBc1Balance(result.balance.balance);
+          case 'Bank A':
+            setBankABalance(result.balance.balance);
             break;
-          case 'IDFC BC-2':
-            setIdfcBc2Balance(result.balance.balance);
+          case 'Bank B':
+            setBankBBalance(result.balance.balance);
             break;
-          case 'IDFC MI-1':
-            setIdfcMi1Balance(result.balance.balance);
+          case 'Bank C':
+            setBankCBalance(result.balance.balance);
             break;
-          case 'IDFC MI-2':
-            setIdfcMi2Balance(result.balance.balance);
-            break;
-          case 'CENTRAL BANK':
-            setCentralBankBalance(result.balance.balance);
-            break;
-          case 'ICICI':
-            setIciciBalance(result.balance.balance);
-            break;
-          case 'CASH IN HAND':
+          case 'Cash-in-Hand':
             setCashBalance(result.balance.balance);
             break;
           default:
@@ -565,7 +536,7 @@ const FinancialManagement = () => {
               >
                 <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
                 <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  IDFC BC-1: ₹{idfcBc1Balance.toFixed(2)}
+                  Bank A: ₹{bankABalance.toFixed(2)}
                 </Text>
               </Card>
             </Col>
@@ -583,7 +554,7 @@ const FinancialManagement = () => {
               >
                 <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
                 <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  IDFC BC-2: ₹{idfcBc2Balance.toFixed(2)}
+                  Bank B: ₹{bankBBalance.toFixed(2)}
                 </Text>
               </Card>
             </Col>
@@ -601,61 +572,7 @@ const FinancialManagement = () => {
               >
                 <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
                 <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  IDFC MI-1: ₹{idfcMi1Balance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  IDFC MI-2: ₹{idfcMi2Balance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  CENTRAL BANK: ₹{centralBankBalance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  ICICI: ₹{iciciBalance.toFixed(2)}
+                  Bank C: ₹{bankCBalance.toFixed(2)}
                 </Text>
               </Card>
             </Col>
@@ -673,7 +590,7 @@ const FinancialManagement = () => {
               >
                 <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
                 <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  CASH IN HAND: ₹{cashBalance.toFixed(2)}
+                  Cash-in-Hand: ₹{cashBalance.toFixed(2)}
                 </Text>
               </Card>
             </Col>
@@ -704,13 +621,10 @@ const FinancialManagement = () => {
                     rules={[{ required: true, message: 'Please select a source' }]}
                   >
                     <Select placeholder="Select Source">
-                      <Option value="IDFC BC-1">IDFC BC-1</Option>
-                      <Option value="IDFC BC-2">IDFC BC-2</Option>
-                      <Option value="IDFC MI-1">IDFC MI-1</Option>
-                      <Option value="IDFC MI-2">IDFC MI-2</Option>
-                      <Option value="CENTRAL BANK">CENTRAL BANK</Option>
-                      <Option value="ICICI">ICICI</Option>
-                      <Option value="CASH IN HAND">CASH IN HAND</Option>
+                      <Option value="Bank A">Bank A</Option>
+                      <Option value="Bank B">Bank B</Option>
+                      <Option value="Bank C">Bank C</Option>
+                      <Option value="Cash-in-Hand">Cash-in-Hand</Option>
                     </Select>
                   </Form.Item>
                 </Col>
@@ -792,13 +706,10 @@ const FinancialManagement = () => {
                     rules={[{ required: true, message: 'Please select a payment source' }]}
                   >
                     <Select placeholder="Select Source">
-                      <Option value="IDFC BC-1">IDFC BC-1</Option>
-                      <Option value="IDFC BC-2">IDFC BC-2</Option>
-                      <Option value="IDFC MI-1">IDFC MI-1</Option>
-                      <Option value="IDFC MI-2">IDFC MI-2</Option>
-                      <Option value="CENTRAL BANK">CENTRAL BANK</Option>
-                      <Option value="ICICI">ICICI</Option>
-                      <Option value="CASH IN HAND">CASH IN HAND</Option>
+                      <Option value="Bank A">Bank A</Option>
+                      <Option value="Bank B">Bank B</Option>
+                      <Option value="Bank C">Bank C</Option>
+                      <Option value="Cash-in-Hand">Cash-in-Hand</Option>
                     </Select>
                   </Form.Item>
                 </Col>
@@ -895,13 +806,10 @@ const FinancialManagement = () => {
                   allowClear
                   style={{ width: '200px' }}
                 >
-                  <Option value="IDFC BC-1">IDFC BC-1</Option>
-                  <Option value="IDFC BC-2">IDFC BC-2</Option>
-                  <Option value="IDFC MI-1">IDFC MI-1</Option>
-                  <Option value="IDFC MI-2">IDFC MI-2</Option>
-                  <Option value="CENTRAL BANK">CENTRAL BANK</Option>
-                  <Option value="ICICI">ICICI</Option>
-                  <Option value="CASH IN HAND">CASH IN HAND</Option>
+                  <Option value="Bank A">Bank A</Option>
+                  <Option value="Bank B">Bank B</Option>
+                  <Option value="Bank C">Bank C</Option>
+                  <Option value="Cash-in-Hand">Cash-in-Hand</Option>
                 </Select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
