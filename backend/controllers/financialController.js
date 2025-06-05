@@ -6,9 +6,12 @@ const initializeFinancial = async () => {
   if (!existingFinancial) {
     console.log('Creating new Financial document');
     await Financial.create({
-      bankABalance: 0,
-      bankBBalance: 0,
-      bankCBalance: 0,
+      idfcBc1Balance: 0,
+      idfcBc2Balance: 0,
+      idfcMi1Balance: 0,
+      idfcMi2Balance: 0,
+      centralBankBalance: 0,
+      iciciBalance: 0,
       cashBalance: 0,
       transactions: [],
     });
@@ -26,10 +29,13 @@ const getBalances = async (req, res) => {
     }
     // Format the response to match the frontend's expected structure
     const balances = [
-      { source: 'Bank A', balance: financial.bankABalance },
-      { source: 'Bank B', balance: financial.bankBBalance },
-      { source: 'Bank C', balance: financial.bankCBalance },
-      { source: 'Cash-in-Hand', balance: financial.cashBalance },
+      { source: 'IDFC BC-1', balance: financial.idfcBc1Balance },
+      { source: 'IDFC BC-2', balance: financial.idfcBc2Balance },
+      { source: 'IDFC MI-1', balance: financial.idfcMi1Balance },
+      { source: 'IDFC MI-2', balance: financial.idfcMi2Balance },
+      { source: 'CENTRAL BANK', balance: financial.centralBankBalance },
+      { source: 'ICICI', balance: financial.iciciBalance },
+      { source: 'CASH IN HAND', balance: financial.cashBalance },
     ];
     res.status(200).json(balances);
   } catch (err) {
@@ -84,19 +90,31 @@ const recordDeposit = async (req, res) => {
     // Update the balance based on the source
     let updatedBalance;
     switch (source) {
-      case 'Bank A':
-        financial.bankABalance += amount;
-        updatedBalance = financial.bankABalance;
+      case 'IDFC BC-1':
+        financial.idfcBc1Balance += amount;
+        updatedBalance = financial.idfcBc1Balance;
         break;
-      case 'Bank B':
-        financial.bankBBalance += amount;
-        updatedBalance = financial.bankBBalance;
+      case 'IDFC BC-2':
+        financial.idfcBc2Balance += amount;
+        updatedBalance = financial.idfcBc2Balance;
         break;
-      case 'Bank C':
-        financial.bankCBalance += amount;
-        updatedBalance = financial.bankCBalance;
+      case 'IDFC MI-1':
+        financial.idfcMi1Balance += amount;
+        updatedBalance = financial.idfcMi1Balance;
         break;
-      case 'Cash-in-Hand':
+      case 'IDFC MI-2':
+        financial.idfcMi2Balance += amount;
+        updatedBalance = financial.idfcMi2Balance;
+        break;
+      case 'CENTRAL BANK':
+        financial.centralBankBalance += amount;
+        updatedBalance = financial.centralBankBalance;
+        break;
+      case 'ICICI':
+        financial.iciciBalance += amount;
+        updatedBalance = financial.iciciBalance;
+        break;
+      case 'CASH IN HAND':
         financial.cashBalance += amount;
         updatedBalance = financial.cashBalance;
         break;
@@ -167,30 +185,51 @@ const recordExpense = async (req, res) => {
     // Check and update the balance based on the source
     let updatedBalance;
     switch (source) {
-      case 'Bank A':
-        if (amount > financial.bankABalance) {
-          return res.status(400).json({ message: 'Insufficient balance in Bank A' });
+      case 'IDFC BC-1':
+        if (amount > financial.idfcBc1Balance) {
+          return res.status(400).json({ message: 'Insufficient balance in IDFC BC-1' });
         }
-        financial.bankABalance -= amount;
-        updatedBalance = financial.bankABalance;
+        financial.idfcBc1Balance -= amount;
+        updatedBalance = financial.idfcBc1Balance;
         break;
-      case 'Bank B':
-        if (amount > financial.bankBBalance) {
-          return res.status(400).json({ message: 'Insufficient balance in Bank B' });
+      case 'IDFC BC-2':
+        if (amount > financial.idfcBc2Balance) {
+          return res.status(400).json({ message: 'Insufficient balance in IDFC BC-2' });
         }
-        financial.bankBBalance -= amount;
-        updatedBalance = financial.bankBBalance;
+        financial.idfcBc2Balance -= amount;
+        updatedBalance = financial.idfcBc2Balance;
         break;
-      case 'Bank C':
-        if (amount > financial.bankCBalance) {
-          return res.status(400).json({ message: 'Insufficient balance in Bank C' });
+      case 'IDFC MI-1':
+        if (amount > financial.idfcMi1Balance) {
+          return res.status(400).json({ message: 'Insufficient balance in IDFC MI-1' });
         }
-        financial.bankCBalance -= amount;
-        updatedBalance = financial.bankCBalance;
+        financial.idfcMi1Balance -= amount;
+        updatedBalance = financial.idfcMi1Balance;
         break;
-      case 'Cash-in-Hand':
+      case 'IDFC MI-2':
+        if (amount > financial.idfcMi2Balance) {
+          return res.status(400).json({ message: 'Insufficient balance in IDFC MI-2' });
+        }
+        financial.idfcMi2Balance -= amount;
+        updatedBalance = financial.idfcMi2Balance;
+        break;
+      case 'CENTRAL BANK':
+        if (amount > financial.centralBankBalance) {
+          return res.status(400).json({ message: 'Insufficient balance in CENTRAL BANK' });
+        }
+        financial.centralBankBalance -= amount;
+        updatedBalance = financial.centralBankBalance;
+        break;
+      case 'ICICI':
+        if (amount > financial.iciciBalance) {
+          return res.status(400).json({ message: 'Insufficient balance in ICICI' });
+        }
+        financial.iciciBalance -= amount;
+        updatedBalance = financial.iciciBalance;
+        break;
+      case 'CASH IN HAND':
         if (amount > financial.cashBalance) {
-          return res.status(400).json({ message: 'Insufficient balance in Cash-in-Hand' });
+          return res.status(400).json({ message: 'Insufficient balance in CASH IN HAND' });
         }
         financial.cashBalance -= amount;
         updatedBalance = financial.cashBalance;
