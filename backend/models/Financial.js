@@ -59,7 +59,18 @@ const financialSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-  cashBalance: {
+  branchBalances: [{
+    branch: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      required: true,
+    },
+    cashBalance: {
+      type: Number,
+      default: 0,
+    },
+  }],
+  totalCashBalance: {
     type: Number,
     default: 0,
   },
