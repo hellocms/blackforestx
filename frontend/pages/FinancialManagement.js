@@ -25,8 +25,7 @@ const FinancialManagement = () => {
   const [idfcMi2Balance, setIdfcMi2Balance] = useState(0);
   const [centralBankBalance, setCentralBankBalance] = useState(0);
   const [iciciBalance, setIciciBalance] = useState(0);
-  const [branchBalances, setBranchBalances] = useState([]);
-  const [totalCashBalance, setTotalCashBalance] = useState(0);
+  const [cashBalance, setCashBalance] = useState(0);
 
   // State for transactions and filters
   const [transactions, setTransactions] = useState([]);
@@ -46,7 +45,7 @@ const FinancialManagement = () => {
   const [expenseForm] = Form.useForm();
 
   const router = useRouter();
-  const BACKEND_URL = 'https://api.dinasuvadu.in';
+  const BACKEND_URL = 'https://apib.dinasuvadu.in';
 
   // Fetch branch details
   const fetchBranchDetails = async (token, branchId) => {
@@ -128,7 +127,6 @@ const FinancialManagement = () => {
       });
       const result = await response.json();
       if (response.ok) {
-        setBranchBalances([]); // Clear existing branch balances
         result.forEach((balance) => {
           switch (balance.source) {
             case 'IDFC BC-1':
@@ -149,19 +147,10 @@ const FinancialManagement = () => {
             case 'ICICI':
               setIciciBalance(balance.balance);
               break;
-            case 'TOTAL CASH IN HAND':
-              setTotalCashBalance(balance.balance);
+            case 'CASH IN HAND':
+              setCashBalance(balance.balance);
               break;
             default:
-              if (balance.source.startsWith('CASH IN HAND - ')) {
-                setBranchBalances((prev) => {
-                  const existing = prev.find(bb => bb.branchId === balance.branchId);
-                  if (existing) {
-                    return prev.map(bb => bb.branchId === balance.branchId ? { ...bb, balance: balance.balance } : bb);
-                  }
-                  return [...prev, { branchId: balance.branchId, source: balance.source, balance: balance.balance }];
-                });
-              }
               break;
           }
         });
@@ -237,27 +226,6 @@ const FinancialManagement = () => {
     return Promise.resolve();
   };
 
-  // Custom validator for expense amount against branch balance
-  const validateExpenseAmount = async (_, value, branchId) => {
-    if (value === undefined || value === null) {
-      return Promise.reject(new Error('Please enter an amount'));
-    }
-    if (typeof value !== 'number') {
-      return Promise.reject(new Error('Amount must be a number'));
-    }
-    if (value < 1) {
-      return Promise.reject(new Error('Amount must be at least 1'));
-    }
-    if (!branchId) {
-      return Promise.reject(new Error('Please select a branch'));
-    }
-    const branchBalance = branchBalances.find(bb => bb.branchId === branchId)?.balance || 0;
-    if (value > branchBalance) {
-      return Promise.reject(new Error('Insufficient cash balance for this branch'));
-    }
-    return Promise.resolve();
-  };
-
   // Handle deposit form submission
   const handleDeposit = async (values) => {
     const { source, amount, branch, remarks } = values;
@@ -273,39 +241,30 @@ const FinancialManagement = () => {
       const result = await response.json();
       if (response.ok) {
         // Update balance
-        if (source === 'CASH IN HAND') {
-          setBranchBalances((prev) => {
-            const existing = prev.find(bb => bb.branchId === result.balance.branch);
-            if (existing) {
-              return prev.map(bb => bb.branchId === result.balance.branch ? { ...bb, balance: result.balance.balance } : bb);
-            }
-            const branchName = branches.find(b => b._id === result.balance.branch)?.name || 'Unknown Branch';
-            return [...prev, { branchId: result.balance.branch, source: `CASH IN HAND - ${branchName}`, balance: result.balance.balance }];
-          });
-          setTotalCashBalance(prev => prev + amount);
-        } else {
-          switch (source) {
-            case 'IDFC BC-1':
-              setIdfcBc1Balance(result.balance.balance);
-              break;
-            case 'IDFC BC-2':
-              setIdfcBc2Balance(result.balance.balance);
-              break;
-            case 'IDFC MI-1':
-              setIdfcMi1Balance(result.balance.balance);
-              break;
-            case 'IDFC MI-2':
-              setIdfcMi2Balance(result.balance.balance);
-              break;
-            case 'CENTRAL BANK':
-              setCentralBankBalance(result.balance.balance);
-              break;
-            case 'ICICI':
-              setIciciBalance(result.balance.balance);
-              break;
-            default:
-              break;
-          }
+        switch (source) {
+          case 'IDFC BC-1':
+            setIdfcBc1Balance(result.balance.balance);
+            break;
+          case 'IDFC BC-2':
+            setIdfcBc2Balance(result.balance.balance);
+            break;
+          case 'IDFC MI-1':
+            setIdfcMi1Balance(result.balance.balance);
+            break;
+          case 'IDFC MI-2':
+            setIdfcMi2Balance(result.balance.balance);
+            break;
+          case 'CENTRAL BANK':
+            setCentralBankBalance(result.balance.balance);
+            break;
+          case 'ICICI':
+            setIciciBalance(result.balance.balance);
+            break;
+          case 'CASH IN HAND':
+            setCashBalance(result.balance.balance);
+            break;
+          default:
+            break;
         }
 
         // Add transaction to history
@@ -349,39 +308,30 @@ const FinancialManagement = () => {
       const result = await response.json();
       if (response.ok) {
         // Update balance
-        if (source === 'CASH IN HAND') {
-          setBranchBalances((prev) => {
-            const existing = prev.find(bb => bb.branchId === result.balance.branch);
-            if (existing) {
-              return prev.map(bb => bb.branchId === result.balance.branch ? { ...bb, balance: result.balance.balance } : bb);
-            }
-            const branchName = branches.find(b => b._id === result.balance.branch)?.name || 'Unknown Branch';
-            return [...prev, { branchId: result.balance.branch, source: `CASH IN HAND - ${branchName}`, balance: result.balance.balance }];
-          });
-          setTotalCashBalance(prev => prev - amount);
-        } else {
-          switch (source) {
-            case 'IDFC BC-1':
-              setIdfcBc1Balance(result.balance.balance);
-              break;
-            case 'IDFC BC-2':
-              setIdfcBc2Balance(result.balance.balance);
-              break;
-            case 'IDFC MI-1':
-              setIdfcMi1Balance(result.balance.balance);
-              break;
-            case 'IDFC MI-2':
-              setIdfcMi2Balance(result.balance.balance);
-              break;
-            case 'CENTRAL BANK':
-              setCentralBankBalance(result.balance.balance);
-              break;
-            case 'ICICI':
-              setIciciBalance(result.balance.balance);
-              break;
-            default:
-              break;
-          }
+        switch (source) {
+          case 'IDFC BC-1':
+            setIdfcBc1Balance(result.balance.balance);
+            break;
+          case 'IDFC BC-2':
+            setIdfcBc2Balance(result.balance.balance);
+            break;
+          case 'IDFC MI-1':
+            setIdfcMi1Balance(result.balance.balance);
+            break;
+          case 'IDFC MI-2':
+            setIdfcMi2Balance(result.balance.balance);
+            break;
+          case 'CENTRAL BANK':
+            setCentralBankBalance(result.balance.balance);
+            break;
+          case 'ICICI':
+            setIciciBalance(result.balance.balance);
+            break;
+          case 'CASH IN HAND':
+            setCashBalance(result.balance.balance);
+            break;
+          default:
+            break;
         }
 
         // Add transaction to history
@@ -414,13 +364,13 @@ const FinancialManagement = () => {
   const filterTransactions = (source, type, dateRange) => {
     let filtered = [...transactions];
 
-    // Always filter by userBranchId if not office branch
-    if (userBranchId && !isOfficeBranch) {
+    // Always filter by userBranchId
+    if (userBranchId) {
       filtered = filtered.filter((t) => t.branchId === userBranchId);
     }
 
     if (source) {
-      filtered = filtered.filter((t) => t.source === source || t.source.startsWith('CASH IN HAND - '));
+      filtered = filtered.filter((t) => t.source === source);
     }
 
     if (type) {
@@ -709,26 +659,6 @@ const FinancialManagement = () => {
                 </Text>
               </Card>
             </Col>
-            {branchBalances.map((bb) => (
-              <Col xs={24} sm={12} md={6} key={bb.branchId}>
-                <Card
-                  style={{
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    textAlign: 'center',
-                    height: '150px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                  <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                    {bb.source}: ₹{bb.balance.toFixed(2)}
-                  </Text>
-                </Card>
-              </Col>
-            ))}
             <Col xs={24} sm={12} md={6}>
               <Card
                 style={{
@@ -743,7 +673,7 @@ const FinancialManagement = () => {
               >
                 <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
                 <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  TOTAL CASH IN HAND: ₹{totalCashBalance.toFixed(2)}
+                  CASH IN HAND: ₹{cashBalance.toFixed(2)}
                 </Text>
               </Card>
             </Col>
@@ -892,23 +822,11 @@ const FinancialManagement = () => {
               <Row gutter={16}>
                 <Col xs={24} sm={12}>
                   <Form.Item
-                    noStyle
-                    shouldUpdate={(prevValues, currentValues) => prevValues.branch !== currentValues.branch}
+                    label="Amount (₹)"
+                    name="amount"
+                    rules={[{ validator: validateAmount }]}
                   >
-                    {({ getFieldValue }) => {
-                      const branchId = getFieldValue('branch');
-                      return (
-                        <Form.Item
-                          label="Amount (₹)"
-                          name="amount"
-                          rules={[{
-                            validator: (_, value) => validateExpenseAmount(_, value, branchId),
-                          }]}
-                        >
-                          <InputNumber min={1} style={{ width: '100%' }} />
-                        </Form.Item>
-                      );
-                    }}
+                    <InputNumber min={1} style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
