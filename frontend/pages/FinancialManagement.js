@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Typography, Form, Select, InputNumber, Input, Button, Table, Space, DatePicker, message, Layout } from 'antd';
 import { BankOutlined, MoneyCollectOutlined, PrinterOutlined, ClearOutlined, SearchOutlined } from '@ant-design/icons';
@@ -35,6 +36,7 @@ const FinancialManagement = () => {
   const [selectedSourceFilter, setSelectedSourceFilter] = useState(null);
   const [selectedTypeFilter, setSelectedTypeFilter] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState(null);
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState(null); // Added for branch filter
 
   // State for branch handling
   const [userBranchId, setUserBranchId] = useState(null);
@@ -115,9 +117,9 @@ const FinancialManagement = () => {
   // Filter transactions when userBranchId or other filters change
   useEffect(() => {
     if (userBranchId) {
-      filterTransactions(selectedSourceFilter, selectedTypeFilter, selectedDateRange);
+      filterTransactions(selectedSourceFilter, selectedTypeFilter, selectedDateRange, selectedBranchFilter);
     }
-  }, [transactions, userBranchId, selectedSourceFilter, selectedTypeFilter, selectedDateRange]);
+  }, [transactions, userBranchId, selectedSourceFilter, selectedTypeFilter, selectedDateRange, selectedBranchFilter]);
 
   // Fetch balances
   const fetchBalances = async () => {
@@ -411,12 +413,14 @@ const FinancialManagement = () => {
   };
 
   // Filter transactions
-  const filterTransactions = (source, type, dateRange) => {
+  const filterTransactions = (source, type, dateRange, branchFilter) => {
     let filtered = [...transactions];
 
-    // Always filter by userBranchId if not office branch
-    if (userBranchId && !isOfficeBranch) {
+    // Apply branch filter: non-Office users see only their branch, Office users filter by selected branch or see all
+    if (!isOfficeBranch) {
       filtered = filtered.filter((t) => t.branchId === userBranchId);
+    } else if (branchFilter) {
+      filtered = filtered.filter((t) => t.branchId === branchFilter);
     }
 
     if (source) {
@@ -441,24 +445,30 @@ const FinancialManagement = () => {
 
   const handleSourceFilter = (value) => {
     setSelectedSourceFilter(value);
-    filterTransactions(value, selectedTypeFilter, selectedDateRange);
+    filterTransactions(value, selectedTypeFilter, selectedDateRange, selectedBranchFilter);
   };
 
   const handleTypeFilter = (value) => {
     setSelectedTypeFilter(value);
-    filterTransactions(selectedSourceFilter, value, selectedDateRange);
+    filterTransactions(selectedSourceFilter, value, selectedDateRange, selectedBranchFilter);
   };
 
   const handleDateFilter = (dates) => {
     setSelectedDateRange(dates);
-    filterTransactions(selectedSourceFilter, selectedTypeFilter, dates);
+    filterTransactions(selectedSourceFilter, selectedTypeFilter, dates, selectedBranchFilter);
+  };
+
+  const handleBranchFilter = (value) => {
+    setSelectedBranchFilter(value);
+    filterTransactions(selectedSourceFilter, selectedTypeFilter, selectedDateRange, value);
   };
 
   const clearFilters = () => {
     setSelectedSourceFilter(null);
     setSelectedTypeFilter(null);
     setSelectedDateRange(null);
-    filterTransactions(null, null, null);
+    setSelectedBranchFilter(null);
+    filterTransactions(null, null, null, null);
   };
 
   // Print transaction history
@@ -596,158 +606,162 @@ const FinancialManagement = () => {
             Financial Management
           </Title>
 
-          {/* Section 1: Current Balances Overview */}
-          <Title level={4} style={{ marginBottom: '20px', color: '#1a3042' }}>
-            Current Balances
-          </Title>
-          <Row gutter={[24, 24]} style={{ marginBottom: '40px' }}>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  IDFC BC-1: ₹{idfcBc1Balance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  IDFC BC-2: ₹{idfcBc2Balance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  IDFC MI-1: ₹{idfcMi1Balance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  IDFC MI-2: ₹{idfcMi2Balance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  CENTRAL BANK: ₹{centralBankBalance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  ICICI: ₹{iciciBalance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-            {branchBalances.map((bb) => (
-              <Col xs={24} sm={12} md={6} key={bb.branchId}>
-                <Card
-                  style={{
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    textAlign: 'center',
-                    height: '150px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                  <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                    {bb.source}: ₹{bb.balance.toFixed(2)}
-                  </Text>
-                </Card>
-              </Col>
-            ))}
-            <Col xs={24} sm={12} md={6}>
-              <Card
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  textAlign: 'center',
-                  height: '150px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
-                <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                  TOTAL CASH IN HAND: ₹{totalCashBalance.toFixed(2)}
-                </Text>
-              </Card>
-            </Col>
-          </Row>
+          {/* Section 1: Current Balances Overview (Office Branch Only) */}
+          {isOfficeBranch && (
+            <>
+              <Title level={4} style={{ marginBottom: '20px', color: '#1a3042' }}>
+                Current Balances
+              </Title>
+              <Row gutter={[24, 24]} style={{ marginBottom: '40px' }}>
+                <Col xs={24} sm={12} md={6}>
+                  <Card
+                    style={{
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      textAlign: 'center',
+                      height: '150px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                      IDFC BC-1: ₹{idfcBc1Balance.toFixed(2)}
+                    </Text>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Card
+                    style={{
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      textAlign: 'center',
+                      height: '150px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                      IDFC BC-2: ₹{idfcBc2Balance.toFixed(2)}
+                    </Text>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Card
+                    style={{
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      textAlign: 'center',
+                      height: '150px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                      IDFC MI-1: ₹{idfcMi1Balance.toFixed(2)}
+                    </Text>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Card
+                    style={{
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      textAlign: 'center',
+                      height: '150px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                      IDFC MI-2: ₹{idfcMi2Balance.toFixed(2)}
+                    </Text>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Card
+                    style={{
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      textAlign: 'center',
+                      height: '150px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                      CENTRAL BANK: ₹{centralBankBalance.toFixed(2)}
+                    </Text>
+                  </Card>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Card
+                    style={{
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      textAlign: 'center',
+                      height: '150px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                      ICICI: ₹{iciciBalance.toFixed(2)}
+                    </Text>
+                  </Card>
+                </Col>
+                {branchBalances.map((bb) => (
+                  <Col xs={24} sm={12} md={6} key={bb.branchId}>
+                    <Card
+                      style={{
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        textAlign: 'center',
+                        height: '150px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                      <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                        {bb.source}: ₹{bb.balance.toFixed(2)}
+                      </Text>
+                    </Card>
+                  </Col>
+                ))}
+                <Col xs={24} sm={12} md={6}>
+                  <Card
+                    style={{
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      textAlign: 'center',
+                      height: '150px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                      TOTAL CASH IN HAND: ₹{totalCashBalance.toFixed(2)}
+                    </Text>
+                  </Card>
+                </Col>
+              </Row>
+            </>
+          )}
 
           {/* Section 2: Deposit Form */}
           <Title level={4} style={{ marginBottom: '20px', color: '#1a3042' }}>
@@ -901,9 +915,7 @@ const FinancialManagement = () => {
                         <Form.Item
                           label="Amount (₹)"
                           name="amount"
-                          rules={[{
-                            validator: (_, value) => validateExpenseAmount(_, value, branchId),
-                          }]}
+                          rules={[{ validator: (_, value) => validateExpenseAmount(_, value, branchId) }]}
                         >
                           <InputNumber min={1} style={{ width: '100%' }} />
                         </Form.Item>
@@ -988,11 +1000,27 @@ const FinancialManagement = () => {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <Text strong>Branch</Text>
-                <Input
-                  value={userBranchName}
-                  readOnly
-                  style={{ width: '200px', color: '#000000', background: '#f5f5f5', borderColor: '#d3d3d3' }}
-                />
+                {isOfficeBranch ? (
+                  <Select
+                    placeholder="Filter by Branch"
+                    value={selectedBranchFilter}
+                    onChange={handleBranchFilter}
+                    allowClear
+                    style={{ width: '200px' }}
+                  >
+                    {branches.map((branch) => (
+                      <Option key={branch._id} value={branch._id}>
+                        {branch.name}
+                      </Option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input
+                    value={userBranchName}
+                    readOnly
+                    style={{ width: '200px', color: '#000000', background: '#f5f5f5', borderColor: '#d3d3d3' }}
+                  />
+                )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <Text strong>Type</Text>
