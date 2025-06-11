@@ -783,6 +783,7 @@ const ClosingEntry = () => {
           <Option value="RAW MATERIAL">RAW MATERIAL</Option>
           <Option value="SALARY">SALARY</Option>
           <Option value="ADVANCE">Advance</Option>
+          <Option value="OTHERPRODUCTS">OC PRODUCTS</Option>
           <Option value="OTHERS">Others</Option>
         </Select>
       ),
