@@ -147,25 +147,19 @@ const ClosingEntry = () => {
 
   useEffect(() => {
     if (!branchId || closingEntries.length === 0) return;
-
-    const today = dayjs().format('YYYY-MM-DD');
-    const { id } = router.query;
-
+    const id = router.query.id;
     if (id) {
       const entry = closingEntries.find(entry => entry._id === id);
       if (entry) {
         populateForm(entry);
-      }
-    } else {
-      const todayEntry = closingEntries.find(
-        entry => dayjs(entry.date).format('YYYY-MM-DD') === today
-      );
-      if (todayEntry) {
-        populateForm(todayEntry);
-        router.push(`/dealers/closing-entry/closingentry?id=${todayEntry._id}`, undefined, { shallow: true });
+        if (router.query.id !== entry._id) {
+          router.push(`/dealers/closing-entry/closingentry?id=${entry._id}`, undefined, { shallow: true });
+        }
+      } else {
+        message.error('Closing entry not found');
       }
     }
-  }, [router.query, closingEntries, branchId]);
+  }, [router.query.id, closingEntries, branchId, router.push]);
 
   const populateForm = (entry) => {
     setClosingEntryId(entry._id);
@@ -253,7 +247,6 @@ const ClosingEntry = () => {
 
   useEffect(() => {
     if (closingEntries.length === 0 || !chartRef.current) return;
-
     if (chartInstanceRef.current) {
       chartInstanceRef.current.destroy();
     }
@@ -275,9 +268,9 @@ const ClosingEntry = () => {
         entryDate.month() === currentMonth
       ) {
         const day = entryDate.date() - 1;
-        totalSalesData[day] = (entry.systemSales || 0) + (entry.manualSales || 0) + (entry.onlineSales || 0);
-        totalPaymentsData[day] = (entry.creditCardPayment || 0) + (entry.upiPayment || 0) + (entry.cashPayment || 0) + (entry.expenses || 0);
-        totalExpensesData[day] = entry.expenses || 0;
+        totalSalesData[day] += (entry.systemSales || 0) + (entry.manualSales || 0) + (entry.onlineSales || 0);
+        totalPaymentsData[day] += (entry.creditCardPayment || 0) + (entry.upiPayment || 0) + (entry.cashPayment || 0) + (entry.expenses || 0);
+        totalExpensesData[day] += entry.expenses || 0;
       }
     });
 
@@ -529,15 +522,7 @@ const ClosingEntry = () => {
     }
 
     const selectedDate = date.format('YYYY-MM-DD');
-    const existingEntry = closingEntries.find(
-      entry => dayjs(entry.date).format('YYYY-MM-DD') === selectedDate
-    );
-
-    if (existingEntry) {
-      message.error('A closing entry for this date already exists. Please edit the existing entry.');
-      router.push(`/dealers/closing-entry/closingentry?id=${existingEntry._id}`, undefined, { shallow: true });
-      return;
-    }
+    
 
     setSubmitting(true);
     try {
@@ -779,12 +764,12 @@ const ClosingEntry = () => {
           <Option value="PACKING">Packing</Option>
           <Option value="STAFF WELFARE">Staff Welfare</Option>
           <Option value="ADVERTISEMENT">Advertisement</Option>
+          <Option value="ADVANCE">Advance</Option>
           <Option value="Complementary">Complementary</Option>
           <Option value="RAW MATERIAL">RAW MATERIAL</Option>
           <Option value="SALARY">SALARY</Option>
-          <Option value="ADVANCE">Advance</Option>
           <Option value="OTHERPRODUCTS">OC PRODUCTS</Option>
-          <Option value="OTHERS">OTHERS</Option>
+          <Option value="OTHERS">Others</Option>
         </Select>
       ),
     },
