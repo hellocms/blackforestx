@@ -700,13 +700,30 @@ const ClosingEntryList = () => {
   ];
 
   const summaryColumns = [
-    { title: 'S.No', key: 'sno', render: (text, record, index) => <Text strong>{index + 1}</Text>, width: 60 },
-    { 
-      title: 'Branch', 
-      dataIndex: 'branchName', 
-      key: 'branch', 
-      render: (value) => <Text strong>{value || 'N/A'}</Text>, 
-      width: 120 
+    {
+      title: 'S.No',
+      key: 'sno',
+      render: (text, record, index) => <Text strong>{index + 1}</Text>,
+      width: 60,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+    },
+    {
+      title: 'Branch',
+      dataIndex: 'branchName',
+      key: 'branch',
+      render: (value) => <Text strong>{value || 'N/A'}</Text>,
+      width: 120,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
     },
     {
       title: 'Credit Card',
@@ -714,6 +731,12 @@ const ClosingEntryList = () => {
       key: 'creditCardPayment',
       render: (value) => <Text strong>₹{value}</Text>,
       width: 120,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
     },
     {
       title: 'UPI',
@@ -721,6 +744,12 @@ const ClosingEntryList = () => {
       key: 'upiPayment',
       render: (value) => <Text strong>₹{value}</Text>,
       width: 120,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
     },
     {
       title: 'Cash',
@@ -728,6 +757,12 @@ const ClosingEntryList = () => {
       key: 'cashPayment',
       render: (value) => <Text strong>₹{value}</Text>,
       width: 120,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
     },
     {
       title: 'Expenses',
@@ -743,6 +778,12 @@ const ClosingEntryList = () => {
         </Text>
       ),
       width: 140,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
     },
     {
       title: 'Total Sales',
@@ -772,51 +813,50 @@ const ClosingEntryList = () => {
         style: { backgroundColor: '#50e0ff' },
       }),
     },
-   // In summaryColumns
-{
-  title: 'Difference',
-  key: 'difference',
-  sorter: (a, b) => (a.totalPayments - a.totalSales) - (b.totalPayments - b.totalSales),
-  render: (record) => {
-    const diff = record.totalPayments - record.totalSales;
-    let backgroundColor, textColor;
-    if (diff === 0) {
-      backgroundColor = '#52c41a';
-      textColor = '#ffffff';
-    } else if (diff < 0) {
-      backgroundColor = '#ff4d4f';
-      textColor = '#ffffff';
-    } else {
-      backgroundColor = '#fadb14';
-      textColor = '#000000';
-    }
-    return (
-      <Text strong style={{ color: textColor, padding: '4px 8px', borderRadius: '4px' }}>
-        ₹{diff}
-      </Text>
-    );
-  },
-  onCell: (record) => {
-    const diff = record.totalPayments - record.totalSales;
-    let backgroundColor;
-    if (diff === 0) {
-      backgroundColor = '#52c41a';
-    } else if (diff < 0) {
-      backgroundColor = '#ff4d4f';
-    } else {
-      backgroundColor = '#fadb14';
-    }
-    return {
-      style: { backgroundColor },
-    };
-  },
-  onHeaderCell: () => ({
-    style: { backgroundColor: '#FCC6C8' },
-  }),
-  width: 120,
-},
     {
-      title: 'Date',
+      title: 'Difference',
+      key: 'difference',
+      sorter: (a, b) => (a.totalPayments - a.totalSales) - (b.totalPayments - b.totalSales),
+      render: (record) => {
+        const diff = record.totalPayments - record.totalSales;
+        let backgroundColor, textColor;
+        if (diff === 0) {
+          backgroundColor = '#52c41a';
+          textColor = '#ffffff';
+        } else if (diff < 0) {
+          backgroundColor = '#ff4d4f';
+          textColor = '#ffffff';
+        } else {
+          backgroundColor = '#fadb14';
+          textColor = '#000000';
+        }
+        return (
+          <Text strong style={{ color: textColor, padding: '4px 8px', borderRadius: '4px' }}>
+            ₹{diff}
+          </Text>
+        );
+      },
+      onCell: (record) => {
+        const diff = record.totalPayments - record.totalSales;
+        let backgroundColor;
+        if (diff === 0) {
+          backgroundColor = '#52c41a';
+        } else if (diff < 0) {
+          backgroundColor = '#ff4d4f';
+        } else {
+          backgroundColor = '#fadb14';
+        }
+        return {
+          style: { backgroundColor },
+        };
+      },
+      onHeaderCell: () => ({
+        style: { backgroundColor: '#FCC6C8' },
+      }),
+      width: 120,
+    },
+    {
+      title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt',
       sorter: (a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix(),
@@ -830,13 +870,48 @@ const ClosingEntryList = () => {
   ];
 
   const detailedColumns = [
-    { title: 'S.No', key: 'sno', render: (text, record, index) => <Text strong>{index + 1}</Text>, width: 60 },
-    { 
-      title: 'Branch', 
-      dataIndex: ['branchId', 'name'], 
-      key: 'branch', 
-      render: (value) => <Text strong>{value || 'N/A'}</Text>, 
-      width: 120 
+    {
+      title: 'S.No',
+      key: 'sno',
+      render: (text, record, index) => <Text strong>{index + 1}</Text>,
+      width: 60,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+    },
+    {
+      title: 'Branch',
+      dataIndex: ['branchId', 'name'],
+      key: 'branch',
+      render: (value) => <Text strong>{value || 'N/A'}</Text>,
+      width: 120,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+    },
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
+      render: (date) => (
+        <Tooltip title={dayjs(date).format('D/M/YY hh:mm A')}>
+          <Text strong>{dayjs(date).format('MMM-DD')}</Text>
+        </Tooltip>
+      ),
+      width: 100,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
     },
     {
       title: 'Credit Card',
@@ -844,6 +919,12 @@ const ClosingEntryList = () => {
       key: 'creditCardPayment',
       render: (value) => <Text strong>₹{value}</Text>,
       width: 120,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
     },
     {
       title: 'UPI',
@@ -851,6 +932,12 @@ const ClosingEntryList = () => {
       key: 'upiPayment',
       render: (value) => <Text strong>₹{value}</Text>,
       width: 120,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
     },
     {
       title: 'Cash',
@@ -858,6 +945,12 @@ const ClosingEntryList = () => {
       key: 'cashPayment',
       render: (value) => <Text strong>₹{value}</Text>,
       width: 120,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
     },
     {
       title: 'Expenses',
@@ -873,6 +966,12 @@ const ClosingEntryList = () => {
         </Text>
       ),
       width: 140,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
     },
     {
       title: 'Total Sales',
@@ -900,7 +999,6 @@ const ClosingEntryList = () => {
         style: { backgroundColor: '#50e0ff' },
       }),
     },
-    // In detailedColumns
     {
       title: 'Difference',
       key: 'difference',
@@ -947,7 +1045,7 @@ const ClosingEntryList = () => {
       width: 120,
     },
     {
-      title: 'Date',
+      title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt',
       sorter: (a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix(),
@@ -972,127 +1070,124 @@ const ClosingEntryList = () => {
       }}
     >
       <style>
-        {`
-          @media print {
-            body { margin: 0; padding: 0; background: #fff; }
-            .ant-card, .graphs-section { display: none; }
-            .ant-table { font-size: 10px; }
-            .ant-table th, .ant-table td { padding: 4px !important; font-weight: bold; }
-            @page { size: A4; margin: 10mm; }
-            .total-sales { background-color: rgb(220, 248, 198); }
-            .total-payments { background-color: #50e0ff; }
-          }
-          .filter-header {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            background: #fff;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border-radius: 12px;
-          }
-          .graphs-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            gap: 20px;
-          }
-          .upper-graphs {
-            display: flex;
-            flex-direction: row;
-            justify-content: flex-start;
-            width: 100%;
-            max-width: 1600px;
-            gap: 20px;
-          }
-          .lower-graphs {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            width: 100%;
-            max-width: 1600px;
-            gap: 20px;
-          }
-          .chart-container.line {
-            width: 100%;
-            max-width: 1600px;
-            height: 50vh;
-            min-height: 400px;
-            min-width: 900px;
-          }
-          .chart-container.bar {
-            width: 50%;
-            max-width: 800px;
-            height: 50vh;
-            min-height: 400px;
-            min-width: 400px;
-          }
-          .chart-container.pie {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 50%;
-            max-width: 800px;
-            height: 60vh;
-            min-height: 450px;
-            min-width: 450px;
-          }
-          .pie-card, .line-card, .bar-card {
-            width: 100%;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            background: #fff;
-            padding: 20px;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-          }
-          .pie-card, .bar-card {
-            max-width: 800px;
-            justify-content: center;
-          }
-          .line-card {
-            max-width: 1600px;
-          }
-          .chart-legend-bottom-left {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 10px 0;
-          }
-          .chart-legend-bottom-left .legend-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-          }
-          .chart-legend-bottom-left .legend-item span {
-            margin-right: 8px;
-          }
-          @media (max-width: 1200px) {
-            .upper-graphs { flex-direction: column; align-items: flex-start; }
-            .lower-graphs { flex-direction: column; align-items: center; }
-            .chart-container.line { width: 95vw; max-width: 1200px; min-width: 700px; height: 45vh; min-height: 350px; }
-            .chart-container.bar { width: 95vw; max-width: 600px; min-width: 500px; height: 45vh; min-height: 350px; }
-            .chart-container.pie { width: 95vw; max-width: 600px; min-width: 500px; height: 55vh; min-height: 400px; }
-            .line-card, .bar-card, .pie-card { max-width: 100%; }
-          }
-          @media (max-width: 768px) {
-            .chart-container.line { width: 98vw; max-width: 1000px; min-width: 400px; height: 40vh; min-height: 300px; }
-            .chart-container.bar { width: 98vw; max-width: 500px; min-width: 400px; height: 40vh; min-height: 300px; }
-            .chart-container.pie { width: 98vw; max-width: 500px; min-width: 400px; height: 50vh; min-height: 350px; }
-          }
-          @media (max-width: 480px) {
-            .chart-container.line { width: 98vw; max-width: 850px; min-width: 300px; height: 35vh; min-height: 250px; }
-            .chart-container.bar { width: 98vw; max-width: 400px; min-width: 300px; height: 35vh; min-height: 250px; }
-            .chart-container.pie { width: 98vw; max-width: 400px; min-width: 350px; height: 45vh; min-height: 300px; }
-          }
-          @media (max-width: 768px) {
-            .custom-legend { flex-direction: column; align-items: flex-start; }
-            .custom-legend > div { margin-bottom: 10px; margin-right: 0; }
-          }
-        `}
-      </style>
+  {`
+    @media print {
+      body { margin: 0; padding: 0; background: #fff; }
+      .ant-card, .graphs-section { display: none; }
+      .ant-table { font-size: 10px; }
+      .ant-table th, .ant-table td { padding: 4px !important; font-weight: bold; }
+      @page { size: A4; margin: 10mm; }
+      .total-sales { background-color: rgb(220, 248, 198); }
+      .total-payments { background-color: #50e0ff; }
+    }
+    .filter-header {
+      background: #fff;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      border-radius: 12px;
+    }
+    .graphs-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      gap: 20px;
+    }
+    .upper-graphs {
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-start;
+      width: 100%;
+      max-width: 1600px;
+      gap: 20px;
+    }
+    .lower-graphs {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      width: 100%;
+      max-width: 1600px;
+      gap: 20px;
+    }
+    .chart-container.line {
+      width: 100%;
+      max-width: 1600px;
+      height: 50vh;
+      min-height: 400px;
+      min-width: 900px;
+    }
+    .chart-container.bar {
+      width: 50%;
+      max-width: 800px;
+      height: 50vh;
+      min-height: 400px;
+      min-width: 400px;
+    }
+    .chart-container.pie {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 50%;
+      max-width: 800px;
+      height: 60vh;
+      min-height: 450px;
+      min-width: 450px;
+    }
+    .pie-card, .line-card, .bar-card {
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      background: #fff;
+      padding: 20px;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+    }
+    .pie-card, .bar-card {
+      max-width: 800px;
+      justify-content: center;
+    }
+    .line-card {
+      max-width: 1600px;
+    }
+    .chart-legend-bottom-left {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 10px 0;
+    }
+    .chart-legend-bottom-left .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .chart-legend-bottom-left .legend-item span {
+      margin-right: 8px;
+    }
+    @media (max-width: 1200px) {
+      .upper-graphs { flex-direction: column; align-items: flex-start; }
+      .lower-graphs { flex-direction: column; align-items: center; }
+      .chart-container.line { width: 95vw; max-width: 1200px; min-width: 700px; height: 45vh; min-height: 350px; }
+      .chart-container.bar { width: 95vw; max-width: 600px; min-width: 500px; height: 45vh; min-height: 350px; }
+      .chart-container.pie { width: 95vw; max-width: 600px; min-width: 500px; height: 55vh; min-height: 400px; }
+      .line-card, .bar-card, .pie-card { max-width: 100%; }
+    }
+    @media (max-width: 768px) {
+      .chart-container.line { width: 98vw; max-width: 1000px; min-width: 400px; height: 40vh; min-height: 300px; }
+      .chart-container.bar { width: 98vw; max-width: 500px; min-width: 400px; height: 40vh; min-height: 300px; }
+      .chart-container.pie { width: 98vw; max-width: 500px; min-width: 400px; height: 50vh; min-height: 350px; }
+    }
+    @media (max-width: 480px) {
+      .chart-container.line { width: 98vw; max-width: 850px; min-width: 300px; height: 35vh; min-height: 250px; }
+      .chart-container.bar { width: 98vw; max-width: 400px; min-width: 300px; height: 35vh; min-height: 250px; }
+      .chart-container.pie { width: 98vw; max-width: 400px; min-width: 350px; height: 45vh; min-height: 300px; }
+    }
+    @media (max-width: 768px) {
+      .custom-legend { flex-direction: column; align-items: flex-start; }
+      .custom-legend > div { margin-bottom: 10px; margin-right: 0; }
+    }
+  `}
+</style>
       <div style={{ maxWidth: '1600px', width: '100%' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -1190,22 +1285,89 @@ const ClosingEntryList = () => {
               </Space>
             </Card>
 
-            <Card
-              style={{
-                borderRadius: '12px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                background: '#fff',
-                marginBottom: '20px',
-              }}
-            >
-              <Table
-                columns={showSummaryTable ? summaryColumns : detailedColumns}
-                dataSource={showSummaryTable ? branchTotals : filteredEntries}
-                rowKey={showSummaryTable ? 'branchId' : '_id'}
-                pagination={{ pageSize: 10 }}
-                bordered
-              />
-            </Card>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  background: '#fff',
+                  marginBottom: '20px',
+                }}
+              >
+                <Table
+                  columns={showSummaryTable ? summaryColumns : detailedColumns}
+                  dataSource={showSummaryTable ? branchTotals : filteredEntries}
+                  rowKey={showSummaryTable ? 'branchId' : '_id'}
+                  pagination={{ pageSize: 10 }}
+                  bordered
+                  summary={(data) => {
+                    if (!data.length) return null;
+                    const totals = data.reduce(
+                      (acc, record) => {
+                        if (showSummaryTable) {
+                          acc.creditCardPayment += record.creditCardPayment || 0;
+                          acc.upiPayment += record.upiPayment || 0;
+                          acc.cashPayment += record.cashPayment || 0;
+                          acc.expenses += record.expenses || 0;
+                          acc.totalSales += record.totalSales || 0;
+                          acc.totalPayments += record.totalPayments || 0;
+                          acc.difference += (record.totalPayments || 0) - (record.totalSales || 0);
+                        } else {
+                          acc.creditCardPayment += record.creditCardPayment || 0;
+                          acc.upiPayment += record.upiPayment || 0;
+                          acc.cashPayment += record.cashPayment || 0;
+                          acc.expenses += record.expenses || 0;
+                          acc.totalSales += (record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0);
+                          acc.totalPayments += (record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0);
+                          acc.difference += ((record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0)) - ((record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0));
+                        }
+                        return acc;
+                      },
+                      {
+                        creditCardPayment: 0,
+                        upiPayment: 0,
+                        cashPayment: 0,
+                        expenses: 0,
+                        totalSales: 0,
+                        totalPayments: 0,
+                        difference: 0,
+                      }
+                    );
+                    return (
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell index={0}>
+                          <Text strong>Total</Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={1} />
+                        {showSummaryTable ? null : <Table.Summary.Cell index={2} />}
+                        <Table.Summary.Cell index={showSummaryTable ? 2 : 3}>
+                          <Text strong>₹{totals.creditCardPayment.toFixed(2)}</Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={showSummaryTable ? 3 : 4}>
+                          <Text strong>₹{totals.upiPayment.toFixed(2)}</Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={showSummaryTable ? 4 : 5}>
+                          <Text strong>₹{totals.cashPayment.toFixed(2)}</Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={showSummaryTable ? 5 : 6}>
+                          <Text strong>₹{totals.expenses.toFixed(2)}</Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={showSummaryTable ? 6 : 7}>
+                          <Text strong>₹{totals.totalSales.toFixed(2)}</Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={showSummaryTable ? 7 : 8}>
+                          <Text strong>₹{totals.totalPayments.toFixed(2)}</Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={showSummaryTable ? 8 : 9}>
+                          <Text strong style={{ color: totals.difference >= 0 ? '#000000' : '#ffffff', backgroundColor: totals.difference === 0 ? '#52c41a' : totals.difference < 0 ? '#ff4d4f' : '#fadb14', padding: '4px 8px', borderRadius: '4px' }}>
+                            ₹{totals.difference.toFixed(2)}
+                          </Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={showSummaryTable ? 9 : 10} />
+                      </Table.Summary.Row>
+                    );
+                  }}
+                />
+              </Card>
 
             {filteredEntries.length > 0 ? (
               <div className="graphs-section">
