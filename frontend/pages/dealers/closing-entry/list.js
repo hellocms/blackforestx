@@ -1070,151 +1070,125 @@ const ClosingEntryList = () => {
         alignItems: 'flex-start',
       }}
     >
-     <style>
-        {`
-          @media print {
-            body { margin: 0; padding: 0; background: #fff; }
-            .ant-card, .graphs-section { display: none; }
-            .ant-table { font-size: 10px; }
-            .ant-table th, .ant-table td { padding: 4px !important; font-weight: bold; }
-            @page { size: A4; margin: 10mm; }
-            .total-sales { background-color: rgb(220, 248, 198); }
-            .total-payments { background-color: #50e0ff; }
-            .ant-table-summary .total-row { background-color: #f5f5f5 !important; }
-            .ant-table-summary .total-row .ant-table-cell { font-size: 14px !important; font-weight: 800 !important; }
-          }
-          .filter-header {
-            background: #fff;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border-radius: 12px;
-          }
-          .graphs-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            gap: 20px;
-          }
-          .upper-graphs {
-            display: flex;
-            flex-direction: row;
-            justify-content: flex-start;
-            width: 100%;
-            max-width: 1600px;
-            gap: 20px;
-          }
-          .lower-graphs {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            width: 100%;
-            max-width: 1600px;
-            gap: 20px;
-          }
-          .chart-container.line {
-            width: 100%;
-            max-width: 1600px;
-            height: 50vh;
-            min-height: 400px;
-            min-width: 900px;
-          }
-          .chart-container.bar {
-            width: 50%;
-            max-width: 800px;
-            height: 50vh;
-            min-height: 400px;
-            min-width: 400px;
-          }
-          .chart-container.pie {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 50%;
-            max-width: 800px;
-            height: 60vh;
-            min-height: 450px;
-            min-width: 450px;
-          }
-          .pie-card, .line-card, .bar-card {
-            width: 100%;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            background: #fff;
-            padding: 20px;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-          }
-          .pie-card, .bar-card {
-            max-width: 800px;
-            justify-content: center;
-          }
-          .line-card {
-            max-width: 1600px;
-          }
-          .chart-legend-bottom-left {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 10px 0;
-          }
-          .chart-legend-bottom-left .legend-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-          }
-          .chart-legend-bottom-left .legend-item span {
-            margin-right: 8px;
-          }
-          .ant-table-wrapper {
-            min-width: 1000px;
-          }
-          .ant-table-summary .total-row {
-            background-color: #f5f5f5 !important;
-          }
-          .ant-table-summary .total-row .ant-table-cell {
-            font-weight: 800 !important;
-          }
-          @media screen and (min-width: 1200px) {
-            .ant-table-summary .total-row .ant-table-cell {
-              font-size: 16px !important;
-            }
-          }
-          @media screen and (min-width: 768px) and (max-width: 1199px) {
-            .ant-table-summary .total-row .ant-table-cell {
-              font-size: 14px !important;
-            }
-          }
-          @media screen and (max-width: 767px) {
-            .ant-table-summary .total-row .ant-table-cell {
-              font-size: 12px !important;
-            }
-          }
-          @media (max-width: 1200px) {
-            .upper-graphs { flex-direction: column; align-items: flex-start; }
-            .lower-graphs { flex-direction: column; align-items: center; }
-            .chart-container.line { width: 95vw; max-width: 1200px; min-width: 700px; height: 45vh; min-height: 350px; }
-            .chart-container.bar { width: 95vw; max-width: 600px; min-width: 500px; height: 45vh; min-height: 350px; }
-            .chart-container.pie { width: 95vw; max-width: 600px; min-width: 500px; height: 55vh; min-height: 400px; }
-            .line-card, .bar-card, .pie-card { max-width: 100%; }
-          }
-          @media (max-width: 768px) {
-            .chart-container.line { width: 98vw; max-width: 1000px; min-width: 400px; height: 40vh; min-height: 300px; }
-            .chart-container.bar { width: 98vw; max-width: 500px; min-width: 400px; height: 40vh; min-height: 300px; }
-            .chart-container.pie { width: 98vw; max-width: 500px; min-width: 400px; height: 50vh; min-height: 350px; }
-          }
-          @media (max-width: 480px) {
-            .chart-container.line { width: 98vw; max-width: 850px; min-width: 300px; height: 35vh; min-height: 250px; }
-            .chart-container.bar { width: 98vw; max-width: 400px; min-width: 300px; height: 35vh; min-height: 250px; }
-            .chart-container.pie { width: 98vw; max-width: 400px; min-width: 350px; height: 45vh; min-height: 300px; }
-          }
-          @media (max-width: 768px) {
-            .custom-legend { flex-direction: column; align-items: flex-start; }
-            .custom-legend > div { margin-bottom: 10px; margin-right: 0; }
-          }
-        `}
-      </style>
+      <style>
+  {`
+    @media print {
+      body { margin: 0; padding: 0; background: #fff; }
+      .ant-card, .graphs-section { display: none; }
+      .ant-table { font-size: 10px; }
+      .ant-table th, .ant-table td { padding: 4px !important; font-weight: bold; }
+      @page { size: A4; margin: 10mm; }
+      .total-sales { background-color: rgb(220, 248, 198); }
+      .total-payments { background-color: #50e0ff; }
+    }
+    .filter-header {
+      background: #fff;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      border-radius: 12px;
+    }
+    .graphs-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      gap: 20px;
+    }
+    .upper-graphs {
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-start;
+      width: 100%;
+      max-width: 1600px;
+      gap: 20px;
+    }
+    .lower-graphs {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      width: 100%;
+      max-width: 1600px;
+      gap: 20px;
+    }
+    .chart-container.line {
+      width: 100%;
+      max-width: 1600px;
+      height: 50vh;
+      min-height: 400px;
+      min-width: 900px;
+    }
+    .chart-container.bar {
+      width: 50%;
+      max-width: 800px;
+      height: 50vh;
+      min-height: 400px;
+      min-width: 400px;
+    }
+    .chart-container.pie {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 50%;
+      max-width: 800px;
+      height: 60vh;
+      min-height: 450px;
+      min-width: 450px;
+    }
+    .pie-card, .line-card, .bar-card {
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      background: #fff;
+      padding: 20px;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+    }
+    .pie-card, .bar-card {
+      max-width: 800px;
+      justify-content: center;
+    }
+    .line-card {
+      max-width: 1600px;
+    }
+    .chart-legend-bottom-left {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 10px 0;
+    }
+    .chart-legend-bottom-left .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .chart-legend-bottom-left .legend-item span {
+      margin-right: 8px;
+    }
+    @media (max-width: 1200px) {
+      .upper-graphs { flex-direction: column; align-items: flex-start; }
+      .lower-graphs { flex-direction: column; align-items: center; }
+      .chart-container.line { width: 95vw; max-width: 1200px; min-width: 700px; height: 45vh; min-height: 350px; }
+      .chart-container.bar { width: 95vw; max-width: 600px; min-width: 500px; height: 45vh; min-height: 350px; }
+      .chart-container.pie { width: 95vw; max-width: 600px; min-width: 500px; height: 55vh; min-height: 400px; }
+      .line-card, .bar-card, .pie-card { max-width: 100%; }
+    }
+    @media (max-width: 768px) {
+      .chart-container.line { width: 98vw; max-width: 1000px; min-width: 400px; height: 40vh; min-height: 300px; }
+      .chart-container.bar { width: 98vw; max-width: 500px; min-width: 400px; height: 40vh; min-height: 300px; }
+      .chart-container.pie { width: 98vw; max-width: 500px; min-width: 400px; height: 50vh; min-height: 350px; }
+    }
+    @media (max-width: 480px) {
+      .chart-container.line { width: 98vw; max-width: 850px; min-width: 300px; height: 35vh; min-height: 250px; }
+      .chart-container.bar { width: 98vw; max-width: 400px; min-width: 300px; height: 35vh; min-height: 250px; }
+      .chart-container.pie { width: 98vw; max-width: 400px; min-width: 350px; height: 45vh; min-height: 300px; }
+    }
+    @media (max-width: 768px) {
+      .custom-legend { flex-direction: column; align-items: flex-start; }
+      .custom-legend > div { margin-bottom: 10px; margin-right: 0; }
+    }
+  `}
+</style>
       <div style={{ maxWidth: '1600px', width: '100%' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -1312,6 +1286,8 @@ const ClosingEntryList = () => {
               </Space>
             </Card>
 
+        
+            
             <Card
               style={{
                 borderRadius: '12px',
@@ -1320,116 +1296,118 @@ const ClosingEntryList = () => {
                 marginBottom: '20px',
               }}
             >
-              <div style={{ overflowX: 'auto' }}>
-                <Table
-                  columns={showSummaryTable ? summaryColumns : detailedColumns}
-                  dataSource={showSummaryTable ? branchTotals : filteredEntries}
-                  rowKey={showSummaryTable ? 'branchId' : '_id'}
-                  pagination={{ pageSize: 10 }}
-                  bordered
-                  summary={(data) => {
-                    if (!data.length) return null;
-                    const totals = data.reduce(
-                      (acc, record) => {
-                        if (showSummaryTable) {
-                          acc.creditCardPayment += record.creditCardPayment || 0;
-                          acc.upiPayment += record.upiPayment || 0;
-                          acc.cashPayment += record.cashPayment || 0;
-                          acc.expenses += record.expenses || 0;
-                          acc.totalSales += record.totalSales || 0;
-                          acc.totalPayments += record.totalPayments || 0;
-                          acc.difference += (record.totalPayments || 0) - (record.totalSales || 0);
-                          acc.expenseDetails.push(...(record.expenseDetails || []));
-                        } else {
-                          acc.creditCardPayment += record.creditCardPayment || 0;
-                          acc.upiPayment += record.upiPayment || 0;
-                          acc.cashPayment += record.cashPayment || 0;
-                          acc.expenses += record.expenses || 0;
-                          acc.totalSales += (record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0);
-                          acc.totalPayments += (record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0);
-                          acc.difference += ((record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0)) - ((record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0));
-                          acc.expenseDetails.push(...(record.expenseDetails || []));
-                        }
-                        return acc;
-                      },
-                      {
-                        creditCardPayment: 0,
-                        upiPayment: 0,
-                        cashPayment: 0,
-                        expenses: 0,
-                        totalSales: 0,
-                        totalPayments: 0,
-                        difference: 0,
-                        expenseDetails: [],
+              <Table
+                columns={showSummaryTable ? summaryColumns : detailedColumns}
+                dataSource={showSummaryTable ? branchTotals : filteredEntries}
+                rowKey={showSummaryTable ? 'branchId' : '_id'}
+                pagination={{ pageSize: 10 }}
+                bordered
+                summary={(data) => {
+                  if (!data.length) return null;
+                  const totals = data.reduce(
+                    (acc, record) => {
+                      if (showSummaryTable) {
+                        acc.creditCardPayment += record.creditCardPayment || 0;
+                        acc.upiPayment += record.upiPayment || 0;
+                        acc.cashPayment += record.cashPayment || 0;
+                        acc.expenses += record.expenses || 0;
+                        acc.totalSales += record.totalSales || 0;
+                        acc.totalPayments += record.totalPayments || 0;
+                        acc.difference += (record.totalPayments || 0) - (record.totalSales || 0);
+                        acc.expenseDetails.push(...(record.expenseDetails || []));
+                      } else {
+                        acc.creditCardPayment += record.creditCardPayment || 0;
+                        acc.upiPayment += record.upiPayment || 0;
+                        acc.cashPayment += record.cashPayment || 0;
+                        acc.expenses += record.expenses || 0;
+                        acc.totalSales += (record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0);
+                        acc.totalPayments += (record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0);
+                        acc.difference += ((record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0)) - ((record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0));
+                        acc.expenseDetails.push(...(record.expenseDetails || []));
                       }
-                    );
+                      return acc;
+                    },
+                    {
+                      creditCardPayment: 0,
+                      upiPayment: 0,
+                      cashPayment: 0,
+                      expenses: 0,
+                      totalSales: 0,
+                      totalPayments: 0,
+                      difference: 0,
+                      expenseDetails: [],
+                    }
+                  );
 
-                    // Helper function to format numbers without trailing zeros
-                    const formatNumber = (value) => {
-                      if (Number.isInteger(value)) {
-                        return value.toString();
-                      }
-                      return value.toFixed(2).replace(/\.?0+$/, '');
-                    };
+                  // Helper function to format numbers: whole numbers without decimals, others with two decimals
+                  const formatNumber = (value) => {
+                    if (Number.isInteger(value)) {
+                      return value.toString();
+                    }
+                    return value.toFixed(2);
+                  };
 
-                    return (
-                      <Table.Summary.Row className="total-row">
-                        <Table.Summary.Cell index={0}>
-                          <Text strong>Total</Text>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell index={1} />
-                        {showSummaryTable ? null : <Table.Summary.Cell index={2} />}
-                        <Table.Summary.Cell index={showSummaryTable ? 2 : 3} className="total-value">
-                          <Text strong>₹{formatNumber(totals.creditCardPayment)}</Text>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell index={showSummaryTable ? 3 : 4} className="total-value">
-                          <Text strong>₹{formatNumber(totals.upiPayment)}</Text>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell index={showSummaryTable ? 4 : 5} className="total-value">
-                          <Text strong>₹{formatNumber(totals.cashPayment)}</Text>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell index={showSummaryTable ? 5 : 6} className="total-value">
-                          <Text
-                            strong
-                            style={{ fontSize: 'inherit', cursor: totals.expenses > 0 ? 'pointer' : 'default' }}
-                            onClick={() =>
-                              totals.expenses > 0 &&
-                              handleViewExpenses(
-                                { _id: 'total', expenseDetails: totals.expenseDetails },
-                                showSummaryTable ? 'All Branches' : 'All Entries',
-                                showSummaryTable ? null : null
-                              )
-                            }
-                          >
-                            ₹{formatNumber(totals.expenses)}
-                          </Text>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell index={showSummaryTable ? 6 : 7} className="total-value">
-                          <Text strong>₹{formatNumber(totals.totalSales)}</Text>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell index={showSummaryTable ? 7 : 8} className="total-value">
-                          <Text strong>₹{formatNumber(totals.totalPayments)}</Text>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell index={showSummaryTable ? 8 : 9} className="total-value">
-                          <Text
-                            strong
-                            style={{
-                              color: totals.difference >= 0 ? '#000000' : '#ffffff',
-                              backgroundColor: totals.difference === 0 ? '#52c41a' : totals.difference < 0 ? '#ff4d4f' : '#fadb14',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                            }}
-                          >
-                            ₹{formatNumber(totals.difference)}
-                          </Text>
-                        </Table.Summary.Cell>
-                        <Table.Summary.Cell index={showSummaryTable ? 9 : 10} />
-                      </Table.Summary.Row>
-                    );
-                  }}
-                />
-              </div>
+                  return (
+                    <Table.Summary.Row style={{ backgroundColor: '#f0f0f0' }}>
+                      <Table.Summary.Cell index={0}>
+                        <Text strong>Total</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} />
+                      {showSummaryTable ? null : <Table.Summary.Cell index={2} />}
+                      <Table.Summary.Cell index={showSummaryTable ? 2 : 3}>
+                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>₹{formatNumber(totals.creditCardPayment)}</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={showSummaryTable ? 3 : 4}>
+                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>₹{formatNumber(totals.upiPayment)}</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={showSummaryTable ? 4 : 5}>
+                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>₹{formatNumber(totals.cashPayment)}</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={showSummaryTable ? 5 : 6}>
+                        <Text
+                          strong
+                          style={{ fontSize: '18px', fontWeight: '700', cursor: totals.expenses > 0 ? 'pointer' : 'default' }}
+                          onClick={() =>
+                            totals.expenses > 0 &&
+                            handleViewExpenses(
+                              { expenseDetails: totals.expenseDetails, _id: 'total' },
+                              showSummaryTable ? 'All Branches' : 'All Entries',
+                              null
+                            )
+                          }
+                        >
+                          ₹{formatNumber(totals.expenses)}
+                        </Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={showSummaryTable ? 6 : 7}>
+                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>₹{formatNumber(totals.totalSales)}</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={showSummaryTable ? 7 : 8}>
+                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>₹{formatNumber(totals.totalPayments)}</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={showSummaryTable ? 8 : 9}>
+                        <Text
+                          strong
+                          style={{
+                            fontSize: '18px',
+                            fontWeight: '700',
+                            color: totals.difference >= 0 ? '#000000' : '#ffffff',
+                            backgroundColor:
+                              totals.difference === 0 ? '#52c41a' : totals.difference < 0 ? '#ff4d4f' : '#fadb14',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          ₹{formatNumber(totals.difference)}
+                        </Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={showSummaryTable ? 9 : 10} />
+                    </Table.Summary.Row>
+                  );
+                }}
+              />
             </Card>
+
 
             {filteredEntries.length > 0 ? (
               <div className="graphs-section">
