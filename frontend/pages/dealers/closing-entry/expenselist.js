@@ -19,7 +19,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isBetween);
 
-ChartJS.register(ArcElement, ChartTooltip, Legend, ChartDataLabels, BarElement, CategoryScale, LinearScale);
+ChartJS.register(ArcElement, ChartTooltip, Legend, BarElement, CategoryScale, LinearScale, ChartDataLabels);
 
 const ExpenseEntry = () => {
   const [closingEntries, setClosingEntries] = useState([]);
@@ -39,7 +39,7 @@ const ExpenseEntry = () => {
     'FUEL',
     'PACKING',
     'STAFF WELFARE',
-    'ADVERTISEMENT',
+    'ADS',
     'ADVANCE',
     'OTHERS',
     'OC PRODUCTS',
@@ -185,6 +185,33 @@ const ExpenseEntry = () => {
     });
   };
 
+  const branchTotals = useMemo(() => {
+    const totals = {};
+    filteredEntries.forEach((entry) => {
+      const branchId = entry.branchId?._id || 'unknown';
+      const branchName = entry.branchId?.name || 'Unknown Branch';
+      if (!totals[branchId]) {
+        totals[branchId] = {
+          branchId: { _id: branchId, name: branchName },
+          expenses: 0,
+          expenseDetails: [],
+          categoryTotals: expenseCategories.reduce((acc, cat) => ({ ...acc, [cat]: 0 }), {}),
+          createdAt: entry.createdAt,
+        };
+      }
+      totals[branchId].expenses += entry.expenses || 0;
+      totals[branchId].expenseDetails.push(...(entry.expenseDetails || []));
+      entry.expenseDetails.forEach((detail) => {
+        const reason = expenseCategories.includes(detail.reason) ? detail.reason : 'OTHERS';
+        totals[branchId].categoryTotals[reason] += detail.amount || 0;
+      });
+      if (dayjs(entry.createdAt).isAfter(dayjs(totals[branchId].createdAt))) {
+        totals[branchId].createdAt = entry.createdAt;
+      }
+    });
+    return Object.values(totals).sort((a, b) => b.expenses - a.expenses);
+  }, [filteredEntries]);
+
   const formatNumber = (value) => {
     if (Number.isInteger(value)) {
       return value.toString();
@@ -192,107 +219,78 @@ const ExpenseEntry = () => {
     return value.toFixed(2);
   };
 
-  const categoryTotals = useMemo(() => {
-    const data = expenseCategories.map((category) => {
-      const row = {
-        category,
-        branchAmounts: {},
-        branchReasons: {},
-        total: 0,
-        createdAt: null,
-      };
-
-      filteredEntries.forEach((entry) => {
-        const branchId = entry.branchId?._id || 'unknown';
-        entry.expenseDetails.forEach((detail) => {
-          const reason = expenseCategories.includes(detail.reason) ? detail.reason : 'OTHERS';
-          if (reason === category) {
-            row.branchAmounts[branchId] = (row.branchAmounts[branchId] || 0) + (detail.amount || 0);
-            row.branchReasons[branchId] = row.branchReasons[branchId]
-              ? [...row.branchReasons[branchId], detail.reason]
-              : [detail.reason];
-            row.total += detail.amount || 0;
-            if (!row.createdAt || dayjs(entry.createdAt).isAfter(dayjs(row.createdAt))) {
-              row.createdAt = entry.createdAt;
-            }
-          }
-        });
-      });
-
-      branches.forEach((branch) => {
-        const branchId = branch._id;
-        row.branchAmounts[branchId] = row.branchAmounts[branchId] || 0;
-        row.branchReasons[branchId] = row.branchReasons[branchId] || [];
-      });
-
-      return row;
-    });
-
-    return data;
-  }, [filteredEntries, branches]);
-
   const summaryColumns = [
     {
       title: 'S.No',
       key: 'sno',
       render: (text, record, index) => index + 1,
-      width: 60,
-      fixed: 'left',
+      width: 40,
     },
     {
-      title: 'Expense Name',
-      dataIndex: 'category',
-      key: 'category',
-      render: (value) => value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
-      width: 150,
-      fixed: 'left',
+      title: 'Branch',
+      dataIndex: ['branchId', 'name'],
+      key: 'branch',
+      render: (value) => value || 'N/A',
+      width: 80,
       onCell: () => ({
-        style: { backgroundColor: 'rgb(220, 248, 199)' },
+        style: { backgroundColor: 'lightskyblue' },
       }),
     },
-    ...branches.map((branch) => ({
-      title: branch.name,
-      key: branch._id,
+    {
+      title: 'Total Expense',
+      dataIndex: 'expenses',
+      key: 'totalExpense',
+      render: (value, record) => (
+        <Tooltip title={record.expenseDetails.map((d) => d.reason).join(', ')}>
+          <Text
+            strong
+            style={{ cursor: value > 0 ? 'pointer' : 'default' }}
+            onClick={() => value > 0 && handleViewExpenses(record, record.branchId?.name || 'Unknown Branch', null)}
+          >
+            ₹{formatNumber(value || 0)}
+          </Text>
+        </Tooltip>
+      ),
+      width: 80,
+      onCell: () => ({
+        style: { backgroundColor: '#ff6384' },
+      }),
+    },
+    ...expenseCategories.map((category) => ({
+      title: category.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
+      key: category.toLowerCase(),
       render: (record) => {
-        const amount = record.branchAmounts[branch._id] || 0;
-        const reasons = record.branchReasons[branch._id] || [];
+        const amount = record.categoryTotals[category] || 0;
+        const reasons = record.expenseDetails
+          .filter((d) => (category === 'OTHERS' ? !expenseCategories.includes(d.reason) || d.reason === 'OTHERS' : d.reason === category))
+          .map((d) => d.reason)
+          .join(', ');
         return amount > 0 ? (
-          <Tooltip title={reasons.join(', ') || 'No reason'}>
+          <Tooltip title={reasons}>
             <Text strong>₹{formatNumber(amount)}</Text>
           </Tooltip>
         ) : (
           '-'
         );
       },
-      width: 150,
-      onCell: () => ({
-        style: { backgroundColor: 'lightskyblue' },
-      }),
-    })),
-    {
-      title: 'Total',
-      dataIndex: 'total',
-      key: 'total',
-      render: (value, record) => value > 0 ? (
-        <Tooltip title={record.reasons ? record.reasons.join(', ') : 'No reason'}>
-          <Text strong>₹{formatNumber(value)}</Text>
-        </Tooltip>
-      ) : '-',
-      width: 150,
-      onCell: (record) => ({
-        style: { backgroundColor: '#ff6384' },
-        title: record.createdAt ? `Created At: ${dayjs(record.createdAt).format('DD/MM/YYYY HH:mm:ss')}` : 'N/A',
-      }),
-    },
-    {
-      title: 'Date',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (value) => value ? dayjs(value).format('D/M/YY') : 'N/A',
-      width: 100,
+      width: 80,
       onCell: (record) => ({
         style: { backgroundColor: 'rgb(220, 248, 199)' },
         title: record.createdAt ? `Created At: ${dayjs(record.createdAt).format('DD/MM/YYYY HH:mm:ss')}` : 'N/A',
+      }),
+    })),
+    {
+      title: 'Created At',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (value) => (
+        <Tooltip title={value ? dayjs(value).format('DD/MM/YYYY HH:mm:ss') : 'N/A'}>
+          <Text>{value ? dayjs(value).format('D/M/YY') : 'N/A'}</Text>
+        </Tooltip>
+      ),
+      width: 80,
+      onCell: (record) => ({
+        style: { backgroundColor: 'rgb(220, 248, 199)' },
       }),
     },
   ];
@@ -302,14 +300,14 @@ const ExpenseEntry = () => {
       title: 'S.No',
       key: 'sno',
       render: (text, record, index) => index + 1,
-      width: 60,
+      width: 40,
     },
     {
       title: 'Branch',
       dataIndex: ['branchId', 'name'],
       key: 'branch',
       render: (value) => value || 'N/A',
-      width: 150,
+      width: 80,
       onCell: () => ({
         style: { backgroundColor: 'lightskyblue' },
       }),
@@ -329,7 +327,7 @@ const ExpenseEntry = () => {
           </Text>
         </Tooltip>
       ),
-      width: 150,
+      width: 80,
       onCell: () => ({
         style: { backgroundColor: '#ff6384' },
       }),
@@ -343,9 +341,12 @@ const ExpenseEntry = () => {
         );
         return expenses.length > 0 ? (
           expenses.map((exp, index) => (
-            <Tooltip title={exp.reason} key={index}>
+            <Tooltip
+              key={index}
+              title={`Reason: ${exp.reason}, Recipient: ${exp.recipient || 'N/A'}`}
+            >
               <div>
-                <Text strong>₹{formatNumber(exp.amount || 0)}</Text> {exp.recipient || 'N/A'}
+                <Text strong>₹{formatNumber(exp.amount || 0)}</Text>
               </div>
             </Tooltip>
           ))
@@ -353,7 +354,7 @@ const ExpenseEntry = () => {
           '-'
         );
       },
-      width: 150,
+      width: 80,
       onCell: (record) => ({
         style: { backgroundColor: 'rgb(220, 248, 199)' },
         title: record.createdAt ? `Created At: ${dayjs(record.createdAt).format('DD/MM/YYYY HH:mm:ss')}` : 'N/A',
@@ -363,20 +364,15 @@ const ExpenseEntry = () => {
       title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (value) => value ? dayjs(value).format('D/M/YY') : 'N/A',
-      width: 100,
+      render: (value) => (
+        <Tooltip title={value ? dayjs(value).format('DD/MM/YYYY HH:mm:ss') : 'N/A'}>
+          <Text>{value ? dayjs(value).format('D/M/YY') : 'N/A'}</Text>
+        </Tooltip>
+      ),
+      width: 80,
       onCell: (record) => ({
         style: { backgroundColor: 'rgb(220, 248, 199)' },
-        title: record.createdAt ? `Created At: ${dayjs(record.createdAt).format('DD/MM/YYYY HH:mm:ss')}` : 'N/A',
       }),
-    },
-    {
-      title: 'Date',
-      dataIndex: 'date',
-      key: 'date',
-      sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
-      render: (date) => dayjs(date).format('DD-MM-YYYY'),
-      width: 100,
     },
   ];
 
@@ -544,7 +540,7 @@ const ExpenseEntry = () => {
         dailyExpenses[dayIndex] += entry.expenses || 0;
         entry.expenseDetails.forEach((detail) => {
           const reason = expenseCategories.includes(detail.reason) ? detail.reason : 'OTHERS';
-          dailyCategoryExpenses[dayIndex][reason] = (dailyCategoryExpenses[dayIndex][reason] || 0) + (detail.amount || 0);
+          dailyCategoryExpenses[dayIndex][reason] += detail.amount || 0;
         });
       }
     });
@@ -577,7 +573,7 @@ const ExpenseEntry = () => {
             const dayIndex = context.dataIndex;
             const totalAmount = context.raw || 0;
             const categories = barChartData.dailyCategoryExpenses[dayIndex];
-            const tooltipLines = [`Amount: ₹${formatNumber(totalAmount)}`];
+            const tooltipLines = [`Total: ₹${formatNumber(totalAmount)}`];
             expenseCategories.forEach((category) => {
               const amount = categories[category] || 0;
               if (amount > 0) {
@@ -631,7 +627,7 @@ const ExpenseEntry = () => {
         {`
           @media print {
             body { margin: 0; padding: 0; background: #fff; }
-            .filter-section, .bar-chart-section { display: none; }
+            .filter-section { display: none; }
             .table-section, .charts-section { width: 100%; margin: 0; box-shadow: none; border: none; page-break-inside: avoid; }
             .ant-table { font-size: 10px; }
             .ant-table th, .ant-table td { padding: 4px !important; }
@@ -799,8 +795,8 @@ const ExpenseEntry = () => {
             >
               <Table
                 columns={showSummaryTable ? summaryColumns : detailedColumns}
-                dataSource={showSummaryTable ? categoryTotals : filteredEntries}
-                rowKey={showSummaryTable ? 'category' : '_id'}
+                dataSource={showSummaryTable ? branchTotals : filteredEntries}
+                rowKey={showSummaryTable ? 'branchId._id' : '_id'}
                 pagination={{ pageSize: 10 }}
                 bordered
                 scroll={{ x: 'max-content' }}
@@ -808,37 +804,57 @@ const ExpenseEntry = () => {
                   if (!data.length) return null;
                   const totals = data.reduce(
                     (acc, record) => {
-                      branches.forEach((branch) => {
-                        acc.branchTotals[branch._id] = (acc.branchTotals[branch._id] || 0) + (record.branchAmounts[branch._id] || 0);
+                      acc.expenses += record.expenses || 0;
+                      acc.expenseDetails.push(...(record.expenseDetails || []));
+                      expenseCategories.forEach((category) => {
+                        if (showSummaryTable) {
+                          acc.categoryTotals[category] += record.categoryTotals[category] || 0;
+                        } else {
+                          record.expenseDetails.forEach((detail) => {
+                            const reason = expenseCategories.includes(detail.reason) ? detail.reason : 'OTHERS';
+                            acc.categoryTotals[reason] += detail.amount || 0;
+                          });
+                        }
                       });
-                      acc.grandTotal += record.total || 0;
                       return acc;
                     },
                     {
-                      branchTotals: {},
-                      grandTotal: 0,
+                      expenses: 0,
+                      expenseDetails: [],
+                      categoryTotals: expenseCategories.reduce((acc, cat) => ({ ...acc, [cat]: 0 }), {}),
                     }
                   );
 
                   return (
                     <Table.Summary.Row style={{ backgroundColor: '#f0f0f0' }}>
-                      <Table.Summary.Cell index={0}>
+                      <Table.Summary.Cell index={0} />
+                      <Table.Summary.Cell index={1}>
                         <Text strong>Total</Text>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={1} />
-                      {branches.map((branch, idx) => (
-                        <Table.Summary.Cell key={branch._id} index={2 + idx}>
+                      <Table.Summary.Cell index={2}>
+                        <Text
+                          strong
+                          style={{ fontSize: '18px', fontWeight: '700', cursor: totals.expenses > 0 ? 'pointer' : 'default' }}
+                          onClick={() =>
+                            totals.expenses > 0 &&
+                            handleViewExpenses(
+                              { expenseDetails: totals.expenseDetails, _id: 'total' },
+                              showSummaryTable ? 'All Branches' : 'All Entries',
+                              null
+                            )
+                          }
+                        >
+                          ₹{formatNumber(totals.expenses)}
+                        </Text>
+                      </Table.Summary.Cell>
+                      {expenseCategories.map((category, catIndex) => (
+                        <Table.Summary.Cell key={category} index={3 + catIndex}>
                           <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>
-                            ₹{formatNumber(totals.branchTotals[branch._id] || 0)}
+                            ₹{formatNumber(totals.categoryTotals[category])}
                           </Text>
                         </Table.Summary.Cell>
                       ))}
-                      <Table.Summary.Cell index={2 + branches.length}>
-                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>
-                          ₹{formatNumber(totals.grandTotal)}
-                        </Text>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={3 + branches.length} />
+                      <Table.Summary.Cell index={3 + expenseCategories.length} />
                     </Table.Summary.Row>
                   );
                 }}
