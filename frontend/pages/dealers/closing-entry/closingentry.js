@@ -765,7 +765,7 @@ const ClosingEntry = () => {
           <Option value="STAFF WELFARE">Staff Welfare</Option>
           <Option value="ADVERTISEMENT">Advertisement</Option>
           <Option value="ADVANCE">Advance</Option>
-          <Option value="Complementary">Complementary</Option>
+          <Option value="COMPLEMENTARY">Complementary</Option>
           <Option value="RAW MATERIAL">RAW MATERIAL</Option>
           <Option value="SALARY">SALARY</Option>
           <Option value="OTHERPRODUCTS">OC PRODUCTS</Option>
