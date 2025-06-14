@@ -44,6 +44,9 @@ const ClosingEntryList = () => {
     'STAFF WELFARE',
     'ADVERTISEMENT',
     'ADVANCE',
+    'COMPLEMENTARY',
+    'RAW MATERIAL',
+    'SALARY',
     'OC PRODUCTS',
     'OTHERS',
   ];

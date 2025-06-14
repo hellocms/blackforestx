@@ -39,10 +39,13 @@ const ExpenseEntry = () => {
     'FUEL',
     'PACKING',
     'STAFF WELFARE',
-    'ADS',
+    'ADVERTISEMENT',
     'ADVANCE',
-    'OTHERS',
+    'COMPLEMENTARY',
+    'RAW MATERIAL',
+    'SALARY',
     'OC PRODUCTS',
+    'OTHERS',
   ];
 
   useEffect(() => {
