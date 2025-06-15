@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Layout, Button, Space, Row, Col, message, Image, Radio, Badge, Tooltip, Select, Dropdown, Menu, Input } from "antd";
-import { LogoutOutlined, AccountBookFilled, ShoppingCartOutlined, MenuOutlined, ArrowLeftOutlined, CheckCircleFilled, PlusOutlined, MinusOutlined, CloseOutlined, WalletOutlined, CreditCardOutlined, SaveOutlined, PrinterOutlined, UserOutlined } from "@ant-design/icons";
+import { Layout, Button, Space, Row, Col, message, Image, Radio, Badge, Tooltip, Select, Dropdown, Input } from "antd";
+import { LogoutOutlined, AccountBookFilled, ShoppingCartOutlined, MenuOutlined, ArrowLeftOutlined, CheckCircleFilled, WalletOutlined, CreditCardOutlined, SaveOutlined, PrinterOutlined, UserOutlined, CloseOutlined } from "@ant-design/icons";
 import { useRouter } from "next/router";
 import { jwtDecode as jwtDecodeLib } from "jwt-decode";
 
@@ -42,6 +42,7 @@ const BillingPage = ({ branchId }) => {
   const [touchStartX, setTouchStartX] = useState(null);
 
   const contentRef = useRef(null);
+  const inputRefs = useRef({});
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
 
   // Fetch Functions
@@ -198,12 +199,18 @@ const BillingPage = ({ branchId }) => {
       const existingProduct = prev.find(item => item._id === product._id && item.selectedUnitIndex === selectedUnitIndex);
       const gstRate = product.priceDetails?.[selectedUnitIndex]?.gst || "non-gst";
       if (existingProduct) {
+        const newCount = existingProduct.count + 1;
         return prev.map(item =>
           item._id === product._id && item.selectedUnitIndex === selectedUnitIndex
-            ? { ...item, count: item.count + 1 }
+            ? { ...item, count: newCount }
             : item
         );
       } else {
+        setTimeout(() => {
+          if (inputRefs.current[`${product._id}-${selectedUnitIndex}`]) {
+            inputRefs.current[`${product._id}-${selectedUnitIndex}`].focus();
+          }
+        }, 0);
         return [...prev, { 
           ...product, 
           selectedUnitIndex, 
@@ -215,27 +222,38 @@ const BillingPage = ({ branchId }) => {
     });
   };
 
-  const handleIncreaseCount = (productId, selectedUnitIndex) => {
-    setSelectedProducts(prev => {
-      return prev.map(item =>
-        item._id === productId && item.selectedUnitIndex === selectedUnitIndex
-          ? { ...item, count: item.count + 1 }
-          : item
-      );
-    });
-  };
+  const handleQuantityChange = (productId, selectedUnitIndex, value, unit) => {
+    const isKg = unit.toLowerCase().includes('kg');
+    let parsedValue = isKg ? parseFloat(value) : parseInt(value, 10);
+    
+    if (isNaN(parsedValue) || parsedValue <= 0) {
+      setSelectedProducts(prev => prev.filter(item => !(item._id === productId && item.selectedUnitIndex === selectedUnitIndex)));
+      return;
+    }
 
-  const handleDecreaseCount = (productId, selectedUnitIndex) => {
+    if (!isKg && parsedValue !== Math.floor(parsedValue)) {
+      parsedValue = Math.floor(parsedValue);
+    }
+
     setSelectedProducts(prev => {
       const existingProduct = prev.find(item => item._id === productId && item.selectedUnitIndex === selectedUnitIndex);
-      if (existingProduct.count === 1) {
-        return prev.filter(item => !(item._id === productId && item.selectedUnitIndex === selectedUnitIndex));
-      } else {
+      if (existingProduct) {
         return prev.map(item =>
           item._id === productId && item.selectedUnitIndex === selectedUnitIndex
-            ? { ...item, count: item.count - 1 }
+            ? { ...item, count: parsedValue }
             : item
         );
+      } else {
+        const product = products.find(p => p._id === productId);
+        if (!product) return prev;
+        const gstRate = product.priceDetails?.[selectedUnitIndex]?.gst || "non-gst";
+        return [...prev, {
+          ...product,
+          selectedUnitIndex,
+          count: parsedValue,
+          bminstock: 0,
+          gstRate
+        }];
       }
     });
   };
@@ -1082,21 +1100,21 @@ const BillingPage = ({ branchId }) => {
               <Button
                 type={selectedProductType === null ? "primary" : "text"}
                 onClick={() => handleProductTypeFilter(null)}
-                style={{ color: "#FFFFFF", marginRight: '10px' }}
+                style={{ color: '#FFFFFF', marginRight: '10px' }}
               >
                 All
               </Button>
               <Button
                 type={selectedProductType === 'cake' ? "primary" : "text"}
                 onClick={() => handleProductTypeFilter('cake')}
-                style={{ color: "#FFFFFF", marginRight: '10px' }}
+                style={{ color: '#FFFFFF', marginRight: '10px' }}
               >
                 Cake
               </Button>
               <Button
                 type={selectedProductType === 'non-cake' ? "primary" : "text"}
                 onClick={() => handleProductTypeFilter('non-cake')}
-                style={{ color: "#FFFFFF", marginRight: '10px' }}
+                style={{ color: '#FFFFFF', marginRight: '10px' }}
               >
                 Non-Cake
               </Button>
@@ -1107,7 +1125,7 @@ const BillingPage = ({ branchId }) => {
                   onClick={handleCartToggle}
                   style={{
                     fontSize: "24px",
-                    color: "#FFFFFF",
+                    color: '#FFFFFF',
                     marginRight: '10px',
                   }}
                 />
@@ -1118,7 +1136,7 @@ const BillingPage = ({ branchId }) => {
                 onClick={handleLogout}
                 style={{
                   fontSize: "16px",
-                  color: "#FFFFFF",
+                  color: '#FFFFFF',
                 }}
               >
                 Logout
@@ -1374,6 +1392,8 @@ const BillingPage = ({ branchId }) => {
                 <ul style={{ listStyleType: 'none', padding: 0 }}>
                   {selectedProducts.map(product => {
                     const gstRate = product.priceDetails?.[product.selectedUnitIndex]?.gst || "non-gst";
+                    const unit = product.priceDetails?.[product.selectedUnitIndex]?.unit || '';
+                    const isKg = unit.toLowerCase().includes('kg');
                     return (
                       <li
                         key={`${product._id}-${product.selectedUnitIndex}`}
@@ -1384,7 +1404,7 @@ const BillingPage = ({ branchId }) => {
                             {formatDisplayName(product)}{gstRate === "non-gst" ? " (Non-GST)" : ""}
                           </span>
                           <span style={{ flex: 1, textAlign: 'right' }}>
-                            {formatPriceDetails(product.priceDetails, product.selectedUnitIndex)} x {product.count}
+                            {formatPriceDetails(product.priceDetails, product.selectedUnitIndex)}
                           </span>
                           <Button
                             type="text"
@@ -1417,23 +1437,20 @@ const BillingPage = ({ branchId }) => {
                             borderBottom: '1px dotted #d9d9d9',
                           }}
                         >
-                          <Space size="middle">
-                            <Button
-                              type="default"
-                              icon={<MinusOutlined />}
-                              onClick={() => handleDecreaseCount(product._id, product.selectedUnitIndex)}
-                              size="small"
-                              style={{ backgroundColor: '#ff4d4f', color: '#ffffff' }}
-                            />
-                            <span>{product.count}</span>
-                            <Button
-                              type="default"
-                              icon={<PlusOutlined />}
-                              onClick={() => handleIncreaseCount(product._id, product.selectedUnitIndex)}
-                              size="small"
-                              style={{ backgroundColor: '#95BF47', color: '#ffffff' }}
-                            />
-                          </Space>
+                          <Input
+                            type="number"
+                            value={product.count}
+                            onChange={(e) => handleQuantityChange(product._id, product.selectedUnitIndex, e.target.value, unit)}
+                            style={{ width: '80px' }}
+                            min="0"
+                            step={isKg ? "0.1" : "1"}
+                            onKeyPress={(e) => {
+                              if (!isKg && e.key === '.') {
+                                e.preventDefault();
+                              }
+                            }}
+                            className="no-arrows"
+                          />
                           <span style={{ fontWeight: 'bold' }}>
                             ₹{calculateProductTotal(product)}
                             {gstRate !== "non-gst" && ` + ₹${calculateProductGST(product).toFixed(2)} GST`}
@@ -1450,51 +1467,51 @@ const BillingPage = ({ branchId }) => {
             {selectedProducts.length > 0 && (
               <div
                 style={{
-                  flex: '0 0 auto',
-                  position: 'sticky',
-                  bottom: 0,
-                  background: '#FFFFFF',
-                  paddingTop: '10px',
-                  borderTop: '1px solid #d9d9d9',
-                  zIndex: 1,
+                  flex: 0,
+                  backgroundColor: '#FFFFFF',
+                  padding: '10px',
+                  borderTop: '1px solid #000000',
                 }}
               >
-                <div style={{ marginBottom: '15px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginBottom: '5px' }}>
-                    <span>Total (Excl. GST)</span>
-                    <span>₹{subtotal.toFixed(2)}</span>
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, marginBottom: 5 }}>
+                    <span style={{ flex: 1 }}>Total (Excl. GST):</span>
+                    <span style={{ textAlign: 'right' }}>₹{subtotal.toFixed(2)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginBottom: '5px' }}>
-                    <span>GST</span>
-                    <span>₹{totalGST.toFixed(2)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginBottom: 2 }}>
+                    <span style={{ flex: 1 }}>GST:</span>
+                    <span style={{ textAlign: 'right' }}>₹{totalGST.toFixed(2)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '16px', fontWeight: 'bold' }}>
-                    <span>Total (Incl. GST)</span>
-                    <span>₹{totalWithGST.toFixed(2)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', fontWeight: 'bold' }}>
+                    <span style={{ flex: 1, fontWeight: 'bold' }}>Total:</span>
+                    <span style={{ textAlign: 'right' }}>₹{totalWithGST.toFixed(2)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginTop: '5px' }}>
-                    <span>Total Items</span>
-                    <span>{uniqueItems}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginTop: 2 }}>
+                    <span style={{ flex: 1 }}>Total Items:</span>
+                    <span style={{ marginTop: '5px' }}>{uniqueItems}</span>
                   </div>
                 </div>
-                <div style={{ marginBottom: '15px' }}>
+                <div style={{ marginBottom: '10px' }}>
                   <Radio.Group
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     value={paymentMethod}
-                    style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}
+                    style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}
                   >
                     <Radio.Button value="cash" style={{ borderRadius: '50px', textAlign: 'center' }}>
-                      <WalletOutlined /> Cash
+                      <WalletOutlined />
+                      <span> Cash</span>
                     </Radio.Button>
                     <Radio.Button value="nextCard" style={{ borderRadius: '50px', textAlign: 'center' }}>
-                      <CreditCardOutlined /> Next Card
+                      <CreditCardOutlined />
+                      <span> Next Card</span>
                     </Radio.Button>
                     <Radio.Button value="upi" style={{ borderRadius: '50px', textAlign: 'center' }}>
-                      <CreditCardOutlined /> UPI
+                      <CreditCardOutlined />
+                      <span> UPI</span>
                     </Radio.Button>
                   </Radio.Group>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px' }}>
                   <Button
                     type="primary"
                     icon={<SaveOutlined />}
@@ -1508,7 +1525,7 @@ const BillingPage = ({ branchId }) => {
                     type="default"
                     icon={<CloseOutlined />}
                     onClick={handleClearCart}
-                    style={{ flex: 1, backgroundColor: '#ff4d4f', color: '#ffffff' }}
+                    style={{ flex: 1, backgroundColor: '#ff4d4f', color: '#fff' }}
                     disabled={selectedProducts.length === 0}
                   >
                     Clear
@@ -1528,6 +1545,16 @@ const BillingPage = ({ branchId }) => {
           </div>
         </Sider>
       </Layout>
+      <style jsx global>{`
+        .no-arrows::-webkit-inner-spin-button,
+        .no-arrows::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .no-arrows {
+          -moz-appearance: textfield;
+        }
+      `}</style>
     </Layout>
   );
 
@@ -1535,6 +1562,8 @@ const BillingPage = ({ branchId }) => {
     const selectedUnitIndex = selectedUnits[product._id] || 0;
     const selectedProduct = selectedProducts.find(item => item._id === product._id && item.selectedUnitIndex === selectedUnitIndex);
     const count = selectedProduct ? selectedProduct.count : 0;
+    const unit = product.priceDetails?.[selectedUnitIndex]?.unit || '';
+    const isKg = unit.toLowerCase().includes('kg');
 
     return (
       <div style={{ position: 'relative' }}>
@@ -1571,10 +1600,62 @@ const BillingPage = ({ branchId }) => {
                 style={{ width: '100%', height: '100%', objectFit: 'cover', padding: 0, margin: 0 }}
                 preview={false}
               />
+              {count > 0 && (
+                <Input
+                  type="number"
+                  placeholder="Qty"
+                  onChange={(e) => handleQuantityChange(product._id, selectedUnitIndex, e.target.value, unit)}
+                  onClick={stopPropagation}
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '80px',
+                    textAlign: 'center',
+                    zIndex: 2,
+                  }}
+                  min="0"
+                  step={isKg ? "0.1" : "1"}
+                  onKeyPress={(e) => {
+                    if (!isKg && e.key === '.') {
+                      e.preventDefault();
+                    }
+                  }}
+                  ref={el => inputRefs.current[`${product._id}-${selectedUnitIndex}`] = el}
+                  className="no-arrows"
+                />
+              )}
             </div>
           ) : (
             <div style={{ width: '100%', height: '100%', background: '#E9E9E9', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 0, margin: 0 }}>
               No Image
+              {count > 0 && (
+                <Input
+                  type="number"
+                  placeholder="Qty"
+                  onChange={(e) => handleQuantityChange(product._id, selectedUnitIndex, e.target.value, unit)}
+                  onClick={stopPropagation}
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '80px',
+                    textAlign: 'center',
+                    zIndex: 2,
+                  }}
+                  min="0"
+                  step={isKg ? "0.1" : "1"}
+                  onKeyPress={(e) => {
+                    if (!isKg && e.key === '.') {
+                      e.preventDefault();
+                    }
+                  }}
+                  ref={el => inputRefs.current[`${product._id}-${selectedUnitIndex}`] = el}
+                  className="no-arrows"
+                />
+              )}
             </div>
           )}
           <div
@@ -1604,29 +1685,46 @@ const BillingPage = ({ branchId }) => {
               right: 5,
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center',
+              alignItems: 'flex-end',
             }}
           >
-            <div
-              style={{
-                background: 'rgba(0, 0, 0, 0.6)',
-                color: '#FFFFFF',
-                fontSize: `${fontSize * 0.9}px`,
-                fontWeight: 'bold',
-                padding: '2px 5px',
-                borderRadius: 4,
-                cursor: 'pointer',
-              }}
-            >
-              <Tooltip
-                title={
-                  product.priceDetails?.[selectedUnitIndex]
-                    ? formatTooltip(product.priceDetails[selectedUnitIndex], product.productType)
-                    : 'No Details'
-                }
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              {count > 0 && (
+                <div
+                  style={{
+                    background: 'rgba(0, 0, 0, 0.6)',
+                    color: '#FFFFFF',
+                    fontSize: `${fontSize * 0.9}px`,
+                    fontWeight: 'bold',
+                    padding: '2px 5px',
+                    borderRadius: 4,
+                    marginBottom: '5px',
+                  }}
+                >
+                  {count}{unit}
+                </div>
+              )}
+              <div
+                style={{
+                  background: 'rgba(0, 0, 0, 0.6)',
+                  color: '#FFFFFF',
+                  fontSize: `${fontSize * 0.9}px`,
+                  fontWeight: 'bold',
+                  padding: '2px 5px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
               >
-                {formatPriceDetails(product.priceDetails, selectedUnitIndex)}
-              </Tooltip>
+                <Tooltip
+                  title={
+                    product.priceDetails?.[selectedUnitIndex]
+                      ? formatTooltip(product.priceDetails[selectedUnitIndex], product.productType)
+                      : 'No Details'
+                  }
+                >
+                  {formatPriceDetails(product.priceDetails, selectedUnitIndex)}
+                </Tooltip>
+              </div>
             </div>
             <div style={{ width: '40%' }} onClick={stopPropagation}>
               <Select
@@ -1642,20 +1740,6 @@ const BillingPage = ({ branchId }) => {
                 ))}
               </Select>
             </div>
-            {count > 0 && (
-              <div
-                style={{
-                  background: 'rgba(0, 0, 0, 0.6)',
-                  color: '#FFFFFF',
-                  fontSize: `${fontSize * 0.9}px`,
-                  fontWeight: 'bold',
-                  padding: '2px 5px',
-                  borderRadius: 4,
-                }}
-              >
-                {count}
-              </div>
-            )}
           </div>
         </div>
         {count > 0 && (

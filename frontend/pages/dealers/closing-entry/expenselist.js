@@ -255,8 +255,8 @@ const ExpenseEntry = () => {
         </Tooltip>
       ),
       width: 80,
-      onCell: () => ({
-        style: { backgroundColor: '#ff6384' },
+      onCell: (record, rowIndex) => ({
+        style: rowIndex === branchTotals.length ? { backgroundColor: '#006400', color: '#ffffff' } : { backgroundColor: '#ff6384' },
       }),
     },
     ...expenseCategories.map((category) => ({
@@ -292,7 +292,7 @@ const ExpenseEntry = () => {
         </Tooltip>
       ),
       width: 80,
-      onCell: (record) => ({
+      onCell: () => ({
         style: { backgroundColor: 'rgb(220, 248, 199)' },
       }),
     },
@@ -331,8 +331,8 @@ const ExpenseEntry = () => {
         </Tooltip>
       ),
       width: 80,
-      onCell: () => ({
-        style: { backgroundColor: '#ff6384' },
+      onCell: (record, rowIndex) => ({
+        style: rowIndex === filteredEntries.length ? { backgroundColor: '#006400', color: '#ffffff' } : { backgroundColor: '#ff6384' },
       }),
     },
     ...expenseCategories.map((category) => ({
@@ -373,7 +373,7 @@ const ExpenseEntry = () => {
         </Tooltip>
       ),
       width: 80,
-      onCell: (record) => ({
+      onCell: () => ({
         style: { backgroundColor: 'rgb(220, 248, 199)' },
       }),
     },
@@ -633,7 +633,7 @@ const ExpenseEntry = () => {
             .filter-section { display: none; }
             .table-section, .charts-section { width: 100%; margin: 0; box-shadow: none; border: none; page-break-inside: avoid; }
             .ant-table { font-size: 10px; }
-            .ant-table th, .ant-table td { padding: 4px !important; }
+            .ant-table th, .ant-table td { padding: 2px !important; }
             .charts-section { display: flex; flex-direction: column; justify-content: center; page-break-before: auto; }
             @page { size: A4; margin: 10mm; }
           }
@@ -657,6 +657,10 @@ const ExpenseEntry = () => {
           .bar-card {
             width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             background: #fff; padding: 20px; display: flex; justify-content: center; align-items: center;
+          }
+          .ant-table td, .ant-table th {
+            padding: 2px !important;
+            line-height: 1 !important;
           }
           @media (max-width: 1200px) {
             .chart-container.doughnut { min-width: 350px; max-width: 500px; height: 50vh; min-height: 350px; }
@@ -829,15 +833,15 @@ const ExpenseEntry = () => {
                   );
 
                   return (
-                    <Table.Summary.Row style={{ backgroundColor: '#f0f0f0' }}>
+                    <Table.Summary.Row style={{ backgroundColor: '#2c3e50', color: '#ffffff' }}>
                       <Table.Summary.Cell index={0} />
                       <Table.Summary.Cell index={1}>
-                        <Text strong>Total</Text>
+                        <Text strong style={{ fontSize: '12px', color: '#ffffff' }}>Total</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={2}>
                         <Text
                           strong
-                          style={{ fontSize: '18px', fontWeight: '700', cursor: totals.expenses > 0 ? 'pointer' : 'default' }}
+                          style={{ fontSize: '16px', fontWeight: '700', cursor: totals.expenses > 0 ? 'pointer' : 'default', color: '#ffffff' }}
                           onClick={() =>
                             totals.expenses > 0 &&
                             handleViewExpenses(
@@ -852,7 +856,7 @@ const ExpenseEntry = () => {
                       </Table.Summary.Cell>
                       {expenseCategories.map((category, catIndex) => (
                         <Table.Summary.Cell key={category} index={3 + catIndex}>
-                          <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>
+                          <Text strong style={{ fontSize: '16px', fontWeight: '700', color: '#ffffff' }}>
                             ₹{formatNumber(totals.categoryTotals[category])}
                           </Text>
                         </Table.Summary.Cell>

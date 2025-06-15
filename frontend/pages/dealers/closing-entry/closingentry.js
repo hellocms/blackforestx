@@ -42,23 +42,23 @@ const ClosingEntry = () => {
   const [branchName, setBranchName] = useState('');
   const [userName, setUserName] = useState('User');
   const [date, setDate] = useState(dayjs());
-  const [systemSales, setSystemSales] = useState(0);
-  const [manualSales, setManualSales] = useState(0);
-  const [onlineSales, setOnlineSales] = useState(0);
-  const [expenses, setExpenses] = useState(0);
+  const [systemSales, setSystemSales] = useState('');
+  const [manualSales, setManualSales] = useState('');
+  const [onlineSales, setOnlineSales] = useState('');
+  const [expenses, setExpenses] = useState('');
   const [expenseDetails, setExpenseDetails] = useState([
-    { serialNo: 1, reason: '', recipient: '', amount: 0 },
+    { serialNo: 1, reason: '', recipient: '', amount: '' },
   ]);
-  const [creditCardPayment, setCreditCardPayment] = useState(0);
-  const [upiPayment, setUpiPayment] = useState(0);
-  const [cashPayment, setCashPayment] = useState(0);
-  const [denom2000, setDenom2000] = useState(0);
-  const [denom500, setDenom500] = useState(0);
-  const [denom200, setDenom200] = useState(0);
-  const [denom100, setDenom100] = useState(0);
-  const [denom50, setDenom50] = useState(0);
-  const [denom20, setDenom20] = useState(0);
-  const [denom10, setDenom10] = useState(0);
+  const [creditCardPayment, setCreditCardPayment] = useState('');
+  const [upiPayment, setUpiPayment] = useState('');
+  const [cashPayment, setCashPayment] = useState('');
+  const [denom2000, setDenom2000] = useState('');
+  const [denom500, setDenom500] = useState('');
+  const [denom200, setDenom200] = useState('');
+  const [denom100, setDenom100] = useState('');
+  const [denom50, setDenom50] = useState('');
+  const [denom20, setDenom20] = useState('');
+  const [denom10, setDenom10] = useState('');
   const [totalSales, setTotalSales] = useState(0);
   const [totalPayments, setTotalPayments] = useState(0);
   const [discrepancy, setDiscrepancy] = useState(0);
@@ -164,53 +164,53 @@ const ClosingEntry = () => {
   const populateForm = (entry) => {
     setClosingEntryId(entry._id);
     setDate(dayjs(entry.date));
-    setSystemSales(entry.systemSales || 0);
-    setManualSales(entry.manualSales || 0);
-    setOnlineSales(entry.onlineSales || 0);
-    setExpenses(entry.expenses || 0);
+    setSystemSales(entry.systemSales || '');
+    setManualSales(entry.manualSales || '');
+    setOnlineSales(entry.onlineSales || '');
+    setExpenses(entry.expenses || '');
     setExpenseDetails(
       entry.expenseDetails.length > 0
         ? entry.expenseDetails.map((detail, index) => ({
             serialNo: index + 1,
             reason: detail.reason || '',
             recipient: detail.recipient || '',
-            amount: detail.amount || 0,
+            amount: detail.amount || '',
           }))
-        : [{ serialNo: 1, reason: '', recipient: '', amount: 0 }]
+        : [{ serialNo: 1, reason: '', recipient: '', amount: '' }]
     );
-    setCreditCardPayment(entry.creditCardPayment || 0);
-    setUpiPayment(entry.upiPayment || 0);
-    setCashPayment(entry.cashPayment || 0);
-    setDenom2000(entry.denom2000 || 0);
-    setDenom500(entry.denom500 || 0);
-    setDenom200(entry.denom200 || 0);
-    setDenom100(entry.denom100 || 0);
-    setDenom50(entry.denom50 || 0);
-    setDenom20(entry.denom20 || 0);
-    setDenom10(entry.denom10 || 0);
+    setCreditCardPayment(entry.creditCardPayment || '');
+    setUpiPayment(entry.upiPayment || '');
+    setCashPayment(entry.cashPayment || '');
+    setDenom2000(entry.denom2000 || '');
+    setDenom500(entry.denom500 || '');
+    setDenom200(entry.denom200 || '');
+    setDenom100(entry.denom100 || '');
+    setDenom50(entry.denom50 || '');
+    setDenom20(entry.denom20 || '');
+    setDenom10(entry.denom10 || '');
     setIsSubmitted(true);
   };
 
   useEffect(() => {
-    const totalExpenses = expenseDetails.reduce((sum, detail) => sum + (detail.amount || 0), 0);
+    const totalExpenses = expenseDetails.reduce((sum, detail) => sum + (Number(detail.amount) || 0), 0);
     setExpenses(totalExpenses);
   }, [expenseDetails]);
 
   useEffect(() => {
-    const total = (systemSales || 0) + (manualSales || 0) + (onlineSales || 0);
+    const total = (Number(systemSales) || 0) + (Number(manualSales) || 0) + (Number(onlineSales) || 0);
     setTotalSales(total);
 
     const totalCashFromDenom =
-      (denom2000 || 0) * 2000 +
-      (denom500 || 0) * 500 +
-      (denom200 || 0) * 200 +
-      (denom100 || 0) * 100 +
-      (denom50 || 0) * 50 +
-      (denom20 || 0) * 20 +
-      (denom10 || 0) * 10;
+      (Number(denom2000) || 0) * 2000 +
+      (Number(denom500) || 0) * 500 +
+      (Number(denom200) || 0) * 200 +
+      (Number(denom100) || 0) * 100 +
+      (Number(denom50) || 0) * 50 +
+      (Number(denom20) || 0) * 20 +
+      (Number(denom10) || 0) * 10;
     setCashPayment(totalCashFromDenom);
 
-    const totalPay = (creditCardPayment || 0) + (upiPayment || 0) + (totalCashFromDenom || 0) + (expenses || 0);
+    const totalPay = (Number(creditCardPayment) || 0) + (Number(upiPayment) || 0) + (totalCashFromDenom || 0) + (Number(expenses) || 0);
     setTotalPayments(totalPay);
 
     setDiscrepancy(totalPay - total);
@@ -347,7 +347,7 @@ const ClosingEntry = () => {
               const index = context.dataIndex;
               const sales = totalSalesData[index];
               const payments = totalPaymentsData[index];
-              return (sales === payments && sales !== 0) ? 15 : 0; // Increase offset for common label
+              return (sales === payments && sales !== 0) ? 15 : 0;
             },
             font: {
               size: 12,
@@ -375,20 +375,17 @@ const ClosingEntry = () => {
               const sales = totalSalesData[index];
               const payments = totalPaymentsData[index];
 
-              // Skip formatter for Total Expenses (datasetIndex 2)
               if (datasetIndex === 2) {
                 return value === 0 ? '0' : `₹${value}`;
               }
 
-              // If sales and payments are equal and not zero, show label only for Total Sales
               if (sales === payments && sales !== 0) {
                 if (datasetIndex === 0) {
-                  return `₹${value}`; // Show common label for Total Sales
+                  return `₹${value}`;
                 }
-                return ''; // Skip label for Total Payments
+                return '';
               }
 
-              // Default behavior for different values
               return value === 0 ? '0' : `₹${value}`;
             },
             display: (context) => {
@@ -397,17 +394,14 @@ const ClosingEntry = () => {
               const sales = totalSalesData[index];
               const payments = totalPaymentsData[index];
 
-              // Always display for Total Expenses (datasetIndex 2)
               if (datasetIndex === 2) {
                 return true;
               }
 
-              // If sales and payments are equal, only show label for Total Sales (datasetIndex 0)
               if (sales === payments && sales !== 0) {
                 return datasetIndex === 0;
               }
 
-              // Otherwise, show label if value is not zero
               return context.dataset.data[context.dataIndex] !== 0;
             },
           },
@@ -423,12 +417,12 @@ const ClosingEntry = () => {
   }, [closingEntries]);
 
   const handleAddExpense = () => {
-    setExpenseDetails([...expenseDetails, { serialNo: expenseDetails.length + 1, reason: '', recipient: '', amount: 0 }]);
+    setExpenseDetails([...expenseDetails, { serialNo: expenseDetails.length + 1, reason: '', recipient: '', amount: '' }]);
   };
 
   const handleRemoveExpense = (index) => {
     if (expenseDetails.length === 1) {
-      setExpenseDetails([{ serialNo: 1, reason: '', recipient: '', amount: 0 }]);
+      setExpenseDetails([{ serialNo: 1, reason: '', recipient: '', amount: '' }]);
       message.success('Expense entry reset to default.');
       return;
     }
@@ -455,7 +449,7 @@ const ClosingEntry = () => {
 
   const handleAmountChange = (index, value) => {
     const updatedDetails = [...expenseDetails];
-    updatedDetails[index].amount = value || 0;
+    updatedDetails[index].amount = value || '';
     setExpenseDetails(updatedDetails);
   };
 
@@ -468,33 +462,36 @@ const ClosingEntry = () => {
       message.error('Please select a date');
       return;
     }
-    if (systemSales === null || systemSales === undefined) {
+    if (systemSales === '' || systemSales === null || systemSales === undefined) {
       message.error('Please enter system sales');
       return;
     }
-    if (manualSales === null || manualSales === undefined) {
+    if (manualSales === '' || manualSales === null || manualSales === undefined) {
       message.error('Please enter manual sales');
       return;
     }
-    if (onlineSales === null || onlineSales === undefined) {
+    if (onlineSales === '' || onlineSales === null || onlineSales === undefined) {
       message.error('Please enter online sales');
       return;
     }
-    if (expenses === null || expenses === undefined) {
+    if (expenses === '' || expenses === null || expenses === undefined) {
       message.error('Please enter expenses');
       return;
     }
     for (const detail of expenseDetails) {
-      if (detail.amount > 0 && (!detail.reason || !detail.recipient)) {
+      if (Number(detail.amount) > 0 && (!detail.reason || !detail.recipient)) {
         message.error('Please select a reason and enter a recipient for all expense amounts');
         return;
       }
     }
     if (
+      creditCardPayment === '' ||
       creditCardPayment === null ||
       creditCardPayment === undefined ||
+      upiPayment === '' ||
       upiPayment === null ||
       upiPayment === undefined ||
+      cashPayment === '' ||
       cashPayment === null ||
       cashPayment === undefined
     ) {
@@ -502,27 +499,31 @@ const ClosingEntry = () => {
       return;
     }
     if (
+      denom2000 === '' ||
       denom2000 === null ||
       denom2000 === undefined ||
+      denom500 === '' ||
       denom500 === null ||
       denom500 === undefined ||
+      denom200 === '' ||
       denom200 === null ||
       denom200 === undefined ||
+      denom100 === '' ||
       denom100 === null ||
       denom100 === undefined ||
+      denom50 === '' ||
       denom50 === null ||
       denom50 === undefined ||
+      denom20 === '' ||
       denom20 === null ||
       denom20 === undefined ||
+      denom10 === '' ||
       denom10 === null ||
       denom10 === undefined
     ) {
       message.error('Please enter all denomination counts');
       return;
     }
-
-    const selectedDate = date.format('YYYY-MM-DD');
-    
 
     setSubmitting(true);
     try {
@@ -536,21 +537,21 @@ const ClosingEntry = () => {
         body: JSON.stringify({
           branchId,
           date: date.format('YYYY-MM-DD'),
-          systemSales,
-          manualSales,
-          onlineSales,
-          expenses,
+          systemSales: Number(systemSales),
+          manualSales: Number(manualSales),
+          onlineSales: Number(onlineSales),
+          expenses: Number(expenses),
           expenseDetails,
-          creditCardPayment,
-          upiPayment,
-          cashPayment,
-          denom2000,
-          denom500,
-          denom200,
-          denom100,
-          denom50,
-          denom20,
-          denom10,
+          creditCardPayment: Number(creditCardPayment),
+          upiPayment: Number(upiPayment),
+          cashPayment: Number(cashPayment),
+          denom2000: Number(denom2000),
+          denom500: Number(denom500),
+          denom200: Number(denom200),
+          denom100: Number(denom100),
+          denom50: Number(denom50),
+          denom20: Number(denom20),
+          denom10: Number(denom10),
         }),
       });
       const result = await response.json();
@@ -589,21 +590,21 @@ const ClosingEntry = () => {
         body: JSON.stringify({
           branchId,
           date: date.format('YYYY-MM-DD'),
-          systemSales,
-          manualSales,
-          onlineSales,
-          expenses,
+          systemSales: Number(systemSales),
+          manualSales: Number(manualSales),
+          onlineSales: Number(onlineSales),
+          expenses: Number(expenses),
           expenseDetails,
-          creditCardPayment,
-          upiPayment,
-          cashPayment,
-          denom2000,
-          denom500,
-          denom200,
-          denom100,
-          denom50,
-          denom20,
-          denom10,
+          creditCardPayment: Number(creditCardPayment),
+          upiPayment: Number(upiPayment),
+          cashPayment: Number(cashPayment),
+          denom2000: Number(denom2000),
+          denom500: Number(denom500),
+          denom200: Number(denom200),
+          denom100: Number(denom100),
+          denom50: Number(denom50),
+          denom20: Number(denom20),
+          denom10: Number(denom10),
         }),
       });
       const result = await response.json();
@@ -623,21 +624,21 @@ const ClosingEntry = () => {
 
   const handleClearForm = () => {
     setDate(dayjs());
-    setSystemSales(0);
-    setManualSales(0);
-    setOnlineSales(0);
-    setExpenses(0);
-    setExpenseDetails([{ serialNo: 1, reason: '', recipient: '', amount: 0 }]);
-    setCreditCardPayment(0);
-    setUpiPayment(0);
-    setCashPayment(0);
-    setDenom2000(0);
-    setDenom500(0);
-    setDenom200(0);
-    setDenom100(0);
-    setDenom50(0);
-    setDenom20(0);
-    setDenom10(0);
+    setSystemSales('');
+    setManualSales('');
+    setOnlineSales('');
+    setExpenses('');
+    setExpenseDetails([{ serialNo: 1, reason: '', recipient: '', amount: '' }]);
+    setCreditCardPayment('');
+    setUpiPayment('');
+    setCashPayment('');
+    setDenom2000('');
+    setDenom500('');
+    setDenom200('');
+    setDenom100('');
+    setDenom50('');
+    setDenom20('');
+    setDenom10('');
     setIsSubmitted(false);
     setClosingEntryId(null);
     setLastSubmittedDate(null);
@@ -736,91 +737,89 @@ const ClosingEntry = () => {
   ];
 
   const expenseColumns = [
-    {
-      title: 'Serial No',
-      dataIndex: 'serialNo',
-      key: 'serialNo',
-      width: 80,
-      align: 'center',
-      render: (text) => <Input value={text} disabled style={{ textAlign: 'center' }} />,
-    },
-    {
-      title: 'Reason',
-      dataIndex: 'reason',
-      key: 'reason',
-      width: 150,
-      render: (text, record, index) => (
-        <Select
-          value={text}
-          onChange={(value) => handleReasonChange(index, value)}
-          placeholder="Select reason"
-          style={{ width: '100%' }}
-          size="large"
-          allowClear
-        >
-          <Option value="MAINTENANCE">Maintenance</Option>
-          <Option value="TRANSPORT">Transport</Option>
-          <Option value="FUEL">Fuel</Option>
-          <Option value="PACKING">Packing</Option>
-          <Option value="STAFF WELFARE">Staff Welfare</Option>
-          <Option value="ADVERTISEMENT">Advertisement</Option>
-          <Option value="ADVANCE">Advance</Option>
-          <Option value="COMPLEMENTARY">COMPLEMENTARY</Option>
-          <Option value="RAW MATERIAL">RAW MATERIAL</Option>
-          <Option value="SALARY">SALARY</Option>
-          <Option value="OTHERPRODUCTS">OC PRODUCTS</Option>
-          <Option value="OTHERS">Others</Option>
-        </Select>
-      ),
-    },
-    {
-      title: 'Recipient/Reason',
-      dataIndex: 'recipient',
-      key: 'recipient',
-      render: (text, record, index) => (
-        <Input
-          value={text}
-          onChange={(e) => handleRecipientChange(index, e.target.value)}
-          placeholder="Enter recipient or reason (e.g., John Doe)"
-          size="large"
-        />
-      ),
-    },
-    {
-      title: 'Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      width: 120,
-      align: 'center',
-      render: (text, record, index) => (
-        <InputNumber
-          value={text}
-          onChange={(value) => handleAmountChange(index, value)}
-          min={0}
-          formatter={(value) => `₹${value}`}
-          parser={(value) => value.replace('₹', '')}
-          style={{ width: '100%' }}
-          size="large"
-        />
-      ),
-    },
-    {
-      title: 'Action',
-      key: 'action',
-      width: 80,
-      align: 'center',
-      render: (text, record, index) => (
-        <Button
-          icon={<DeleteOutlined />}
-          onClick={() => handleRemoveExpense(index)}
-          style={{ color: '#ff4d4f' }}
-          size="small"
-        >
-          Remove
-        </Button>
-      ),
-    },
-  ];
+  {
+    title: 'Serial No',
+    dataIndex: 'serialNo',
+    key: 'serialNo',
+    width: 80,
+    align: 'center',
+    render: (text) => <Input value={text} disabled style={{ textAlign: 'center' }} />,
+  },
+  {
+    title: 'Reason',
+    dataIndex: 'reason',
+    key: 'reason',
+    width: 250, // Increased to 250px to fit ~15 characters
+    render: (text, record, index) => (
+      <Select
+        value={text}
+        onChange={(value) => handleReasonChange(index, value)}
+        placeholder="Select reason"
+        style={{ width: '100%' }}
+        size="large"
+        allowClear
+      >
+        <Option value="MAINTENANCE">Maintenance</Option>
+        <Option value="TRANSPORT">Transport</Option>
+        <Option value="FUEL">Fuel</Option>
+        <Option value="PACKING">Packing</Option>
+        <Option value="STAFF WELFARE">Staff Welfare</Option>
+        <Option value="ADVERTISEMENT">Advertisement</Option>
+        <Option value="ADVANCE">Advance</Option>
+        <Option value="COMPLEMENTARY">Complementary</Option>
+        <Option value="RAW MATERIAL">RAW MATERIAL</Option>
+        <Option value="SALARY">SALARY</Option>
+        <Option value="OC PRODUCTS">OC PRODUCTS</Option>
+        <Option value="OTHERS">Others</Option>
+      </Select>
+    ),
+  },
+  {
+    title: 'Recipient/Reason',
+    dataIndex: 'recipient',
+    key: 'recipient',
+    width: 250,
+    render: (text, record, index) => (
+      <Input
+        value={text}
+        onChange={(e) => handleRecipientChange(index, e.target.value)}
+        placeholder="Enter recipient or reason (e.g., John Doe)"
+        size="large"
+      />
+    ),
+  },
+  {
+    title: 'Amount',
+    dataIndex: 'amount',
+    key: 'amount',
+    width: 200,
+    align: 'center',
+    render: (text, record, index) => (
+      <InputNumber
+        value={text}
+        onChange={(value) => handleAmountChange(index, value)}
+        max={999999}
+        style={{ width: '100%' }}
+        size="large"
+        controls={false}
+      />
+    ),
+  },
+  {
+    title: 'Action',
+    key: 'action',
+    width: 60,
+    align: 'center',
+    render: (text, record, index) => (
+      <Button
+        icon={<DeleteOutlined />}
+        onClick={() => handleRemoveExpense(index)}
+        style={{ color: '#ff4d4f' }}
+        size="small"
+      />
+    ),
+  },
+];
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -889,7 +888,7 @@ const ClosingEntry = () => {
                       <Text strong>Date:</Text>
                       <DatePicker
                         value={date}
-                        onChange={(value) => setDate(value || dayjs())}
+                        disabled
                         format="YYYY-MM-DD"
                         style={{ width: '100%', height: '40px' }}
                         size="large"
@@ -899,33 +898,33 @@ const ClosingEntry = () => {
                       <InputNumber
                         value={systemSales}
                         onChange={(value) => setSystemSales(value)}
-                        min={0}
                         formatter={(value) => `₹${value}`}
                         parser={(value) => value.replace('₹', '')}
                         style={{ width: '100%' }}
                         size="large"
+                        controls={false}
                       />
 
                       <Text strong>Manual Sales (₹):</Text>
                       <InputNumber
                         value={manualSales}
                         onChange={(value) => setManualSales(value)}
-                        min={0}
                         formatter={(value) => `₹${value}`}
                         parser={(value) => value.replace('₹', '')}
                         style={{ width: '100%' }}
                         size="large"
+                        controls={false}
                       />
 
                       <Text strong>Online Sales (₹):</Text>
                       <InputNumber
                         value={onlineSales}
                         onChange={(value) => setOnlineSales(value)}
-                        min={0}
                         formatter={(value) => `₹${value}`}
                         parser={(value) => value.replace('₹', '')}
                         style={{ width: '100%' }}
                         size="large"
+                        controls={false}
                       />
 
                       <Text strong>Expenses (₹):</Text>
@@ -936,6 +935,7 @@ const ClosingEntry = () => {
                         parser={(value) => value.replace('₹', '')}
                         style={{ width: '100%', color: '#000' }}
                         size="large"
+                        controls={false}
                       />
 
                       <Text strong>
@@ -947,11 +947,11 @@ const ClosingEntry = () => {
                       <InputNumber
                         value={creditCardPayment}
                         onChange={(value) => setCreditCardPayment(value)}
-                        min={0}
                         formatter={(value) => `₹${value}`}
                         parser={(value) => value.replace('₹', '')}
                         style={{ width: '100%', color: '#000' }}
                         size="large"
+                        controls={false}
                       />
 
                       <Text strong>
@@ -963,11 +963,11 @@ const ClosingEntry = () => {
                       <InputNumber
                         value={upiPayment}
                         onChange={(value) => setUpiPayment(value)}
-                        min={0}
                         formatter={(value) => `₹${value}`}
                         parser={(value) => value.replace('₹', '')}
                         style={{ width: '100%', color: '#000' }}
                         size="large"
+                        controls={false}
                       />
                     </div>
                   </Card>
@@ -1099,8 +1099,8 @@ const ClosingEntry = () => {
                     <InputNumber
                       value={denom2000}
                       onChange={(value) => setDenom2000(value)}
-                      min={0}
                       size="large"
+                      controls={false}
                     />
                     <Text strong>
                       500 ×
@@ -1111,8 +1111,8 @@ const ClosingEntry = () => {
                     <InputNumber
                       value={denom500}
                       onChange={(value) => setDenom500(value)}
-                      min={0}
                       size="large"
+                      controls={false}
                     />
                     <Text strong>
                       200 ×
@@ -1123,8 +1123,8 @@ const ClosingEntry = () => {
                     <InputNumber
                       value={denom200}
                       onChange={(value) => setDenom200(value)}
-                      min={0}
                       size="large"
+                      controls={false}
                     />
                     <Text strong>
                       100 ×
@@ -1135,8 +1135,8 @@ const ClosingEntry = () => {
                     <InputNumber
                       value={denom100}
                       onChange={(value) => setDenom100(value)}
-                      min={0}
                       size="large"
+                      controls={false}
                     />
                     <Text strong>
                       50 ×
@@ -1147,8 +1147,8 @@ const ClosingEntry = () => {
                     <InputNumber
                       value={denom50}
                       onChange={(value) => setDenom50(value)}
-                      min={0}
                       size="large"
+                      controls={false}
                     />
                     <Text strong>
                       20 ×
@@ -1159,8 +1159,8 @@ const ClosingEntry = () => {
                     <InputNumber
                       value={denom20}
                       onChange={(value) => setDenom20(value)}
-                      min={0}
                       size="large"
+                      controls={false}
                     />
                     <Text strong>
                       10 ×
@@ -1171,8 +1171,8 @@ const ClosingEntry = () => {
                     <InputNumber
                       value={denom10}
                       onChange={(value) => setDenom10(value)}
-                      min={0}
                       size="large"
+                      controls={false}
                     />
                   </div>
                 </Card>
@@ -1264,32 +1264,32 @@ const ClosingEntry = () => {
                         Cash Denomination Breakdown
                       </Title>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
-                        <Text>2000 × {denom2000}:</Text>
-                        <Text>₹{(denom2000 || 0) * 2000}</Text>
+                        <Text>2000 × {denom2000 || 0}:</Text>
+                        <Text>₹{(Number(denom2000) || 0) * 2000}</Text>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>500 × {denom500}:</Text>
-                        <Text>₹{(denom500 || 0) * 500}</Text>
+                        <Text>500 × {denom500 || 0}:</Text>
+                        <Text>₹{(Number(denom500) || 0) * 500}</Text>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>200 × {denom200}:</Text>
-                        <Text>₹{(denom200 || 0) * 200}</Text>
+                        <Text>200 × {denom200 || 0}:</Text>
+                        <Text>₹{(Number(denom200) || 0) * 200}</Text>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>100 × {denom100}:</Text>
-                        <Text>₹{(denom100 || 0) * 100}</Text>
+                        <Text>100 × {denom100 || 0}:</Text>
+                        <Text>₹{(Number(denom100) || 0) * 100}</Text>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>50 × {denom50}:</Text>
-                        <Text>₹{(denom50 || 0) * 50}</Text>
+                        <Text>50 × {denom50 || 0}:</Text>
+                        <Text>₹{(Number(denom50) || 0) * 50}</Text>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>20 × {denom20}:</Text>
-                        <Text>₹{(denom20 || 0) * 20}</Text>
+                        <Text>20 × {denom20 || 0}:</Text>
+                        <Text>₹{(Number(denom20) || 0) * 20}</Text>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text>10 × {denom10}:</Text>
-                        <Text>₹{(denom10 || 0) * 10}</Text>
+                        <Text>10 × {denom10 || 0}:</Text>
+                        <Text>₹{(Number(denom10) || 0) * 10}</Text>
                       </div>
                       <div
                         style={{
