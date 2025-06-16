@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Table, Select, DatePicker, Button, Spin, Typography, Space, Card, Modal, Tooltip, Switch } from 'antd';
 import { RedoOutlined, PrinterOutlined } from '@ant-design/icons';
@@ -13,7 +14,6 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isBetween);
 
-// Register Chart.js components and the datalabels plugin
 ChartJS.register(LineElement, PointElement, ArcElement, BarElement, CategoryScale, LinearScale, ChartTooltip, Legend, ChartDataLabels);
 
 const { Option } = Select;
@@ -26,7 +26,7 @@ const ClosingEntryList = () => {
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [branchFilter, setBranchFilter] = useState(null);
-  const [dateFilter, setDateFilter] = useState('Today'); // Default to Today
+  const [dateFilter, setDateFilter] = useState('Today');
   const [customDateRange, setCustomDateRange] = useState(null);
   const [dateFilterType, setDateFilterType] = useState('Created');
   const [expenseFilter, setExpenseFilter] = useState(null);
@@ -34,7 +34,10 @@ const ClosingEntryList = () => {
   const [expenseDetails, setExpenseDetails] = useState([]);
   const [selectedEntryId, setSelectedEntryId] = useState(null);
   const [modalTitle, setModalTitle] = useState('Expense Details');
-  const [showSummaryTable, setShowSummaryTable] = useState(true); // Default to summary view
+  const [isCashModalVisible, setIsCashModalVisible] = useState(false);
+  const [cashDetails, setCashDetails] = useState([]);
+  const [cashModalTitle, setCashModalTitle] = useState('Cash Denomination Details');
+  const [showSummaryTable, setShowSummaryTable] = useState(true);
 
   const expenseCategories = [
     'MAINTENANCE',
@@ -59,12 +62,10 @@ const ClosingEntryList = () => {
   useEffect(() => {
     let filtered = [...closingEntries];
 
-    // Apply branch filter
     if (branchFilter) {
       filtered = filtered.filter((entry) => entry.branchId?._id === branchFilter);
     }
 
-    // Apply date filter
     if (dateFilter) {
       let startDate, endDate;
       const today = dayjs().startOf('day');
@@ -102,7 +103,6 @@ const ClosingEntryList = () => {
       }
     }
 
-    // Apply expense filter
     if (expenseFilter) {
       filtered = filtered.filter((entry) =>
         entry.expenseDetails.some((detail) => detail.reason === expenseFilter)
@@ -155,11 +155,67 @@ const ClosingEntryList = () => {
     setIsExpenseModalVisible(true);
   };
 
-  const handleModalClose = () => {
+  const handleViewCash = (entry, branchName, index) => {
+    const denominations = [
+      { denom: '₹2000', count: entry.denom2000 || 0, amount: (entry.denom2000 || 0) * 2000 },
+      { denom: '₹500', count: entry.denom500 || 0, amount: (entry.denom500 || 0) * 500 },
+      { denom: '₹200', count: entry.denom200 || 0, amount: (entry.denom200 || 0) * 200 },
+      { denom: '₹100', count: entry.denom100 || 0, amount: (entry.denom100 || 0) * 100 },
+      { denom: '₹50', count: entry.denom50 || 0, amount: (entry.denom50 || 0) * 50 },
+      { denom: '₹20', count: entry.denom20 || 0, amount: (entry.denom20 || 0) * 20 },
+      { denom: '₹10', count: entry.denom10 || 0, amount: (entry.denom10 || 0) * 10 },
+    ].filter((d) => d.count > 0);
+
+    setCashDetails(denominations);
+    setCashModalTitle(`Cash Denomination Details for ${branchName || 'Unknown Branch'} (Entry ${index + 1})`);
+    setIsCashModalVisible(true);
+  };
+
+  const handleViewTotalCash = (totals, isSummaryTable) => {
+    const entries = isSummaryTable ? closingEntries.filter((entry) =>
+      filteredEntries.some((fe) => fe._id === entry._id)
+    ) : filteredEntries;
+
+    const denomTotals = entries.reduce(
+      (acc, entry) => {
+        acc.denom2000 += entry.denom2000 || 0;
+        acc.denom500 += entry.denom500 || 0;
+        acc.denom200 += entry.denom200 || 0;
+        acc.denom100 += entry.denom100 || 0;
+        acc.denom50 += entry.denom50 || 0;
+        acc.denom20 += entry.denom20 || 0;
+        acc.denom10 += entry.denom10 || 0;
+        return acc;
+      },
+      { denom2000: 0, denom500: 0, denom200: 0, denom100: 0, denom50: 0, denom20: 0, denom10: 0 }
+    );
+
+    const denominations = [
+      { denom: '₹2000', count: denomTotals.denom2000, amount: denomTotals.denom2000 * 2000 },
+      { denom: '₹500', count: denomTotals.denom500, amount: denomTotals.denom500 * 500 },
+      { denom: '₹200', count: denomTotals.denom200, amount: denomTotals.denom200 * 200 },
+      { denom: '₹100', count: denomTotals.denom100, amount: denomTotals.denom100 * 100 },
+      { denom: '₹50', count: denomTotals.denom50, amount: denomTotals.denom50 * 50 },
+      { denom: '₹20', count: denomTotals.denom20, amount: denomTotals.denom20 * 20 },
+      { denom: '₹10', count: denomTotals.denom10, amount: denomTotals.denom10 * 10 },
+    ].filter((d) => d.count > 0);
+
+    setCashDetails(denominations);
+    setCashModalTitle(`Total Cash Denomination Details for ${isSummaryTable ? 'All Branches' : 'All Entries'}`);
+    setIsCashModalVisible(true);
+  };
+
+  const handleExpenseModalClose = () => {
     setIsExpenseModalVisible(false);
     setExpenseDetails([]);
     setSelectedEntryId(null);
     setModalTitle('Expense Details');
+  };
+
+  const handleCashModalClose = () => {
+    setIsCashModalVisible(false);
+    setCashDetails([]);
+    setCashModalTitle('Cash Denomination Details');
   };
 
   const handleReset = () => {
@@ -182,7 +238,7 @@ const ClosingEntryList = () => {
                 @page { size: A4; margin: 20mm; }
                 body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
                 table { width: 100%; border-collapse: collapse; font-size: 12px; }
-                th, td { border: 1px solid #000; padding: 8px; text-align: left; font-weight: bold; }
+                th, td { border: 1px solid #000; padding: 4px; text-align: left; font-weight: bold; }
                 th { background-color: #f2f2f2; font-weight: bold; }
                 .difference-equal { background-color: #52c41a; color: #ffffff; font-weight: bold; }
                 .difference-less { background-color: #ff4d4f; color: #ffffff; font-weight: bold; }
@@ -246,7 +302,7 @@ const ClosingEntryList = () => {
                 @page { size: A4; margin: 20mm; }
                 body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
                 table { width: 100%; border-collapse: collapse; font-size: 12px; }
-                th, td { border: 1px solid #000; padding: 8px; text-align: left; font-weight: bold; }
+                th, td { border: 1px solid #000; padding: 4px; text-align: left; font-weight: bold; }
                 th { background-color: #f2f2f2; font-weight: bold; }
                 .difference-equal { background-color: #52c41a; color: #ffffff; font-weight: bold; }
                 .difference-less { background-color: #ff4d4f; color: #ffffff; font-weight: bold; }
@@ -264,7 +320,6 @@ const ClosingEntryList = () => {
                 <tr>
                   <th>S.No</th>
                   <th>Branch</th>
-                  <th>Date</th>
                   <th>Credit Card</th>
                   <th>UPI</th>
                   <th>Cash</th>
@@ -287,7 +342,6 @@ const ClosingEntryList = () => {
                     <tr>
                       <td>${index + 1}</td>
                       <td>${entry.branchId?.name || 'N/A'}</td>
-                      <td>${dayjs(entry.date).format('MMM-DD')}</td>
                       <td>₹${entry.creditCardPayment}</td>
                       <td>₹${entry.upiPayment}</td>
                       <td>₹${entry.cashPayment}</td>
@@ -311,7 +365,6 @@ const ClosingEntryList = () => {
     printWindow.print();
   };
 
-  // Compute branch totals for summary table
   const branchTotals = useMemo(() => {
     const totals = {};
     filteredEntries.forEach((entry) => {
@@ -327,7 +380,14 @@ const ClosingEntryList = () => {
           creditCardPayment: 0,
           upiPayment: 0,
           cashPayment: 0,
-          createdAt: entry.createdAt, // Use the latest createdAt for display
+          denom2000: 0,
+          denom500: 0,
+          denom200: 0,
+          denom100: 0,
+          denom50: 0,
+          denom20: 0,
+          denom10: 0,
+          createdAt: entry.createdAt,
           expenseDetails: [],
         };
       }
@@ -337,8 +397,14 @@ const ClosingEntryList = () => {
       totals[branchId].creditCardPayment += entry.creditCardPayment || 0;
       totals[branchId].upiPayment += entry.upiPayment || 0;
       totals[branchId].cashPayment += entry.cashPayment || 0;
+      totals[branchId].denom2000 += entry.denom2000 || 0;
+      totals[branchId].denom500 += entry.denom500 || 0;
+      totals[branchId].denom200 += entry.denom200 || 0;
+      totals[branchId].denom100 += entry.denom100 || 0;
+      totals[branchId].denom50 += entry.denom50 || 0;
+      totals[branchId].denom20 += entry.denom20 || 0;
+      totals[branchId].denom10 += entry.denom10 || 0;
       totals[branchId].expenseDetails.push(...(entry.expenseDetails || []));
-      // Update createdAt to the latest date
       if (!totals[branchId].createdAt || dayjs(entry.createdAt).isAfter(dayjs(totals[branchId].createdAt))) {
         totals[branchId].createdAt = entry.createdAt;
       }
@@ -376,25 +442,21 @@ const ClosingEntryList = () => {
         startDate = today;
         endDate = today.endOf('day');
     }
-  
+
     if (!startDate || !endDate || !startDate.isValid() || !endDate.isValid()) {
       console.warn('Invalid date range:', { startDate, endDate });
       return { labels: [], datasets: [], maxValue: 1 };
     }
-  
+
     const daysDiff = endDate.diff(startDate, 'day') + 1;
     const labels = Array.from({ length: daysDiff }, (_, i) =>
       startDate.add(i, 'day').format('D/M/YY')
     );
-  
+
     const dailySales = Array(daysDiff).fill(0);
     const dailyPayments = Array(daysDiff).fill(0);
     const dailyExpenses = Array(daysDiff).fill(0);
-  
-    if (filteredEntries.length === 0) {
-      console.warn('No filtered entries available for chart');
-    }
-  
+
     filteredEntries.forEach((entry) => {
       const entryDate = dayjs(dateFilterType === 'Created' ? entry.createdAt : entry.date);
       if (!entryDate.isValid()) {
@@ -409,14 +471,12 @@ const ClosingEntryList = () => {
           dailySales[dayIndex] += sales;
           dailyPayments[dayIndex] += payments;
           dailyExpenses[dayIndex] += entry.expenses || 0;
-        } else {
-          console.warn('Invalid dayIndex:', { dayIndex, entryDate, startDate });
         }
       }
     });
-  
+
     const maxValue = Math.max(...dailySales, ...dailyPayments, ...dailyExpenses, 1);
-  
+
     return {
       labels,
       datasets: [
@@ -703,6 +763,12 @@ const ClosingEntryList = () => {
     { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (value) => <Text strong>₹{value || 0}</Text>, align: 'right' },
   ];
 
+  const cashColumns = [
+    { title: 'Denomination', dataIndex: 'denom', key: 'denom', render: (value) => <Text strong>{value}</Text> },
+    { title: 'Count', dataIndex: 'count', key: 'count', render: (value) => <Text strong>{value}</Text>, align: 'right' },
+    { title: 'Total Amount', dataIndex: 'amount', key: 'amount', render: (value) => <Text strong>₹{value}</Text>, align: 'right' },
+  ];
+
   const summaryColumns = [
     {
       title: 'S.No',
@@ -759,7 +825,15 @@ const ClosingEntryList = () => {
       title: 'Cash',
       dataIndex: 'cashPayment',
       key: 'cashPayment',
-      render: (value) => <Text strong>₹{value}</Text>,
+      render: (value, record, index) => (
+        <Text
+          strong
+          style={{ fontSize: '16px', cursor: value > 0 ? 'pointer' : 'default' }}
+          onClick={() => value > 0 && handleViewCash(record, record.branchName, index)}
+        >
+          ₹{value}
+        </Text>
+      ),
       width: 120,
       onHeaderCell: () => ({
         style: { backgroundColor: 'rgb(220, 248, 198)' },
@@ -785,8 +859,8 @@ const ClosingEntryList = () => {
       onHeaderCell: () => ({
         style: { backgroundColor: 'rgb(220, 248, 198)' },
       }),
-      onCell: () => ({
-        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      onCell: (record, rowIndex) => ({
+        style: rowIndex === branchTotals.length ? { backgroundColor: '#006400', color: '#ffffff' } : { backgroundColor: 'rgb(220, 248, 198)' },
       }),
     },
     {
@@ -900,25 +974,7 @@ const ClosingEntryList = () => {
       }),
     },
     {
-      title: 'Date',
-      dataIndex: 'date',
-      key: 'date',
-      sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
-      render: (date) => (
-        <Tooltip title={dayjs(date).format('D/M/YY hh:mm A')}>
-          <Text strong>{dayjs(date).format('MMM-DD')}</Text>
-        </Tooltip>
-      ),
-      width: 100,
-      onHeaderCell: () => ({
-        style: { backgroundColor: 'rgb(220, 248, 198)' },
-      }),
-      onCell: () => ({
-        style: { backgroundColor: 'rgb(220, 248, 198)' },
-      }),
-    },
-    {
-      title: 'Credit Card',
+      title: 'Credit Card Payment',
       dataIndex: 'creditCardPayment',
       key: 'creditCardPayment',
       render: (value) => <Text strong>₹{value}</Text>,
@@ -947,7 +1003,15 @@ const ClosingEntryList = () => {
       title: 'Cash',
       dataIndex: 'cashPayment',
       key: 'cashPayment',
-      render: (value) => <Text strong>₹{value}</Text>,
+      render: (value, record, index) => (
+        <Text
+          strong
+          style={{ fontSize: '16px', cursor: value > 0 ? 'pointer' : 'default' }}
+          onClick={() => value > 0 && handleViewCash(record, record.branchId?.name, index)}
+        >
+          ₹{value}
+        </Text>
+      ),
       width: 120,
       onHeaderCell: () => ({
         style: { backgroundColor: 'rgb(220, 248, 198)' },
@@ -964,7 +1028,7 @@ const ClosingEntryList = () => {
         <Text
           strong
           style={{ fontSize: '16px', cursor: value > 0 ? 'pointer' : 'default' }}
-          onClick={() => value > 0 && handleViewExpenses(record, record.branchId?.name, record.date)}
+          onClick={() => value > 0 && handleViewExpenses(record, record.branchId?.name, null)}
         >
           ₹{value}
         </Text>
@@ -973,8 +1037,8 @@ const ClosingEntryList = () => {
       onHeaderCell: () => ({
         style: { backgroundColor: 'rgb(220, 248, 198)' },
       }),
-      onCell: () => ({
-        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      onCell: (record, rowIndex) => ({
+        style: rowIndex === filteredEntries.length ? { backgroundColor: '#006400', color: '#ffffff' } : { backgroundColor: 'rgb(220, 248, 198)' },
       }),
     },
     {
@@ -1074,124 +1138,128 @@ const ClosingEntryList = () => {
       }}
     >
       <style>
-  {`
-    @media print {
-      body { margin: 0; padding: 0; background: #fff; }
-      .ant-card, .graphs-section { display: none; }
-      .ant-table { font-size: 10px; }
-      .ant-table th, .ant-table td { padding: 4px !important; font-weight: bold; }
-      @page { size: A4; margin: 10mm; }
-      .total-sales { background-color: rgb(220, 248, 198); }
-      .total-payments { background-color: #50e0ff; }
-    }
-    .filter-header {
-      background: #fff;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      border-radius: 12px;
-    }
-    .graphs-section {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-      gap: 20px;
-    }
-    .upper-graphs {
-      display: flex;
-      flex-direction: row;
-      justify-content: flex-start;
-      width: 100%;
-      max-width: 1600px;
-      gap: 20px;
-    }
-    .lower-graphs {
-      display: flex;
-      flex-direction: row;
-      justify-content: center;
-      width: 100%;
-      max-width: 1600px;
-      gap: 20px;
-    }
-    .chart-container.line {
-      width: 100%;
-      max-width: 1600px;
-      height: 50vh;
-      min-height: 400px;
-      min-width: 900px;
-    }
-    .chart-container.bar {
-      width: 50%;
-      max-width: 800px;
-      height: 50vh;
-      min-height: 400px;
-      min-width: 400px;
-    }
-    .chart-container.pie {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 50%;
-      max-width: 800px;
-      height: 60vh;
-      min-height: 450px;
-      min-width: 450px;
-    }
-    .pie-card, .line-card, .bar-card {
-      width: 100%;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      background: #fff;
-      padding: 20px;
-      display: flex;
-      justify-content: flex-start;
-      align-items: center;
-    }
-    .pie-card, .bar-card {
-      max-width: 800px;
-      justify-content: center;
-    }
-    .line-card {
-      max-width: 1600px;
-    }
-    .chart-legend-bottom-left {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      padding: 10px 0;
-    }
-    .chart-legend-bottom-left .legend-item {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .chart-legend-bottom-left .legend-item span {
-      margin-right: 8px;
-    }
-    @media (max-width: 1200px) {
-      .upper-graphs { flex-direction: column; align-items: flex-start; }
-      .lower-graphs { flex-direction: column; align-items: center; }
-      .chart-container.line { width: 95vw; max-width: 1200px; min-width: 700px; height: 45vh; min-height: 350px; }
-      .chart-container.bar { width: 95vw; max-width: 600px; min-width: 500px; height: 45vh; min-height: 350px; }
-      .chart-container.pie { width: 95vw; max-width: 600px; min-width: 500px; height: 55vh; min-height: 400px; }
-      .line-card, .bar-card, .pie-card { max-width: 100%; }
-    }
-    @media (max-width: 768px) {
-      .chart-container.line { width: 98vw; max-width: 1000px; min-width: 400px; height: 40vh; min-height: 300px; }
-      .chart-container.bar { width: 98vw; max-width: 500px; min-width: 400px; height: 40vh; min-height: 300px; }
-      .chart-container.pie { width: 98vw; max-width: 500px; min-width: 400px; height: 50vh; min-height: 350px; }
-    }
-    @media (max-width: 480px) {
-      .chart-container.line { width: 98vw; max-width: 850px; min-width: 300px; height: 35vh; min-height: 250px; }
-      .chart-container.bar { width: 98vw; max-width: 400px; min-width: 300px; height: 35vh; min-height: 250px; }
-      .chart-container.pie { width: 98vw; max-width: 400px; min-width: 350px; height: 45vh; min-height: 300px; }
-    }
-    @media (max-width: 768px) {
-      .custom-legend { flex-direction: column; align-items: flex-start; }
-      .custom-legend > div { margin-bottom: 10px; margin-right: 0; }
-    }
-  `}
-</style>
+        {`
+          @media print {
+            body { margin: 0; padding: 0; background: #fff; }
+            .ant-card, .graphs-section { display: none; }
+            .ant-table { font-size: 10px; }
+            .ant-table th, .ant-table td { padding: 4px !important; font-weight: bold; line-height: 1 !important; }
+            @page { size: A4; margin: 10mm; }
+            .total-sales { background-color: rgb(220, 248, 198); }
+            .total-payments { background-color: #50e0ff; }
+          }
+          .filter-header {
+            background: #fff;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 12px;
+          }
+          .graphs-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            gap: 20px;
+          }
+          .upper-graphs {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            width: 100%;
+            max-width: 1600px;
+            gap: 20px;
+          }
+          .lower-graphs {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            width: 100%;
+            max-width: 1600px;
+            gap: 20px;
+          }
+          .chart-container.line {
+            width: 100%;
+            max-width: 1600px;
+            height: 50vh;
+            min-height: 400px;
+            min-width: 900px;
+          }
+          .chart-container.bar {
+            width: 50%;
+            max-width: 800px;
+            height: 50vh;
+            min-height: 400px;
+            min-width: 400px;
+          }
+          .chart-container.pie {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 50%;
+            max-width: 800px;
+            height: 60vh;
+            min-height: 450px;
+            min-width: 450px;
+          }
+          .pie-card, .line-card, .bar-card {
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #fff;
+            padding: 20px;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+          }
+          .pie-card, .bar-card {
+            max-width: 800px;
+            justify-content: center;
+          }
+          .line-card {
+            max-width: 1600px;
+          }
+          .chart-legend-bottom-left {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 10px 0;
+          }
+          .chart-legend-bottom-left .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+          }
+          .chart-legend-bottom-left .legend-item span {
+            margin-right: 8px;
+          }
+          .ant-table td, .ant-table th {
+            padding: 4px !important;
+            line-height: 1 !important;
+          }
+          @media (max-width: 1200px) {
+            .upper-graphs { flex-direction: column; align-items: flex-start; }
+            .lower-graphs { flex-direction: column; align-items: center; }
+            .chart-container.line { width: 95vw; max-width: 1200px; min-width: 700px; height: 45vh; min-height: 350px; }
+            .chart-container.bar { width: 95vw; max-width: 600px; min-width: 500px; height: 45vh; min-height: 350px; }
+            .chart-container.pie { width: 95vw; max-width: 600px; min-width: 500px; height: 55vh; min-height: 400px; }
+            .line-card, .bar-card, .pie-card { max-width: 100%; }
+          }
+          @media (max-width: 768px) {
+            .chart-container.line { width: 98vw; max-width: 1000px; min-width: 400px; height: 40vh; min-height: 300px; }
+            .chart-container.bar { width: 98vw; max-width: 500px; min-width: 400px; height: 40vh; min-height: 300px; }
+            .chart-container.pie { width: 98vw; max-width: 500px; min-width: 400px; height: 50vh; min-height: 350px; }
+          }
+          @media (max-width: 480px) {
+            .chart-container.line { width: 98vw; max-width: 850px; min-width: 300px; height: 35vh; min-height: 250px; }
+            .chart-container.bar { width: 98vw; max-width: 400px; min-width: 300px; height: 35vh; min-height: 250px; }
+            .chart-container.pie { width: 98vw; max-width: 400px; min-width: 350px; height: 45vh; min-height: 300px; }
+          }
+          @media (max-width: 768px) {
+            .custom-legend { flex-direction: column; align-items: flex-start; }
+            .custom-legend > div { margin-bottom: 10px; margin-right: 0; }
+          }
+        `}
+      </style>
       <div style={{ maxWidth: '1600px', width: '100%' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -1289,8 +1357,6 @@ const ClosingEntryList = () => {
               </Space>
             </Card>
 
-        
-            
             <Card
               style={{
                 borderRadius: '12px',
@@ -1318,6 +1384,13 @@ const ClosingEntryList = () => {
                         acc.totalPayments += record.totalPayments || 0;
                         acc.difference += (record.totalPayments || 0) - (record.totalSales || 0);
                         acc.expenseDetails.push(...(record.expenseDetails || []));
+                        acc.denom2000 += record.denom2000 || 0;
+                        acc.denom500 += record.denom500 || 0;
+                        acc.denom200 += record.denom200 || 0;
+                        acc.denom100 += record.denom100 || 0;
+                        acc.denom50 += record.denom50 || 0;
+                        acc.denom20 += record.denom20 || 0;
+                        acc.denom10 += record.denom10 || 0;
                       } else {
                         acc.creditCardPayment += record.creditCardPayment || 0;
                         acc.upiPayment += record.upiPayment || 0;
@@ -1327,6 +1400,13 @@ const ClosingEntryList = () => {
                         acc.totalPayments += (record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0);
                         acc.difference += ((record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0)) - ((record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0));
                         acc.expenseDetails.push(...(record.expenseDetails || []));
+                        acc.denom2000 += record.denom2000 || 0;
+                        acc.denom500 += record.denom500 || 0;
+                        acc.denom200 += record.denom200 || 0;
+                        acc.denom100 += record.denom100 || 0;
+                        acc.denom50 += record.denom50 || 0;
+                        acc.denom20 += record.denom20 || 0;
+                        acc.denom10 += record.denom10 || 0;
                       }
                       return acc;
                     },
@@ -1339,10 +1419,16 @@ const ClosingEntryList = () => {
                       totalPayments: 0,
                       difference: 0,
                       expenseDetails: [],
+                      denom2000: 0,
+                      denom500: 0,
+                      denom200: 0,
+                      denom100: 0,
+                      denom50: 0,
+                      denom20: 0,
+                      denom10: 0,
                     }
                   );
 
-                  // Helper function to format numbers: whole numbers without decimals, others with two decimals
                   const formatNumber = (value) => {
                     if (Number.isInteger(value)) {
                       return value.toString();
@@ -1351,25 +1437,34 @@ const ClosingEntryList = () => {
                   };
 
                   return (
-                    <Table.Summary.Row style={{ backgroundColor: '#f0f0f0' }}>
+                    <Table.Summary.Row style={{ backgroundColor: '#2c3e50', color: '#ffffff' }}>
                       <Table.Summary.Cell index={0}>
-                        <Text strong>Total</Text>
+                        <Text strong style={{ fontSize: '12px', color: '#ffffff' }}>Total</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={1} />
-                      {showSummaryTable ? null : <Table.Summary.Cell index={2} />}
-                      <Table.Summary.Cell index={showSummaryTable ? 2 : 3}>
-                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>₹{formatNumber(totals.creditCardPayment)}</Text>
+                      <Table.Summary.Cell index={showSummaryTable ? 2 : 2}>
+                        <Text strong style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
+                          ₹{formatNumber(totals.creditCardPayment)}
+                        </Text>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={showSummaryTable ? 3 : 4}>
-                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>₹{formatNumber(totals.upiPayment)}</Text>
+                      <Table.Summary.Cell index={showSummaryTable ? 3 : 3}>
+                        <Text strong style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
+                          ₹{formatNumber(totals.upiPayment)}
+                        </Text>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={showSummaryTable ? 4 : 5}>
-                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>₹{formatNumber(totals.cashPayment)}</Text>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={showSummaryTable ? 5 : 6}>
+                      <Table.Summary.Cell index={showSummaryTable ? 4 : 4}>
                         <Text
                           strong
-                          style={{ fontSize: '18px', fontWeight: '700', cursor: totals.expenses > 0 ? 'pointer' : 'default' }}
+                          style={{ fontSize: '18px', fontWeight: '700', cursor: totals.cashPayment > 0 ? 'pointer' : 'default', color: '#ffffff' }}
+                          onClick={() => totals.cashPayment > 0 && handleViewTotalCash(totals, showSummaryTable)}
+                        >
+                          ₹{formatNumber(totals.cashPayment)}
+                        </Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={showSummaryTable ? 5 : 5}>
+                        <Text
+                          strong
+                          style={{ fontSize: '18px', fontWeight: '700', cursor: totals.expenses > 0 ? 'pointer' : 'default', color: '#ffffff' }}
                           onClick={() =>
                             totals.expenses > 0 &&
                             handleViewExpenses(
@@ -1382,21 +1477,23 @@ const ClosingEntryList = () => {
                           ₹{formatNumber(totals.expenses)}
                         </Text>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={showSummaryTable ? 6 : 7}>
-                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>₹{formatNumber(totals.totalSales)}</Text>
+                      <Table.Summary.Cell index={showSummaryTable ? 6 : 6}>
+                        <Text strong style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
+                          ₹{formatNumber(totals.totalSales)}
+                        </Text>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={showSummaryTable ? 7 : 8}>
-                        <Text strong style={{ fontSize: '18px', fontWeight: '700' }}>₹{formatNumber(totals.totalPayments)}</Text>
+                      <Table.Summary.Cell index={showSummaryTable ? 7 : 7}>
+                        <Text strong style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
+                          ₹{formatNumber(totals.totalPayments)}
+                        </Text>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={showSummaryTable ? 8 : 9}>
+                      <Table.Summary.Cell index={showSummaryTable ? 8 : 8}>
                         <Text
                           strong
                           style={{
                             fontSize: '18px',
                             fontWeight: '700',
-                            color: totals.difference >= 0 ? '#000000' : '#ffffff',
-                            backgroundColor:
-                              totals.difference === 0 ? '#52c41a' : totals.difference < 0 ? '#ff4d4f' : '#fadb14',
+                            color: '#ffffff',
                             padding: '4px 8px',
                             borderRadius: '4px',
                           }}
@@ -1404,13 +1501,12 @@ const ClosingEntryList = () => {
                           ₹{formatNumber(totals.difference)}
                         </Text>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={showSummaryTable ? 9 : 10} />
+                      <Table.Summary.Cell index={showSummaryTable ? 9 : 9} />
                     </Table.Summary.Row>
                   );
                 }}
               />
             </Card>
-
 
             {filteredEntries.length > 0 ? (
               <div className="graphs-section">
@@ -1469,7 +1565,7 @@ const ClosingEntryList = () => {
             <Modal
               title={modalTitle}
               open={isExpenseModalVisible}
-              onCancel={handleModalClose}
+              onCancel={handleExpenseModalClose}
               footer={null}
               width={600}
             >
@@ -1492,6 +1588,40 @@ const ClosingEntryList = () => {
                       <Table.Summary.Cell index={3} align="right">
                         <Text strong>
                           ₹{expenseDetails.reduce((sum, item) => sum + (item.amount || 0), 0)}
+                        </Text>
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  )}
+                />
+              )}
+            </Modal>
+
+            <Modal
+              title={cashModalTitle}
+              open={isCashModalVisible}
+              onCancel={handleCashModalClose}
+              footer={null}
+              width={600}
+            >
+              {cashDetails.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <Text>No cash denomination details available.</Text>
+                </div>
+              ) : (
+                <Table
+                  columns={cashColumns}
+                  dataSource={cashDetails}
+                  rowKey={(record) => record.denom}
+                  pagination={false}
+                  bordered
+                  summary={() => (
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={2} align="right">
+                        <Text strong>Total</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={2} align="right">
+                        <Text strong>
+                          ₹{cashDetails.reduce((sum, item) => sum + (item.amount || 0), 0)}
                         </Text>
                       </Table.Summary.Cell>
                     </Table.Summary.Row>

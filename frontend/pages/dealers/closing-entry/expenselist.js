@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Table, Select, DatePicker, Button, Input, Typography, Space, Card, Spin, Switch, Tooltip, Modal } from 'antd';
+import { Table, Select, DatePicker, Button, Input, Typography, Space, Card, Spin, Switch, Modal } from 'antd';
 import { RedoOutlined, PrinterOutlined } from '@ant-design/icons';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js';
@@ -32,6 +32,10 @@ const ExpenseEntry = () => {
   const [dateFilterType, setDateFilterType] = useState('today');
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [showSummaryTable, setShowSummaryTable] = useState(true);
+  const [isExpenseModalVisible, setIsExpenseModalVisible] = useState(false);
+  const [expenseDetails, setExpenseDetails] = useState([]);
+  const [modalTitle, setModalTitle] = useState('Expense Details');
+  const [selectedEntryId, setSelectedEntryId] = useState(null);
 
   const expenseCategories = [
     'MAINTENANCE',
@@ -163,29 +167,30 @@ const ExpenseEntry = () => {
     }
   };
 
-  const handleViewExpenses = (record, branchName, date) => {
-    const expenseDetails = record.expenseDetails || [];
-    const title = `Expense Details for ${branchName}${date ? ` on ${dayjs(date).format('DD-MM-YYYY')}` : ''}`;
-    Modal.info({
-      title,
-      content: (
-        <div>
-          {expenseDetails.length > 0 ? (
-            <ul>
-              {expenseDetails.map((detail, index) => (
-                <li key={index}>
-                  <strong>₹{formatNumber(detail.amount || 0)}</strong> - {detail.reason} ({detail.recipient || 'N/A'})
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No expense details available.</p>
-          )}
-        </div>
-      ),
-      width: 600,
-      onOk() {},
-    });
+  const handleViewExpenses = (record, branchName, date, category = null) => {
+    let expenses = record.expenseDetails || [];
+    if (category) {
+      expenses = expenses.filter((detail) =>
+        category === 'OTHERS'
+          ? !expenseCategories.includes(detail.reason) || detail.reason === 'OTHERS'
+          : detail.reason === category
+      );
+    }
+    setSelectedEntryId(record._id || 'total');
+    setExpenseDetails(expenses);
+    const formattedDate = date ? dayjs(date).format('DD-MM-YYYY') : '';
+    const categoryLabel = category
+      ? ` - ${category.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}`
+      : '';
+    setModalTitle(`Expense Details for ${branchName || 'Unknown Branch'} ${formattedDate ? `on ${formattedDate}` : ''}${categoryLabel}`);
+    setIsExpenseModalVisible(true);
+  };
+
+  const handleExpenseModalClose = () => {
+    setIsExpenseModalVisible(false);
+    setExpenseDetails([]);
+    setSelectedEntryId(null);
+    setModalTitle('Expense Details');
   };
 
   const branchTotals = useMemo(() => {
@@ -222,6 +227,13 @@ const ExpenseEntry = () => {
     return value.toFixed(2);
   };
 
+  const expenseColumns = [
+    { title: 'S.No', key: 'sno', render: (text, record, index) => index + 1, width: 80 },
+    { title: 'Reason', dataIndex: 'reason', key: 'reason', render: (value) => <Text strong>{value || 'N/A'}</Text> },
+    { title: 'Recipient', dataIndex: 'recipient', key: 'recipient', render: (value) => <Text strong>{value || 'N/A'}</Text> },
+    { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (value) => <Text strong>₹{formatNumber(value || 0)}</Text>, align: 'right' },
+  ];
+
   const summaryColumns = [
     {
       title: 'S.No',
@@ -244,15 +256,13 @@ const ExpenseEntry = () => {
       dataIndex: 'expenses',
       key: 'totalExpense',
       render: (value, record) => (
-        <Tooltip title={record.expenseDetails.map((d) => d.reason).join(', ')}>
-          <Text
-            strong
-            style={{ cursor: value > 0 ? 'pointer' : 'default' }}
-            onClick={() => value > 0 && handleViewExpenses(record, record.branchId?.name || 'Unknown Branch', null)}
-          >
-            ₹{formatNumber(value || 0)}
-          </Text>
-        </Tooltip>
+        <Text
+          strong
+          style={{ cursor: value > 0 ? 'pointer' : 'default' }}
+          onClick={() => value > 0 && handleViewExpenses(record, record.branchId?.name || 'Unknown Branch', null, null)}
+        >
+          ₹{formatNumber(value || 0)}
+        </Text>
       ),
       width: 80,
       onCell: (record, rowIndex) => ({
@@ -264,14 +274,14 @@ const ExpenseEntry = () => {
       key: category.toLowerCase(),
       render: (record) => {
         const amount = record.categoryTotals[category] || 0;
-        const reasons = record.expenseDetails
-          .filter((d) => (category === 'OTHERS' ? !expenseCategories.includes(d.reason) || d.reason === 'OTHERS' : d.reason === category))
-          .map((d) => d.reason)
-          .join(', ');
         return amount > 0 ? (
-          <Tooltip title={reasons}>
-            <Text strong>₹{formatNumber(amount)}</Text>
-          </Tooltip>
+          <Text
+            strong
+            style={{ cursor: 'pointer' }}
+            onClick={() => handleViewExpenses(record, record.branchId?.name || 'Unknown Branch', null, category)}
+          >
+            ₹{formatNumber(amount)}
+          </Text>
         ) : (
           '-'
         );
@@ -286,11 +296,7 @@ const ExpenseEntry = () => {
       title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (value) => (
-        <Tooltip title={value ? dayjs(value).format('DD/MM/YYYY HH:mm:ss') : 'N/A'}>
-          <Text>{value ? dayjs(value).format('D/M/YY') : 'N/A'}</Text>
-        </Tooltip>
-      ),
+      render: (value) => <Text>{value ? dayjs(value).format('D/M/YY') : 'N/A'}</Text>,
       width: 80,
       onCell: () => ({
         style: { backgroundColor: 'rgb(220, 248, 199)' },
@@ -320,15 +326,13 @@ const ExpenseEntry = () => {
       dataIndex: 'expenses',
       key: 'totalExpense',
       render: (value, record) => (
-        <Tooltip title={record.expenseDetails.map((d) => d.reason).join(', ')}>
-          <Text
-            strong
-            style={{ cursor: value > 0 ? 'pointer' : 'default' }}
-            onClick={() => value > 0 && handleViewExpenses(record, record.branchId?.name || 'Unknown Branch', record.date)}
-          >
-            ₹{formatNumber(value || 0)}
-          </Text>
-        </Tooltip>
+        <Text
+          strong
+          style={{ cursor: value > 0 ? 'pointer' : 'default' }}
+          onClick={() => value > 0 && handleViewExpenses(record, record.branchId?.name || 'Unknown Branch', record.date, null)}
+        >
+          ₹{formatNumber(value || 0)}
+        </Text>
       ),
       width: 80,
       onCell: (record, rowIndex) => ({
@@ -344,14 +348,15 @@ const ExpenseEntry = () => {
         );
         return expenses.length > 0 ? (
           expenses.map((exp, index) => (
-            <Tooltip
-              key={index}
-              title={`Reason: ${exp.reason}, Recipient: ${exp.recipient || 'N/A'}`}
-            >
-              <div>
-                <Text strong>₹{formatNumber(exp.amount || 0)}</Text>
-              </div>
-            </Tooltip>
+            <div key={index}>
+              <Text
+                strong
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleViewExpenses(record, record.branchId?.name || 'Unknown Branch', record.date, category)}
+              >
+                ₹{formatNumber(exp.amount || 0)}
+              </Text>
+            </div>
           ))
         ) : (
           '-'
@@ -367,11 +372,7 @@ const ExpenseEntry = () => {
       title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (value) => (
-        <Tooltip title={value ? dayjs(value).format('DD/MM/YYYY HH:mm:ss') : 'N/A'}>
-          <Text>{value ? dayjs(value).format('D/M/YY') : 'N/A'}</Text>
-        </Tooltip>
-      ),
+      render: (value) => <Text>{value ? dayjs(value).format('D/M/YY') : 'N/A'}</Text>,
       width: 80,
       onCell: () => ({
         style: { backgroundColor: 'rgb(220, 248, 199)' },
@@ -627,59 +628,66 @@ const ExpenseEntry = () => {
       }}
     >
       <style>
-        {`
-          @media print {
-            body { margin: 0; padding: 0; background: #fff; }
-            .filter-section { display: none; }
-            .table-section, .charts-section { width: 100%; margin: 0; box-shadow: none; border: none; page-break-inside: avoid; }
-            .ant-table { font-size: 10px; }
-            .ant-table th, .ant-table td { padding: 2px !important; }
-            .charts-section { display: flex; flex-direction: column; justify-content: center; page-break-before: auto; }
-            @page { size: A4; margin: 10mm; }
-          }
-          .charts-section {
-            display: flex; flex-direction: column; width: 100%; max-width: 1600px;
-            gap: 20px; margin-bottom: 40px;
-          }
-          .doughnut-row {
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; width: 100%;
-          }
-          .chart-container.doughnut {
-            flex: 1; min-width: 400px; max-width: 600px; height: 60vh; min-height: 400px;
-          }
-          .doughnut-card {
-            width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            background: #fff; padding: 20px; display: flex; justify-content: center; align-items: center;
-          }
-          .chart-container.bar {
-            width: 100%; max-width: 1600px; height: 50vh; min-height: 400px;
-          }
-          .bar-card {
-            width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            background: #fff; padding: 20px; display: flex; justify-content: center; align-items: center;
-          }
-          .ant-table td, .ant-table th {
-            padding: 2px !important;
-            line-height: 1 !important;
-          }
-          @media (max-width: 1200px) {
-            .chart-container.doughnut { min-width: 350px; max-width: 500px; height: 50vh; min-height: 350px; }
-            .chart-container.bar { max-width: 1200px; height: 45vh; min-height: 350px; }
-          }
-          @media (max-width: 768px) {
-            .chart-container.doughnut { min-width: 300px; max-width: 450px; height: 45vh; min-height: 300px; }
-            .chart-container.bar { max-width: 1000px; height: 40vh; min-height: 300px; }
-          }
-          @media (max-width: 480px) {
-            .chart-container.doughnut { min-width: 250px; max-width: 400px; height: 40vh; min-height: 250px; }
-            .chart-container.bar { max-width: 850px; height: 35vh; min-height: 250px; }
-          }
-          @media print {
-            .chart-container.doughnut { width: 45%; height: 30vh; min-height: 250px; }
-            .chart-container.bar { width: 100%; height: 30vh; min-height: 250px; }
-          }
-        `}
-      </style>
+  {`
+    @media print {
+      body * { visibility: hidden; }
+      .table-section, .table-section * { visibility: visible; }
+      .table-section { 
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        box-shadow: none;
+        border: none;
+      }
+      .ant-table { font-size: 10px; }
+      .ant-table th, .ant-table td { padding: 2px !important; }
+      @page { size: A4; margin: 10mm; }
+    }
+    .charts-section {
+      display: flex; flex-direction: column; width: 100%; max-width: 1600px;
+      gap: 20px; margin-bottom: 40px;
+    }
+    .doughnut-row {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; width: 100%;
+    }
+    .chart-container.doughnut {
+      flex: 1; min-width: 400px; max-width: 600px; height: 60vh; min-height: 400px;
+    }
+    .doughnut-card {
+      width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      background: #fff; padding: 20px; display: flex; justify-content: center; align-items: center;
+    }
+    .chart-container.bar {
+      width: 100%; max-width: 1600px; height: 50vh; min-height: 400px;
+    }
+    .bar-card {
+      width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      background: #fff; padding: 20px; display: flex; justify-content: center; align-items: center;
+    }
+    .ant-table td, .ant-table th {
+      padding: 2px !important;
+      line-height: 1 !important;
+    }
+    @media (max-width: 1200px) {
+      .chart-container.doughnut { min-width: 350px; max-width: 500px; height: 50vh; min-height: 350px; }
+      .chart-container.bar { max-width: 1200px; height: 45vh; min-height: 350px; }
+    }
+    @media (max-width: 768px) {
+      .chart-container.doughnut { min-width: 300px; max-width: 450px; height: 45vh; min-height: 300px; }
+      .chart-container.bar { max-width: 1000px; height: 40vh; min-height: 300px; }
+    }
+    @media (max-width: 480px) {
+      .chart-container.doughnut { min-width: 250px; max-width: 400px; height: 40vh; min-height: 250px; }
+      .chart-container.bar { max-width: 850px; height: 35vh; min-height: 250px; }
+    }
+    @media print {
+      .chart-container.doughnut { display: none; }
+      .chart-container.bar { display: none; }
+    }
+  `}
+</style>
       <div style={{ maxWidth: '1600px', width: '100%' }}>
         <Card
           className="filter-section"
@@ -809,28 +817,38 @@ const ExpenseEntry = () => {
                 scroll={{ x: 'max-content' }}
                 summary={(data) => {
                   if (!data.length) return null;
-                  const totals = data.reduce(
-                    (acc, record) => {
-                      acc.expenses += record.expenses || 0;
-                      acc.expenseDetails.push(...(record.expenseDetails || []));
-                      expenseCategories.forEach((category) => {
-                        if (showSummaryTable) {
-                          acc.categoryTotals[category] += record.categoryTotals[category] || 0;
-                        } else {
-                          record.expenseDetails.forEach((detail) => {
-                            const reason = expenseCategories.includes(detail.reason) ? detail.reason : 'OTHERS';
-                            acc.categoryTotals[reason] += detail.amount || 0;
-                          });
+                  
+                  const totals = {
+                    expenses: 0,
+                    expenseDetails: [],
+                    categoryTotals: expenseCategories.reduce((acc, cat) => ({ ...acc, [cat]: 0 }), {}),
+                  };
+                
+                  if (showSummaryTable) {
+                    data.forEach(record => {
+                      totals.expenses += record.expenses || 0;
+                      totals.expenseDetails.push(...(record.expenseDetails || []));
+                      expenseCategories.forEach(category => {
+                        totals.categoryTotals[category] += record.categoryTotals[category] || 0;
+                      });
+                    });
+                  } else {
+                    const uniqueDetails = new Map();
+                    data.forEach(record => {
+                      totals.expenses += record.expenses || 0;
+                      (record.expenseDetails || []).forEach(detail => {
+                        const detailKey = `${detail.recipient}-${detail.amount}-${detail.reason}`;
+                        if (!uniqueDetails.has(detailKey)) {
+                          uniqueDetails.set(detailKey, detail);
+                          totals.expenseDetails.push(detail);
+                          const reason = expenseCategories.includes(detail.reason) 
+                            ? detail.reason 
+                            : 'OTHERS';
+                          totals.categoryTotals[reason] += detail.amount || 0;
                         }
                       });
-                      return acc;
-                    },
-                    {
-                      expenses: 0,
-                      expenseDetails: [],
-                      categoryTotals: expenseCategories.reduce((acc, cat) => ({ ...acc, [cat]: 0 }), {}),
-                    }
-                  );
+                    });
+                  }
 
                   return (
                     <Table.Summary.Row style={{ backgroundColor: '#2c3e50', color: '#ffffff' }}>
@@ -847,6 +865,7 @@ const ExpenseEntry = () => {
                             handleViewExpenses(
                               { expenseDetails: totals.expenseDetails, _id: 'total' },
                               showSummaryTable ? 'All Branches' : 'All Entries',
+                              null,
                               null
                             )
                           }
@@ -856,7 +875,19 @@ const ExpenseEntry = () => {
                       </Table.Summary.Cell>
                       {expenseCategories.map((category, catIndex) => (
                         <Table.Summary.Cell key={category} index={3 + catIndex}>
-                          <Text strong style={{ fontSize: '16px', fontWeight: '700', color: '#ffffff' }}>
+                          <Text
+                            strong
+                            style={{ fontSize: '16px', fontWeight: '700', cursor: totals.categoryTotals[category] > 0 ? 'pointer' : 'default', color: '#ffffff' }}
+                            onClick={() =>
+                              totals.categoryTotals[category] > 0 &&
+                              handleViewExpenses(
+                                { expenseDetails: totals.expenseDetails, _id: 'total' },
+                                showSummaryTable ? 'All Branches' : 'All Entries',
+                                null,
+                                category
+                              )
+                            }
+                          >
                             ₹{formatNumber(totals.categoryTotals[category])}
                           </Text>
                         </Table.Summary.Cell>
@@ -919,6 +950,39 @@ const ExpenseEntry = () => {
                 </Card>
               )}
             </div>
+            <Modal
+              title={modalTitle}
+              open={isExpenseModalVisible}
+              onCancel={handleExpenseModalClose}
+              footer={null}
+              width={600}
+            >
+              {expenseDetails.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <Text>No expense details available.</Text>
+                </div>
+              ) : (
+                <Table
+                  columns={expenseColumns}
+                  dataSource={expenseDetails}
+                  rowKey={(record, index) => index}
+                  pagination={false}
+                  bordered
+                  summary={() => (
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={3} align="right">
+                        <Text strong>Total Amount</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} align="right">
+                        <Text strong>
+                          ₹{formatNumber(expenseDetails.reduce((sum, item) => sum + (item.amount || 0), 0))}
+                        </Text>
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  )}
+                />
+              )}
+            </Modal>
           </>
         )}
       </div>
