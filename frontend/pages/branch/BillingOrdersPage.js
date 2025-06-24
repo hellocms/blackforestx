@@ -192,7 +192,9 @@ const BillingOrdersPage = ({ branchId }) => {
     }
 
     if (paymentMethodFilter !== "All") {
-      filteredOrders = filteredOrders.filter((order) => order.paymentMethod === paymentMethodFilter.toLowerCase());
+      filteredOrders = filteredOrders.filter((order) => 
+        order.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase()
+      );
     }
 
     if (waiterFilter !== "All") {
@@ -412,7 +414,9 @@ const BillingOrdersPage = ({ branchId }) => {
       const branchName = branchFilter === "All" ? "all branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter;
       const categoryName = categoryFilter === "All" ? "all categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter;
       const productName = productFilter === "All" ? "all products" : productFilter;
-      const paymentMethodName = paymentMethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
+      const paymentMethodName = payment
+
+MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
       const waiterName = waiterFilter === "All" ? "all waiters" : waiters.find(w => w._id === waiterFilter)?.name || waiterFilter;
       message.info(`No billing orders found for ${categoryName}, ${productName}, ${paymentMethodName}, and ${waiterName} in ${branchName}.`);
       return;
@@ -493,7 +497,9 @@ const BillingOrdersPage = ({ branchId }) => {
     }
 
     if (paymentMethodFilter !== "All") {
-      statusOrders = statusOrders.filter((order) => order.paymentMethod === paymentMethodFilter.toLowerCase());
+      statusOrders = statusOrders.filter((order) => 
+        order.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase()
+      );
     }
 
     if (waiterFilter !== "All") {
@@ -576,11 +582,11 @@ const BillingOrdersPage = ({ branchId }) => {
         };
       }
 
-      if (order.paymentMethod === "upi") {
+      if (order.paymentMethod?.toLowerCase() === "upi") {
         branchMap[branchId].upiAmount += totalAmount;
-      } else if (order.paymentMethod === "creditcard") {
+      } else if (order.paymentMethod?.toLowerCase() === "creditcard") {
         branchMap[branchId].creditCardAmount += totalAmount;
-      } else if (order.paymentMethod === "cash") {
+      } else if (order.paymentMethod?.toLowerCase() === "cash") {
         branchMap[branchId].cashAmount += totalAmount;
       }
 
@@ -826,7 +832,7 @@ const BillingOrdersPage = ({ branchId }) => {
 
     if (paymentMethodFilter !== "All") {
       filtered = filtered.filter((order) =>
-        order.paymentMethod === paymentMethodFilter.toLowerCase()
+        order.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase()
       );
     }
 
@@ -1020,7 +1026,7 @@ const BillingOrdersPage = ({ branchId }) => {
             >
               <Option value="All">All Payment Methods</Option>
               <Option value="UPI">UPI</Option>
-              <Option value="Credit Card">Credit Card</Option>
+              <Option value="CreditCard">Credit Card</Option>
               <Option value="Cash">Cash</Option>
             </Select>
           </Space>
