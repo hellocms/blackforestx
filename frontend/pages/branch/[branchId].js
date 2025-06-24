@@ -45,6 +45,17 @@ const BillingPage = ({ branchId }) => {
   const inputRefs = useRef({});
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
 
+  // Define blocked categories
+  const THOOTHUKUDI_MACROON_BRANCH_ID = '6841d8b5b5a0fc5644db5b10';
+  const blockedCategoriesForThoothukudi = [
+    'DAIRYMILK', 'BISCUITS', 'MANI MARK', 'LAYS', 'SNACKS BFC', 'ACCESSORIES',
+    'TEA BFC', 'MILK SHAKE', 'PIZZA', 'SANDWICHES', 'FRIED ITEMS', 'ICE CREAMS BFC',
+    'CHOCOLATE BFC', 'SOFT DRINKS BFC', 'D FOREST', 'DATES & JAM'
+  ];
+  const blockedCategoriesForOtherBranches = [
+    'TEA CAFE', 'VADA', 'CHAAT', 'SOFT DRINKS', 'SNACKS', 'ICECREAMS', 'CHIPS'
+  ];
+
   // Fetch Functions
   const fetchBranchDetails = async (token, branchId) => {
     try {
@@ -78,8 +89,18 @@ const BillingPage = ({ branchId }) => {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
-      if (response.ok) setCategories(data);
-      else message.error('Failed to fetch categories');
+      if (response.ok) {
+        // Filter categories based on branchId
+        const blockedCategories = branchId === THOOTHUKUDI_MACROON_BRANCH_ID
+          ? blockedCategoriesForThoothukudi
+          : blockedCategoriesForOtherBranches;
+        const filteredCategories = data.filter(category =>
+          !blockedCategories.includes(category.name.toUpperCase())
+        );
+        setCategories(filteredCategories);
+      } else {
+        message.error('Failed to fetch categories');
+      }
     } catch (error) {
       message.error('Error fetching categories');
     }
