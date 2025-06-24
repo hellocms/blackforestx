@@ -144,14 +144,26 @@ const createOrder = async (req, res) => {
 
 const getAllOrders = async (req, res) => {
   try {
-    const { branchId } = req.query;
-    const query = { tab: { $in: ['stock', 'liveOrder'] } };
-    if (branchId) query.branchId = branchId;
+    const { branchId, tab } = req.query;
+    const query = {};
+    
+    // Filter by tab if provided; otherwise, default to stock and liveOrder
+    if (tab) {
+      query.tab = tab; // e.g., tab=billing
+    } else {
+      query.tab = { $in: ['stock', 'liveOrder'] };
+    }
+    
+    // Filter by branchId if provided
+    if (branchId) {
+      query.branchId = branchId;
+    }
 
     const orders = await Order.find(query)
       .populate('branchId', 'name')
       .populate('waiterId', 'name')
       .populate('tableId', 'tableNo');
+    
     res.status(200).json(orders);
   } catch (error) {
     console.error('Error fetching orders:', error);
