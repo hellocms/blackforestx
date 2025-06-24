@@ -1501,9 +1501,9 @@ const BillingPage = ({ branchId }) => {
                       <WalletOutlined />
                       <span> Cash</span>
                     </Radio.Button>
-                    <Radio.Button value="nextCard" style={{ borderRadius: '50px', textAlign: 'center' }}>
+                    <Radio.Button value="CreditCard" style={{ borderRadius: '50px', textAlign: 'center' }}>
                       <CreditCardOutlined />
-                      <span> Next Card</span>
+                      <span>CreditCard</span>
                     </Radio.Button>
                     <Radio.Button value="upi" style={{ borderRadius: '50px', textAlign: 'center' }}>
                       <CreditCardOutlined />
