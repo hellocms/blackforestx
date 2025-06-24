@@ -25,6 +25,7 @@ const BillingOrdersPage = ({ branchId }) => {
   const [productCatalog, setProductCatalog] = useState([]);
   const [categories, setCategories] = useState([]);
   const [waiters, setWaiters] = useState([]);
+  const [filteredWaiters, setFilteredWaiters] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [branchFilter, setBranchFilter] = useState("All");
   const [productFilter, setProductFilter] = useState("All");
@@ -90,6 +91,7 @@ const BillingOrdersPage = ({ branchId }) => {
           .map(o => JSON.stringify({ _id: o.waiterId._id, name: o.waiterId.name })))
         ].map(str => JSON.parse(str)).sort((a, b) => a.name.localeCompare(b.name));
         setWaiters(uniqueWaiters);
+        setFilteredWaiters(uniqueWaiters);
       } else {
         message.error("Failed to fetch billing orders");
       }
@@ -203,20 +205,23 @@ const BillingOrdersPage = ({ branchId }) => {
 
     let dateRange = [null, null];
     if (dateFilter === "Today") {
-      dateRange = [dayjs(), dayjs()];
+      dateRange = [dayjs().startOf("day"), dayjs().endOf("day")];
     } else if (dateFilter === "Yesterday") {
-      dateRange = [dayjs().subtract(1, "day"), dayjs().subtract(1, "day")];
+      dateRange = [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").endOf("day")];
     } else if (dateFilter === "Last 7 Days") {
-      dateRange = [dayjs().subtract(6, "day"), dayjs()];
+      dateRange = [dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")];
     } else if (dateFilter === "Last 30 Days") {
-      dateRange = [dayjs().subtract(29, "day"), dayjs()];
+      dateRange = [dayjs().subtract(29, "day").startOf("day"), dayjs().endOf("day")];
     } else if (dateFilter === "Custom Date" && customDateRange[0]) {
-      dateRange = [customDateRange[0], customDateRange[1] || customDateRange[0]];
+      dateRange = [
+        customDateRange[0].startOf("minute"),
+        customDateRange[1] ? customDateRange[1].endOf("minute") : customDateRange[0].endOf("minute")
+      ];
     }
 
     if (dateRange[0]) {
-      const startDate = dayjs(dateRange[0]).startOf("day");
-      const endDate = dateRange[1] ? dayjs(dateRange[1]).endOf("day") : dayjs(dateRange[0]).endOf("day");
+      const startDate = dateRange[0];
+      const endDate = dateRange[1];
 
       filteredOrders = filteredOrders.filter((order) => {
         const createdDate = order.createdAt ? dayjs(order.createdAt) : null;
@@ -248,8 +253,8 @@ const BillingOrdersPage = ({ branchId }) => {
       : null;
 
     return {
-      earliestCreated: earliestCreated ? earliestCreated.format("DD/MM/YYYY") : "N/A",
-      latestDelivery: latestDelivery ? latestDelivery.format("DD/MM/YYYY") : "N/A",
+      earliestCreated: earliestCreated ? earliestCreated.format("DD/MM/YYYY HH:mm:ss") : "N/A",
+      latestDelivery: latestDelivery ? latestDelivery.format("DD/MM/YYYY HH:mm:ss") : "N/A",
       orderIds,
     };
   };
@@ -414,9 +419,7 @@ const BillingOrdersPage = ({ branchId }) => {
       const branchName = branchFilter === "All" ? "all branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter;
       const categoryName = categoryFilter === "All" ? "all categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter;
       const productName = productFilter === "All" ? "all products" : productFilter;
-      const paymentMethodName = payment
-
-MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
+      const paymentMethodName = paymentMethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
       const waiterName = waiterFilter === "All" ? "all waiters" : waiters.find(w => w._id === waiterFilter)?.name || waiterFilter;
       message.info(`No billing orders found for ${categoryName}, ${productName}, ${paymentMethodName}, and ${waiterName} in ${branchName}.`);
       return;
@@ -424,7 +427,7 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
 
     const { earliestCreated, latestDelivery, orderIds } = getDateRangeAndOrderIds();
     const printWindow = window.open("", "_blank");
-    const currentDate = dayjs().format("DD/MM/YYYY");
+    const currentDate = dayjs().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss");
     const branchTitle = branchFilter === "All" ? "All Branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter;
     const categoryTitle = categoryFilter === "All" ? "All Categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter;
     const productTitle = productFilter === "All" ? "All Products" : productFilter;
@@ -508,20 +511,23 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
 
     let dateRange = [null, null];
     if (dateFilter === "Today") {
-      dateRange = [dayjs(), dayjs()];
+      dateRange = [dayjs().startOf("day"), dayjs().endOf("day")];
     } else if (dateFilter === "Yesterday") {
-      dateRange = [dayjs().subtract(1, "day"), dayjs().subtract(1, "day")];
+      dateRange = [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").endOf("day")];
     } else if (dateFilter === "Last 7 Days") {
-      dateRange = [dayjs().subtract(6, "day"), dayjs()];
+      dateRange = [dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")];
     } else if (dateFilter === "Last 30 Days") {
-      dateRange = [dayjs().subtract(29, "day"), dayjs()];
+      dateRange = [dayjs().subtract(29, "day").startOf("day"), dayjs().endOf("day")];
     } else if (dateFilter === "Custom Date" && customDateRange[0]) {
-      dateRange = [customDateRange[0], customDateRange[1] || customDateRange[0]];
+      dateRange = [
+        customDateRange[0].startOf("minute"),
+        customDateRange[1] ? customDateRange[1].endOf("minute") : customDateRange[0].endOf("minute")
+      ];
     }
 
     if (dateRange[0]) {
-      const startDate = dayjs(dateRange[0]).startOf("day");
-      const endDate = dateRange[1] ? dayjs(dateRange[1]).endOf("day") : dayjs(dateRange[0]).endOf("day");
+      const startDate = dateRange[0];
+      const endDate = dateRange[1];
 
       statusOrders = statusOrders.filter((order) => {
         const createdDate = order.createdAt ? dayjs(order.createdAt) : null;
@@ -606,6 +612,151 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
       }))
       .sort((a, b) => a.branch.localeCompare(b.branch));
   };
+
+  // Filter waiters based on selected branch and date range
+  const getFilteredWaiters = () => {
+    let filteredOrders = orders;
+
+    let dateRange = [null, null];
+    if (dateFilter === "Today") {
+      dateRange = [dayjs().startOf("day"), dayjs().endOf("day")];
+    } else if (dateFilter === "Yesterday") {
+      dateRange = [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").endOf("day")];
+    } else if (dateFilter === "Last 7 Days") {
+      dateRange = [dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")];
+    } else if (dateFilter === "Last 30 Days") {
+      dateRange = [dayjs().subtract(29, "day").startOf("day"), dayjs().endOf("day")];
+    } else if (dateFilter === "Custom Date" && customDateRange[0]) {
+      dateRange = [
+        customDateRange[0].startOf("minute"),
+        customDateRange[1] ? customDateRange[1].endOf("minute") : customDateRange[0].endOf("minute")
+      ];
+    }
+
+    if (dateRange[0]) {
+      const startDate = dateRange[0];
+      const endDate = dateRange[1];
+      filteredOrders = filteredOrders.filter((order) => {
+        const createdDate = order.createdAt ? dayjs(order.createdAt) : null;
+        return (
+          createdDate &&
+          !createdDate.isBefore(startDate) &&
+          (!endDate || !createdDate.isAfter(endDate))
+        );
+      });
+    }
+
+    if (branchFilter === "All") {
+      const uniqueWaiters = [...new Set(filteredOrders
+        .filter(o => o.waiterId && o.waiterId._id && o.waiterId.name)
+        .map(o => JSON.stringify({ _id: o.waiterId._id, name: o.waiterId.name })))
+      ].map(str => JSON.parse(str)).sort((a, b) => a.name.localeCompare(b.name));
+      return uniqueWaiters;
+    }
+
+    const uniqueWaiters = [...new Set(filteredOrders
+      .filter(o => o.branchId?._id === branchFilter && o.waiterId && o.waiterId._id && o.waiterId.name)
+      .map(o => JSON.stringify({ _id: o.waiterId._id, name: o.waiterId.name })))
+    ].map(str => JSON.parse(str)).sort((a, b) => a.name.localeCompare(b.name));
+    return uniqueWaiters;
+  };
+
+  // Filter products based on selected category
+  const getFilteredProducts = () => {
+    if (categoryFilter === "All") {
+      return products;
+    }
+    return productCatalog
+      .filter((product) => product.category?._id === categoryFilter)
+      .map((product) => product.name)
+      .sort();
+  };
+
+  useEffect(() => {
+    let filtered = [...orders];
+
+    if (searchQuery) {
+      filtered = filtered.filter((order) =>
+        order.billNo && typeof order.billNo === "string"
+          ? order.billNo.toLowerCase().includes(searchQuery.toLowerCase())
+          : false
+      );
+    }
+
+    if (branchFilter !== "All") {
+      filtered = filtered.filter((order) =>
+        order.branchId && order.branchId._id === branchFilter
+      );
+    }
+
+    if (productFilter !== "All") {
+      filtered = filtered.filter((order) =>
+        order.products.some((p) => p.name === productFilter)
+      );
+    }
+
+    if (categoryFilter !== "All") {
+      filtered = filtered.filter((order) =>
+        order.products.some((p) => {
+          const product = productCatalog.find(prod => prod.name === p.name);
+          return product && product.category?._id === categoryFilter;
+        })
+      );
+    }
+
+    if (paymentMethodFilter !== "All") {
+      filtered = filtered.filter((order) =>
+        order.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase()
+      );
+    }
+
+    if (waiterFilter !== "All") {
+      filtered = filtered.filter((order) =>
+        order.waiterId && order.waiterId._id === waiterFilter
+      );
+    }
+
+    let dateRange = [null, null];
+    if (dateFilter === "Today") {
+      dateRange = [dayjs().startOf("day"), dayjs().endOf("day")];
+    } else if (dateFilter === "Yesterday") {
+      dateRange = [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").endOf("day")];
+    } else if (dateFilter === "Last 7 Days") {
+      dateRange = [dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")];
+    } else if (dateFilter === "Last 30 Days") {
+      dateRange = [dayjs().subtract(29, "day").startOf("day"), dayjs().endOf("day")];
+    } else if (dateFilter === "Custom Date" && customDateRange[0]) {
+      dateRange = [
+        customDateRange[0].startOf("minute"),
+        customDateRange[1] ? customDateRange[1].endOf("minute") : customDateRange[0].endOf("minute")
+      ];
+    }
+
+    if (dateRange[0]) {
+      const startDate = dateRange[0];
+      const endDate = dateRange[1];
+
+      filtered = filtered.filter((order) => {
+        const createdDate = order.createdAt ? dayjs(order.createdAt) : null;
+        return (
+          createdDate &&
+          !createdDate.isBefore(startDate) &&
+          (!endDate || !createdDate.isAfter(endDate))
+        );
+      });
+    }
+
+    filtered = filtered.map(order => ({
+      ...order,
+      filteredTotals: getFilteredTotals(order)
+    }));
+
+    filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    setFilteredOrders(filtered);
+
+    // Update filtered waiters when branch or date range changes
+    setFilteredWaiters(getFilteredWaiters());
+  }, [searchQuery, branchFilter, productFilter, categoryFilter, paymentMethodFilter, waiterFilter, dateFilter, customDateRange, orders, productCatalog]);
 
   const editModalColumns = [
     {
@@ -757,12 +908,12 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
       title: "Date",
       render: (record) => {
         const createdDate = record.createdAt 
-          ? dayjs(record.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY") 
+          ? dayjs(record.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss") 
           : "N/A";
         return createdDate;
       },
       sorter: (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
-      width: 120,
+      width: 150,
     },
   ];
 
@@ -798,86 +949,6 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
     );
   };
 
-  useEffect(() => {
-    let filtered = [...orders];
-
-    if (searchQuery) {
-      filtered = filtered.filter((order) =>
-        order.billNo && typeof order.billNo === "string"
-          ? order.billNo.toLowerCase().includes(searchQuery.toLowerCase())
-          : false
-      );
-    }
-
-    if (branchFilter !== "All") {
-      filtered = filtered.filter((order) =>
-        order.branchId && order.branchId._id === branchFilter
-      );
-    }
-
-    if (productFilter !== "All") {
-      filtered = filtered.filter((order) =>
-        order.products.some((p) => p.name === productFilter)
-      );
-    }
-
-    if (categoryFilter !== "All") {
-      filtered = filtered.filter((order) =>
-        order.products.some((p) => {
-          const product = productCatalog.find(prod => prod.name === p.name);
-          return product && product.category?._id === categoryFilter;
-        })
-      );
-    }
-
-    if (paymentMethodFilter !== "All") {
-      filtered = filtered.filter((order) =>
-        order.paymentMethod?.toLowerCase() === paymentMethodFilter.toLowerCase()
-      );
-    }
-
-    if (waiterFilter !== "All") {
-      filtered = filtered.filter((order) =>
-        order.waiterId && order.waiterId._id === waiterFilter
-      );
-    }
-
-    let dateRange = [null, null];
-    if (dateFilter === "Today") {
-      dateRange = [dayjs(), dayjs()];
-    } else if (dateFilter === "Yesterday") {
-      dateRange = [dayjs().subtract(1, "day"), dayjs().subtract(1, "day")];
-    } else if (dateFilter === "Last 7 Days") {
-      dateRange = [dayjs().subtract(6, "day"), dayjs()];
-    } else if (dateFilter === "Last 30 Days") {
-      dateRange = [dayjs().subtract(29, "day"), dayjs()];
-    } else if (dateFilter === "Custom Date" && customDateRange[0]) {
-      dateRange = [customDateRange[0], customDateRange[1] || customDateRange[0]];
-    }
-
-    if (dateRange[0]) {
-      const startDate = dayjs(dateRange[0]).startOf("day");
-      const endDate = dateRange[1] ? dayjs(dateRange[1]).endOf("day") : dayjs(dateRange[0]).endOf("day");
-
-      filtered = filtered.filter((order) => {
-        const createdDate = order.createdAt ? dayjs(order.createdAt) : null;
-        return (
-          createdDate &&
-          !createdDate.isBefore(startDate) &&
-          (!endDate || !createdDate.isAfter(endDate))
-        );
-      });
-    }
-
-    filtered = filtered.map(order => ({
-      ...order,
-      filteredTotals: getFilteredTotals(order)
-    }));
-
-    filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    setFilteredOrders(filtered);
-  }, [searchQuery, branchFilter, productFilter, categoryFilter, paymentMethodFilter, waiterFilter, dateFilter, customDateRange, orders, productCatalog]);
-
   return (
     <div style={{ padding: "20px" }}>
       <Space direction="vertical" style={{ width: "100%", marginBottom: "20px" }}>
@@ -900,7 +971,7 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
               placeholder="Select Waiter"
             >
               <Option value="All">All Waiters</Option>
-              {waiters.map((waiter) => (
+              {filteredWaiters.map((waiter) => (
                 <Option key={waiter._id} value={waiter._id}>
                   {waiter.name}
                 </Option>
@@ -937,7 +1008,10 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
             <Text strong>Branch:</Text>
             <Select
               value={branchFilter}
-              onChange={setBranchFilter}
+              onChange={(value) => {
+                setBranchFilter(value);
+                setWaiterFilter("All"); // Reset waiter filter when branch changes
+              }}
               style={{ width: 200 }}
               placeholder="Select Branch"
             >
@@ -945,6 +1019,25 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
               {branches.map((branch) => (
                 <Option key={branch._id} value={branch._id}>
                   {branch.name}
+                </Option>
+              ))}
+            </Select>
+          </Space>
+          <Space direction="vertical">
+            <Text strong>Category:</Text>
+            <Select
+              value={categoryFilter}
+              onChange={(value) => {
+                setCategoryFilter(value);
+                setProductFilter("All"); // Reset product filter when category changes
+              }}
+              style={{ width: 200 }}
+              placeholder="Select Category"
+            >
+              <Option value="All">All Categories</Option>
+              {categories.map((category) => (
+                <Option key={category._id} value={category._id}>
+                  {category.name}
                 </Option>
               ))}
             </Select>
@@ -958,25 +1051,9 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
               placeholder="Select Product"
             >
               <Option value="All">All Products</Option>
-              {products.map((product) => (
+              {getFilteredProducts().map((product) => (
                 <Option key={product} value={product}>
                   {product}
-                </Option>
-              ))}
-            </Select>
-          </Space>
-          <Space direction="vertical">
-            <Text strong>Category:</Text>
-            <Select
-              value={categoryFilter}
-              onChange={setCategoryFilter}
-              style={{ width: 200 }}
-              placeholder="Select Category"
-            >
-              <Option value="All">All Categories</Option>
-              {categories.map((category) => (
-                <Option key={category._id} value={category._id}>
-                  {category.name}
                 </Option>
               ))}
             </Select>
@@ -988,17 +1065,18 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
                 value={dateFilter}
                 onChange={(value) => {
                   setDateFilter(value);
+                  setWaiterFilter("All"); // Reset waiter filter when date range changes
                   if (value === "Today") {
-                    setCustomDateRange([dayjs(), dayjs()]);
+                    setCustomDateRange([dayjs().startOf("day"), dayjs().endOf("day")]);
                   } else if (value === "Yesterday") {
-                    setCustomDateRange([dayjs().subtract(1, "day"), dayjs().subtract(1, "day")]);
+                    setCustomDateRange([dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").endOf("day")]);
                   } else if (value === "Last 7 Days") {
-                    setCustomDateRange([dayjs().subtract(6, "day"), dayjs()]);
+                    setCustomDateRange([dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")]);
                   } else if (value === "Last 30 Days") {
-                    setCustomDateRange([dayjs().subtract(29, "day"), dayjs()]);
+                    setCustomDateRange([dayjs().subtract(29, "day").startOf("day"), dayjs().endOf("day")]);
                   }
                 }}
-                style={{ width: 150 }}
+                style={{ width: 120 }}
               >
                 <Option value="Today">Today</Option>
                 <Option value="Yesterday">Yesterday</Option>
@@ -1007,12 +1085,15 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
                 <Option value="Custom Date">Custom Date</Option>
               </Select>
               <RangePicker
+                showTime={{ format: "HH:mm" }}
+                format="DD/MM/YYYY HH:mm"
                 value={customDateRange}
                 onChange={(dates) => {
                   setCustomDateRange(dates || [dayjs(), dayjs()]);
                   setDateFilter("Custom Date");
+                  setWaiterFilter("All"); // Reset waiter filter when custom date changes
                 }}
-                style={{ width: 250 }}
+                style={{ width: 350 }}
               />
             </Space>
           </Space>
@@ -1021,7 +1102,7 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
             <Select
               value={paymentMethodFilter}
               onChange={setPaymentMethodFilter}
-              style={{ width: 200 }}
+              style={{ width: 120 }}
               placeholder="Select Payment Method"
             >
               <Option value="All">All Payment Methods</Option>
@@ -1089,7 +1170,7 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
             loading={loading}
             pagination={{ pageSize: 10 }}
             rowKey="_id"
-            scroll={{ x: 730 }}
+            scroll={{ x: 750 }}
             summary={() => {
               const totalItems = filteredOrders.reduce((sum, order) => sum + (getFilteredTotals(order).totalItems || 0), 0);
               const totalAmount = filteredOrders.reduce((sum, order) => sum + (getFilteredTotals(order).totalAmount || 0), 0);
@@ -1149,8 +1230,8 @@ MethodFilter === "All" ? "all payment methods" : paymentMethodFilter;
               </span>
             </Space>
             <div style={{ marginBottom: 8, fontSize: 14 }}>
-              Dates: {selectedOrder.createdAt ? dayjs(selectedOrder.createdAt).format("DD/MM/YYYY") : "N/A"}
-              {selectedOrder.deliveryDateTime && ` - ${dayjs(selectedOrder.deliveryDateTime).format("DD/MM/YYYY")}`}
+              Dates: {selectedOrder.createdAt ? dayjs(selectedOrder.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss") : "N/A"}
+              {selectedOrder.deliveryDateTime && ` - ${dayjs(selectedOrder.deliveryDateTime).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss")}`}
             </div>
             <Space style={{ marginBottom: 16, fontSize: 14 }}>
               <span>Waiter: {selectedOrder.waiterId?.name || "N/A"}</span>
