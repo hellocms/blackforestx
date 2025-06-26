@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { jwtDecode } from "jwt-decode";
 import { Button, Table, Select, DatePicker, Space, message, Typography, Switch, Modal } from "antd";
-import { CloseSquareFilled, PrinterFilled, EyeFilled } from "@ant-design/icons";
+import { CloseSquareFilled, PrinterFilled } from "@ant-design/icons";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -127,26 +127,13 @@ const WaiterBillsManagementPage = ({ branchId }) => {
     }
   };
 
-  const handleClearFilters = () => {
-    setBranchFilter("All");
-    setWaiterFilter("All");
-    setDateFilter("Today");
-    setCustomDateRange([dayjs(), dayjs()]);
-    setSortByAmount(false);
-    message.success("Filters cleared");
-  };
-
-  const handleViewToggle = () => {
-    setSortByAmount(!sortByAmount);
-  };
-
   const handlePrint = () => {
     const data = viewMode === "summary" ? getSummaryData() : getDetailedData();
     const title = viewMode === "summary" ? "Waiter Bills Summary" : "Waiter Bills Detailed";
     const branchTitle = branchFilter === "All" ? "All Branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter;
     const waiterTitle = waiterFilter === "All" ? "All Waiters" : waiters.find(w => w._id === waiterFilter)?.name || waiterFilter;
     const currentDate = dayjs().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss");
-
+  
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
       <html>
@@ -166,7 +153,7 @@ const WaiterBillsManagementPage = ({ branchId }) => {
         <body>
           <h2>${title} - ${branchTitle}</h2>
           <p>Waiter: ${waiterTitle}</p>
-          <p>Date Range: ${dateFilter === "Custom Date" ? customDateRange[0].format("DD/MM/YYYY HH:mm") + " - " + (customDateRange[1] ? customDateRange[1].format("DD/MM/YYYY HH:mm") : customDateRange[0].format("DD/MM/YYYY HH:mm")) : dateFilter}</p>
+          <p>Date Range: ${dateFilter === "Custom Date" ? customDateRange[0].format("DD/MM/YYYY HH:mm") + " - " + (customDateRange[1] ? customDateRange[1].format("DD/MM/YYYY HH:mm") : customDateRange[0].format("DD/MM/YYYY HH:mm")) : dateFilter === "Till Now" ? `${dayjs().startOf("month").format("DD/MM/YYYY")} - ${dayjs().format("DD/MM/YYYY")}` : dateFilter}</p>
           <p>Generated on: ${currentDate}</p>
           <div class="divider"></div>
           <table>
@@ -217,145 +204,17 @@ const WaiterBillsManagementPage = ({ branchId }) => {
     printWindow.close();
   };
 
-  const getFilteredWaiters = () => {
-    let filtered = filteredOrders;
-
-    let dateRange = [null, null];
-    if (dateFilter === "Today") {
-      dateRange = [dayjs().startOf("day"), dayjs().endOf("day")];
-    } else if (dateFilter === "Yesterday") {
-      dateRange = [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").endOf("day")];
-    } else if (dateFilter === "Last 7 Days") {
-      dateRange = [dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")];
-    } else if (dateFilter === "Last 30 Days") {
-      dateRange = [dayjs().subtract(29, "day").startOf("day"), dayjs().endOf("day")];
-    } else if (dateFilter === "Till Now") {
-      dateRange = [dayjs().startOf("month"), dayjs().endOf("day")];
-    } else if (dateFilter === "Custom Date" && customDateRange[0]) {
-      dateRange = [
-        customDateRange[0].startOf("minute"),
-        customDateRange[1] ? customDateRange[1].endOf("minute") : customDateRange[0].endOf("minute")
-      ];
-    }
-
-    if (dateRange[0]) {
-      const startDate = dateRange[0];
-      const endDate = dateRange[1];
-      filtered = filtered.filter((order) => {
-        const createdDate = order.createdAt ? dayjs(order.createdAt) : null;
-        return (
-          createdDate &&
-          !createdDate.isBefore(startDate) &&
-          (!endDate || !createdDate.isAfter(endDate))
-        );
-      });
-    }
-
-    if (branchFilter === "All") {
-      const uniqueWaiters = [...new Set(filtered
-        .filter(o => o.waiterId && o.waiterId._id && o.waiterId.name)
-        .map(o => JSON.stringify({ _id: o.waiterId._id, name: o.waiterId.name })))
-      ].map(str => JSON.parse(str)).sort((a, b) => a.name.localeCompare(b.name));
-      return uniqueWaiters;
-    }
-
-    const uniqueWaiters = [...new Set(filtered
-      .filter(o => o.branchId?._id === branchFilter && o.waiterId && o.waiterId._id && o.waiterId.name)
-      .map(o => JSON.stringify({ _id: o.waiterId._id, name: o.waiterId.name })))
-    ].map(str => JSON.parse(str)).sort((a, b) => a.name.localeCompare(b.name));
-    return uniqueWaiters;
+  const handleClearFilters = () => {
+    setBranchFilter("All");
+    setWaiterFilter("All");
+    setDateFilter("Today");
+    setCustomDateRange([dayjs(), dayjs()]);
+    setSortByAmount(false);
+    message.success("Filters cleared");
   };
 
-  const getSummaryData = () => {
-    const waiterMap = {};
-  
-    filteredOrders.forEach((order) => {
-      const waiterId = order.waiterId?._id || "unknown";
-      const waiterName = order.waiterId?.name || "Unknown";
-      const branchId = order.branchId?._id || "unknown";
-      const branchName = order.branchId?.name || "Unknown";
-      const totalAmount = order.totalWithGST || 0;
-      const createdDate = order.createdAt ? dayjs(order.createdAt).format("YYYY-MM-DD") : null;
-  
-      if (!waiterMap[waiterId]) {
-        waiterMap[waiterId] = {
-          waiterName,
-          totalAmount: 0,
-          totalBills: 0,
-          billingDays: new Set(),
-          branches: {},
-        };
-      }
-  
-      if (!waiterMap[waiterId].branches[branchId]) {
-        waiterMap[waiterId].branches[branchId] = {
-          branchName,
-          totalAmount: 0,
-          totalBills: 0,
-          billingDays: new Set(),
-        };
-      }
-  
-      waiterMap[waiterId].totalAmount += totalAmount;
-      waiterMap[waiterId].totalBills += 1;
-      waiterMap[waiterId].branches[branchId].totalAmount += totalAmount;
-      waiterMap[waiterId].branches[branchId].totalBills += 1;
-      if (createdDate) {
-        waiterMap[waiterId].billingDays.add(createdDate);
-        waiterMap[waiterId].branches[branchId].billingDays.add(createdDate);
-      }
-    });
-  
-    let summaryData = Object.entries(waiterMap).map(([waiterId, data]) => ({
-      key: waiterId,
-      waiterName: data.waiterName,
-      totalAmount: data.totalAmount,
-      totalBills: data.totalBills,
-      attendance: data.billingDays.size,
-      branchDetails: Object.entries(data.branches).map(([branchId, branchData]) => ({
-        key: branchId,
-        branchName: branchData.branchName,
-        totalAmount: branchData.totalAmount,
-        totalBills: branchData.totalBills,
-        attendance: branchData.billingDays.size,
-      })),
-    }));
-  
-    // Sort data
-    if (sortByAmount) {
-      summaryData.sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
-    } else {
-      summaryData.sort((a, b) => a.waiterName.localeCompare(b.waiterName));
-    }
-  
-    // Assign SNo after sorting
-    summaryData = summaryData.map((item, index) => ({ ...item, sno: index + 1 }));
-  
-    return summaryData;
-  };
-
-  const getDetailedData = () => {
-    let detailedData = filteredOrders.map((order, index) => ({
-      key: order._id,
-      sno: index + 1,
-      waiterName: order.waiterId?.name || "Unknown",
-      totalAmount: order.totalWithGST || 0,
-      billNo: order.billNo || "N/A",
-      branchName: order.branchId?.name || "Unknown",
-      branchId: order.branchId?._id || "unknown",
-      date: order.createdAt ? dayjs(order.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss") : "N/A",
-      createdAt: order.createdAt,
-      products: order.products || [],
-      paymentMethod: order.paymentMethod || "N/A",
-      totalItems: order.products?.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0,
-    }));
-
-    if (sortByAmount) {
-      detailedData.sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
-      detailedData = detailedData.map((item, index) => ({ ...item, sno: index + 1 }));
-    }
-
-    return detailedData;
+  const handleTopWaiterToggle = () => {
+    setSortByAmount(!sortByAmount);
   };
 
   const handleTotalBillsClick = (record) => {
@@ -426,6 +285,145 @@ const WaiterBillsManagementPage = ({ branchId }) => {
     setFilteredOrders(filtered);
     setFilteredWaiters(getFilteredWaiters());
   }, [branchFilter, waiterFilter, dateFilter, customDateRange, orders]);
+
+  const getFilteredWaiters = () => {
+    let filtered = filteredOrders;
+
+    let dateRange = [null, null];
+    if (dateFilter === "Today") {
+      dateRange = [dayjs().startOf("day"), dayjs().endOf("day")];
+    } else if (dateFilter === "Yesterday") {
+      dateRange = [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").endOf("day")];
+    } else if (dateFilter === "Last 7 Days") {
+      dateRange = [dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")];
+    } else if (dateFilter === "Last 30 Days") {
+      dateRange = [dayjs().subtract(29, "day").startOf("day"), dayjs().endOf("day")];
+    } else if (dateFilter === "Till Now") {
+      dateRange = [dayjs().startOf("month"), dayjs().endOf("day")];
+    } else if (dateFilter === "Custom Date" && customDateRange[0]) {
+      dateRange = [
+        customDateRange[0].startOf("minute"),
+        customDateRange[1] ? customDateRange[1].endOf("minute") : customDateRange[0].endOf("minute")
+      ];
+    }
+
+    if (dateRange[0]) {
+      const startDate = dateRange[0];
+      const endDate = dateRange[1];
+      filtered = filtered.filter((order) => {
+        const createdDate = order.createdAt ? dayjs(order.createdAt) : null;
+        return (
+          createdDate &&
+          !createdDate.isBefore(startDate) &&
+          (!endDate || !createdDate.isAfter(endDate))
+        );
+      });
+    }
+
+    if (branchFilter === "All") {
+      const uniqueWaiters = [...new Set(filtered
+        .filter(o => o.waiterId && o.waiterId._id && o.waiterId.name)
+        .map(o => JSON.stringify({ _id: o.waiterId._id, name: o.waiterId.name })))
+      ].map(str => JSON.parse(str)).sort((a, b) => a.name.localeCompare(b.name));
+      return uniqueWaiters;
+    }
+
+    const uniqueWaiters = [...new Set(filtered
+      .filter(o => o.branchId?._id === branchFilter && o.waiterId && o.waiterId._id && o.waiterId.name)
+      .map(o => JSON.stringify({ _id: o.waiterId._id, name: o.waiterId.name })))
+    ].map(str => JSON.parse(str)).sort((a, b) => a.name.localeCompare(b.name));
+    return uniqueWaiters;
+  };
+
+  const getSummaryData = () => {
+    const waiterMap = {};
+
+    filteredOrders.forEach((order) => {
+      const waiterId = order.waiterId?._id || "unknown";
+      const waiterName = order.waiterId?.name || "Unknown";
+      const branchId = order.branchId?._id || "unknown";
+      const branchName = order.branchId?.name || "Unknown";
+      const totalAmount = order.totalWithGST || 0;
+      const createdDate = order.createdAt ? dayjs(order.createdAt).format("YYYY-MM-DD") : null;
+
+      if (!waiterMap[waiterId]) {
+        waiterMap[waiterId] = {
+          waiterName,
+          totalAmount: 0,
+          totalBills: 0,
+          billingDays: new Set(),
+          branches: {},
+        };
+      }
+
+      if (!waiterMap[waiterId].branches[branchId]) {
+        waiterMap[waiterId].branches[branchId] = {
+          branchName,
+          totalAmount: 0,
+          totalBills: 0,
+          billingDays: new Set(),
+        };
+      }
+
+      waiterMap[waiterId].totalAmount += totalAmount;
+      waiterMap[waiterId].totalBills += 1;
+      waiterMap[waiterId].branches[branchId].totalAmount += totalAmount;
+      waiterMap[waiterId].branches[branchId].totalBills += 1;
+      if (createdDate) {
+        waiterMap[waiterId].billingDays.add(createdDate);
+        waiterMap[waiterId].branches[branchId].billingDays.add(createdDate);
+      }
+    });
+
+    let summaryData = Object.entries(waiterMap).map(([waiterId, data]) => ({
+      key: waiterId,
+      waiterName: data.waiterName,
+      totalAmount: data.totalAmount,
+      totalBills: data.totalBills,
+      attendance: data.billingDays.size,
+      branchDetails: Object.entries(data.branches).map(([branchId, branchData]) => ({
+        key: branchId,
+        branchName: branchData.branchName,
+        totalAmount: branchData.totalAmount,
+        totalBills: branchData.totalBills,
+        attendance: branchData.billingDays.size,
+      })),
+    }));
+
+    if (sortByAmount) {
+      summaryData.sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
+    } else {
+      summaryData.sort((a, b) => a.waiterName.localeCompare(b.waiterName));
+    }
+
+    summaryData = summaryData.map((item, index) => ({ ...item, sno: index + 1 }));
+
+    return summaryData;
+  };
+
+  const getDetailedData = () => {
+    let detailedData = filteredOrders.map((order, index) => ({
+      key: order._id,
+      sno: index + 1,
+      waiterName: order.waiterId?.name || "Unknown",
+      totalAmount: order.totalWithGST || 0,
+      billNo: order.billNo || "N/A",
+      branchName: order.branchId?.name || "Unknown",
+      branchId: order.branchId?._id || "unknown",
+      date: order.createdAt ? dayjs(order.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss") : "N/A",
+      createdAt: order.createdAt,
+      products: order.products || [],
+      paymentMethod: order.paymentMethod || "N/A",
+      totalItems: order.products?.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0,
+    }));
+
+    if (sortByAmount) {
+      detailedData.sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
+      detailedData = detailedData.map((item, index) => ({ ...item, sno: index + 1 }));
+    }
+
+    return detailedData;
+  };
 
   const branchModalColumns = [
     { title: "Branch Name", dataIndex: "branchName", width: 200 },
@@ -624,14 +622,26 @@ const WaiterBillsManagementPage = ({ branchId }) => {
             />
           </Space>
           <Space direction="vertical">
+            <Text strong>Sort:</Text>
+            <Button
+              type="primary"
+              onClick={handleTopWaiterToggle}
+              style={{
+                backgroundColor: sortByAmount ? "#52c41a" : "#1890ff",
+                borderColor: sortByAmount ? "#52c41a" : "#1890ff",
+                width: 100,
+                height: 32,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              {viewMode === "summary" ? "Top Waiter" : "Top Bills"}
+            </Button>
+          </Space>
+          <Space direction="vertical">
             <Text strong>Actions:</Text>
             <Space>
-              <Button
-                type="primary"
-                icon={<EyeFilled />}
-                onClick={handleViewToggle}
-                style={{ width: 32, height: 32, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
-              />
               <Button
                 type="primary"
                 icon={<PrinterFilled />}
