@@ -1,18 +1,42 @@
 const mongoose = require('mongoose');
 const Financial = require('../models/Financial');
 
-// Initialize the financial document, ensuring only one exists
+// Bank to branch mapping including UPI and Credit Card
+const bankBranchMapping = {
+  'IDFC 1': ['67e2e29328541a7b58d1ca11', '67ed2c7b62b722c49a251e26'],
+  'IDFC 2': ['67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca'],
+  'IDFC 3': ['6841d8b5b5a0fc5644db5b10'],
+  'IDFC 4': ['6841d9b7b5a0fc5644db5b18'],
+  'UPI': {
+    '67e2e29328541a7b58d1ca11': 'IDFC 1',
+    '67ed2c7b62b722c49a251e26': 'IDFC 1',
+    '67e1a4b22191787a139a749f': 'IDFC 2',
+    '67e2e1f928541a7b58d1c9f8': 'IDFC 2',
+    '67ed2be162b722c49a251dca': 'IDFC 2',
+    '6841d8b5b5a0fc5644db5b10': 'IDFC 3',
+    '6841d9b7b5a0fc5644db5b18': 'IDFC 4',
+  },
+  'Credit Card': {
+    '67e2e29328541a7b58d1ca11': 'IDFC 1',
+    '67ed2c7b62b722c49a251e26': 'IDFC 1',
+    '67e1a4b22191787a139a749f': 'IDFC 2',
+    '67e2e1f928541a7b58d1c9f8': 'IDFC 2',
+    '67ed2be162b722c49a251dca': 'IDFC 2',
+    '6841d8b5b5a0fc5644db5b10': 'IDFC 3',
+    '6841d9b7b5a0fc5644db5b18': 'IDFC 4',
+  },
+};
+
+// Initialize the financial document
 const initializeFinancial = async () => {
   const result = await Financial.findOneAndUpdate(
-    {}, // Match any document (first one)
+    {},
     {
       $setOnInsert: {
-        idfcBc1Balance: 0,
-        idfcBc2Balance: 0,
-        idfcMi1Balance: 0,
-        idfcMi2Balance: 0,
-        centralBankBalance: 0,
-        iciciBalance: 0,
+        idfc1Balance: 0,
+        idfc2Balance: 0,
+        idfc3Balance: 0,
+        idfc4Balance: 0,
         branchBalances: [],
         totalCashBalance: 0,
         transactions: [],
@@ -33,12 +57,10 @@ const getBalances = async (req, res) => {
       return res.status(404).json({ message: 'Financial data not found' });
     }
     const balances = [
-      { source: 'IDFC BC-1', balance: financial.idfcBc1Balance },
-      { source: 'IDFC BC-2', balance: financial.idfcBc2Balance },
-      { source: 'IDFC MI-1', balance: financial.idfcMi1Balance },
-      { source: 'IDFC MI-2', balance: financial.idfcMi2Balance },
-      { source: 'CENTRAL BANK', balance: financial.centralBankBalance },
-      { source: 'ICICI', balance: financial.iciciBalance },
+      { source: 'IDFC 1', balance: financial.idfc1Balance },
+      { source: 'IDFC 2', balance: financial.idfc2Balance },
+      { source: 'IDFC 3', balance: financial.idfc3Balance },
+      { source: 'IDFC 4', balance: financial.idfc4Balance },
       ...financial.branchBalances.map((bb) => ({
         source: `CASH IN HAND - ${bb.branch.name}`,
         branchId: bb.branch._id,
@@ -82,6 +104,16 @@ const recordDeposit = async (req, res) => {
     return res.status(400).json({ message: 'Amount must be greater than 0' });
   }
 
+  let transactionSource = source;
+  if (source === 'UPI' || source === 'Credit Card') {
+    transactionSource = bankBranchMapping[source][branch];
+    if (!transactionSource) {
+      return res.status(400).json({ message: `No bank mapping for ${source} at branch ${branch}` });
+    }
+  } else if (source !== 'CASH IN HAND' && !bankBranchMapping[source]?.includes(branch)) {
+    return res.status(400).json({ message: `Selected branch is not valid for ${source}` });
+  }
+
   try {
     await initializeFinancial();
     const financial = await Financial.findOne();
@@ -91,73 +123,61 @@ const recordDeposit = async (req, res) => {
 
     let updatedBalance;
     if (source === 'CASH IN HAND') {
-      // Find or create branch balance entry
       const branchId = new mongoose.Types.ObjectId(branch);
       let branchBalanceIndex = financial.branchBalances.findIndex(bb => bb.branch.toString() === branch);
       if (branchBalanceIndex === -1) {
         financial.branchBalances.push({ branch: branchId, cashBalance: 0 });
         branchBalanceIndex = financial.branchBalances.length - 1;
       }
-      // Update cash balance for the branch
       financial.branchBalances[branchBalanceIndex].cashBalance += amount;
-      financial.markModified('branchBalances'); // Ensure subdocument changes are saved
-      // Update total cash balance
+      financial.markModified('branchBalances');
       financial.totalCashBalance += amount;
       updatedBalance = financial.branchBalances[branchBalanceIndex].cashBalance;
     } else {
-      switch (source) {
-        case 'IDFC BC-1':
-          financial.idfcBc1Balance += amount;
-          updatedBalance = financial.idfcBc1Balance;
+      const bank = transactionSource;
+      switch (bank) {
+        case 'IDFC 1':
+          financial.idfc1Balance += amount;
+          updatedBalance = financial.idfc1Balance;
           break;
-        case 'IDFC BC-2':
-          financial.idfcBc2Balance += amount;
-          updatedBalance = financial.idfcBc2Balance;
+        case 'IDFC 2':
+          financial.idfc2Balance += amount;
+          updatedBalance = financial.idfc2Balance;
           break;
-        case 'IDFC MI-1':
-          financial.idfcMi1Balance += amount;
-          updatedBalance = financial.idfcMi1Balance;
+        case 'IDFC 3':
+          financial.idfc3Balance += amount;
+          updatedBalance = financial.idfc3Balance;
           break;
-        case 'IDFC MI-2':
-          financial.idfcMi2Balance += amount;
-          updatedBalance = financial.idfcMi2Balance;
-          break;
-        case 'CENTRAL BANK':
-          financial.centralBankBalance += amount;
-          updatedBalance = financial.centralBankBalance;
-          break;
-        case 'ICICI':
-          financial.iciciBalance += amount;
-          updatedBalance = financial.iciciBalance;
+        case 'IDFC 4':
+          financial.idfc4Balance += amount;
+          updatedBalance = financial.idfc4Balance;
           break;
         default:
           return res.status(400).json({ message: 'Invalid source' });
       }
     }
 
-    // Add transaction
     const transaction = {
       type: 'Credit - Deposit',
-      source,
+      source: transactionSource,
       branch: new mongoose.Types.ObjectId(branch),
       amount,
       expenseCategory: 'N/A',
       remarks: remarks || 'N/A',
+      date: new Date(), // Default to current date if not provided
     };
 
     financial.transactions.push(transaction);
     financial.lastUpdated = Date.now();
 
-    // Save the updated document
     await financial.save();
 
-    // Populate the newly added transaction for response
     const populatedFinancial = await Financial.findOne()
       .populate('transactions.branch', 'name')
       .select('transactions');
     const populatedTransaction = populatedFinancial.transactions[populatedFinancial.transactions.length - 1];
 
-    const balanceResponse = { source, balance: updatedBalance, branch };
+    const balanceResponse = { source: transactionSource, balance: updatedBalance, branch };
 
     res.status(201).json({ balance: balanceResponse, transaction: populatedTransaction });
   } catch (err) {
@@ -181,6 +201,16 @@ const recordExpense = async (req, res) => {
     return res.status(400).json({ message: 'Amount must be greater than 0' });
   }
 
+  let transactionSource = source;
+  if (source === 'UPI' || source === 'Credit Card') {
+    transactionSource = bankBranchMapping[source][branch];
+    if (!transactionSource) {
+      return res.status(400).json({ message: `No bank mapping for ${source} at branch ${branch}` });
+    }
+  } else if (source !== 'CASH IN HAND' && !bankBranchMapping[source]?.includes(branch)) {
+    return res.status(400).json({ message: `Selected branch is not valid for ${source}` });
+  }
+
   try {
     await initializeFinancial();
     const financial = await Financial.findOne();
@@ -190,90 +220,72 @@ const recordExpense = async (req, res) => {
 
     let updatedBalance;
     if (source === 'CASH IN HAND') {
-      // Find branch balance entry
       const branchId = new mongoose.Types.ObjectId(branch);
       const branchBalanceIndex = financial.branchBalances.findIndex(bb => bb.branch.toString() === branch);
       if (branchBalanceIndex === -1 || financial.branchBalances[branchBalanceIndex].cashBalance < amount) {
         return res.status(400).json({ message: `Insufficient balance in CASH IN HAND for branch ${branch}` });
       }
-      // Update cash balance for the branch
       financial.branchBalances[branchBalanceIndex].cashBalance -= amount;
-      financial.markModified('branchBalances'); // Ensure subdocument changes are saved
-      // Update total cash balance
+      financial.markModified('branchBalances');
       financial.totalCashBalance -= amount;
       updatedBalance = financial.branchBalances[branchBalanceIndex].cashBalance;
     } else {
-      switch (source) {
-        case 'IDFC BC-1':
-          if (amount > financial.idfcBc1Balance) {
-            return res.status(400).json({ message: 'Insufficient balance in IDFC BC-1' });
+      const bank = transactionSource;
+      switch (bank) {
+        case 'IDFC 1':
+          if (amount > financial.idfc1Balance) {
+            return res.status(400).json({ message: 'Insufficient balance in IDFC 1' });
           }
-          financial.idfcBc1Balance -= amount;
-          updatedBalance = financial.idfcBc1Balance;
+          financial.idfc1Balance -= amount;
+          updatedBalance = financial.idfc1Balance;
           break;
-        case 'IDFC BC-2':
-          if (amount > financial.idfcBc2Balance) {
-            return res.status(400).json({ message: 'Insufficient balance in IDFC BC-2' });
+        case 'IDFC 2':
+          if (amount > financial.idfc2Balance) {
+            return res.status(400).json({ message: 'Insufficient balance in IDFC 2' });
           }
-          financial.idfcBc2Balance -= amount;
-          updatedBalance = financial.idfcBc2Balance;
+          financial.idfc2Balance -= amount;
+          updatedBalance = financial.idfc2Balance;
           break;
-        case 'IDFC MI-1':
-          if (amount > financial.idfcMi1Balance) {
-            return res.status(400).json({ message: 'Insufficient balance in IDFC MI-1' });
+        case 'IDFC 3':
+          if (amount > financial.idfc3Balance) {
+            return res.status(400).json({ message: 'Insufficient balance in IDFC 3' });
           }
-          financial.idfcMi1Balance -= amount;
-          updatedBalance = financial.idfcMi1Balance;
+          financial.idfc3Balance -= amount;
+          updatedBalance = financial.idfc3Balance;
           break;
-        case 'IDFC MI-2':
-          if (amount > financial.idfcMi2Balance) {
-            return res.status(400).json({ message: 'Insufficient balance in IDFC MI-2' });
+        case 'IDFC 4':
+          if (amount > financial.idfc4Balance) {
+            return res.status(400).json({ message: 'Insufficient balance in IDFC 4' });
           }
-          financial.idfcMi2Balance -= amount;
-          updatedBalance = financial.idfcMi2Balance;
-          break;
-        case 'CENTRAL BANK':
-          if (amount > financial.centralBankBalance) {
-            return res.status(400).json({ message: 'Insufficient balance in CENTRAL BANK' });
-          }
-          financial.centralBankBalance -= amount;
-          updatedBalance = financial.centralBankBalance;
-          break;
-        case 'ICICI':
-          if (amount > financial.iciciBalance) {
-            return res.status(400).json({ message: 'Insufficient balance in ICICI' });
-          }
-          financial.iciciBalance -= amount;
-          updatedBalance = financial.iciciBalance;
+          financial.idfc4Balance -= amount;
+          updatedBalance = financial.idfc4Balance;
           break;
         default:
           return res.status(400).json({ message: 'Invalid source' });
       }
     }
 
-    // Add transaction
     const transaction = {
       type: 'Debit - Expense',
-      source,
+      source: transactionSource,
       branch: new mongoose.Types.ObjectId(branch),
       amount,
       expenseCategory: category,
       remarks: remarks || 'N/A',
+      date: new Date(), // Default to current date if not provided
     };
 
     financial.transactions.push(transaction);
     financial.lastUpdated = Date.now();
 
-    // Save the updated document
     await financial.save();
 
-    // Populate the newly added transaction for response
     const populatedFinancial = await Financial.findOne()
       .populate('transactions.branch', 'name')
       .select('transactions');
     const populatedTransaction = populatedFinancial.transactions[populatedFinancial.transactions.length - 1];
 
-    const balanceResponse = { source, balance: updatedBalance, branch };
+    const balanceResponse = { source: transactionSource, balance: updatedBalance, branch };
 
     res.status(201).json({ balance: balanceResponse, transaction: populatedTransaction });
   } catch (err) {

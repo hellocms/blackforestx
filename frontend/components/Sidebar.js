@@ -42,7 +42,7 @@ const menuItems = [
   { key: "DealerBills", label: "DealerBills", icon: <FileTextOutlined />, path: "/dealers/bill-entry/list" },
   { key: "delivery", label: "Company", icon: <DeliveredProcedureOutlined />, path: "/dealers/companyForm" },
   { key: "delivery", label: "Dealer", icon: <DeliveredProcedureOutlined />, path: "/dealers/list" },
-  { key: "payments", label: "FinancialManagement", icon: <CreditCardOutlined />, path: "/BankClosingEntryList", newTab: true },
+  { key: "payments", label: "FinancialManagement", icon: <CreditCardOutlined />, path: "/FinancialManagement"},
 
 
   { key: "others_2", label: "Account Creations", isGroup: true },

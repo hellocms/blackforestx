@@ -13,7 +13,7 @@ const transactionSchema = new mongoose.Schema({
   source: {
     type: String,
     required: true,
-    enum: ['IDFC BC-1', 'IDFC BC-2', 'IDFC MI-1', 'IDFC MI-2', 'CENTRAL BANK', 'ICICI', 'CASH IN HAND'],
+    enum: ['IDFC 1', 'IDFC 2', 'IDFC 3', 'IDFC 4', 'CASH IN HAND', 'UPI', 'Credit Card'],
   },
   branch: {
     type: mongoose.Schema.Types.ObjectId,
@@ -35,27 +35,19 @@ const transactionSchema = new mongoose.Schema({
 });
 
 const financialSchema = new mongoose.Schema({
-  idfcBc1Balance: {
+  idfc1Balance: {
     type: Number,
     default: 0,
   },
-  idfcBc2Balance: {
+  idfc2Balance: {
     type: Number,
     default: 0,
   },
-  idfcMi1Balance: {
+  idfc3Balance: {
     type: Number,
     default: 0,
   },
-  idfcMi2Balance: {
-    type: Number,
-    default: 0,
-  },
-  centralBankBalance: {
-    type: Number,
-    default: 0,
-  },
-  iciciBalance: {
+  idfc4Balance: {
     type: Number,
     default: 0,
   },

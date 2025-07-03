@@ -1,14 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Typography, Form, Select, InputNumber, Input, Button, Table, Space, DatePicker, message, Layout } from 'antd';
-import { BankOutlined, MoneyCollectOutlined, PrinterOutlined, ClearOutlined, SearchOutlined } from '@ant-design/icons';
+import { BankOutlined, MoneyCollectOutlined, PrinterOutlined, ClearOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import isBetween from 'dayjs/plugin/isBetween';
-import BranchHeader from '../components/BranchHeader';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -18,14 +16,20 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
+// Bank to Branch mapping
+const bankBranchMapping = {
+  'IDFC 1': ['67e2e29328541a7b58d1ca11', '67ed2c7b62b722c49a251e26'],
+  'IDFC 2': ['67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca'],
+  'IDFC 3': ['6841d8b5b5a0fc5644db5b10'],
+  'IDFC 4': ['6841d9b7b5a0fc5644db5b18'],
+};
+
 const FinancialManagement = () => {
   // State for balances
-  const [idfcBc1Balance, setIdfcBc1Balance] = useState(0);
-  const [idfcBc2Balance, setIdfcBc2Balance] = useState(0);
-  const [idfcMi1Balance, setIdfcMi1Balance] = useState(0);
-  const [idfcMi2Balance, setIdfcMi2Balance] = useState(0);
-  const [centralBankBalance, setCentralBankBalance] = useState(0);
-  const [iciciBalance, setIciciBalance] = useState(0);
+  const [idfc1Balance, setIdfc1Balance] = useState(0);
+  const [idfc2Balance, setIdfc2Balance] = useState(0);
+  const [idfc3Balance, setIdfc3Balance] = useState(0);
+  const [idfc4Balance, setIdfc4Balance] = useState(0);
   const [branchBalances, setBranchBalances] = useState([]);
   const [totalCashBalance, setTotalCashBalance] = useState(0);
 
@@ -36,12 +40,7 @@ const FinancialManagement = () => {
   const [selectedSourceFilter, setSelectedSourceFilter] = useState(null);
   const [selectedTypeFilter, setSelectedTypeFilter] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState(null);
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState(null); // Added for branch filter
-
-  // State for branch handling
-  const [userBranchId, setUserBranchId] = useState(null);
-  const [userBranchName, setUserBranchName] = useState('Loading...');
-  const [isOfficeBranch, setIsOfficeBranch] = useState(false);
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState(null);
 
   // Form instances
   const [depositForm] = Form.useForm();
@@ -49,33 +48,6 @@ const FinancialManagement = () => {
 
   const router = useRouter();
   const BACKEND_URL = 'https://apib.dinasuvadu.in';
-
-  // Fetch branch details
-  const fetchBranchDetails = async (token, branchId) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/branches`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const branch = data.find(b => b._id === branchId);
-        if (branch) {
-          setUserBranchName(branch.name || 'Unknown Branch');
-          setIsOfficeBranch(branch.name.toLowerCase() === 'office');
-        } else {
-          message.error('Branch not found');
-          setUserBranchName('Unknown Branch');
-        }
-      } else {
-        message.error('Failed to fetch branch details');
-        setUserBranchName('Unknown Branch');
-      }
-    } catch (error) {
-      console.error('Error fetching branch details:', error);
-      message.error('Error fetching branch details');
-      setUserBranchName('Unknown Branch');
-    }
-  };
 
   // Fetch initial data
   useEffect(() => {
@@ -88,17 +60,16 @@ const FinancialManagement = () => {
 
     try {
       const decoded = jwtDecode(token);
-      if (decoded.branchId) {
-        setUserBranchId(decoded.branchId);
-        fetchBranchDetails(token, decoded.branchId);
-      } else {
-        message.error('No branch associated with this user');
+      if (!['superadmin', 'admin'].includes(decoded.role)) {
+        message.error('Access restricted to superadmin or admin');
         router.push('/login');
+        return;
       }
     } catch (error) {
       console.error('Error decoding token:', error);
       message.error('Invalid token, please log in again');
       router.push('/login');
+      return;
     }
 
     fetchBalances();
@@ -106,20 +77,18 @@ const FinancialManagement = () => {
     fetchBranches();
   }, [router]);
 
-  // Set form branch values
+  // Set default branch values in forms
   useEffect(() => {
-    if (userBranchId && !isOfficeBranch) {
-      depositForm.setFieldsValue({ branch: userBranchId });
-      expenseForm.setFieldsValue({ branch: userBranchId });
+    if (branches.length > 0) {
+      depositForm.setFieldsValue({ branch: undefined });
+      expenseForm.setFieldsValue({ branch: undefined });
     }
-  }, [userBranchId, isOfficeBranch, depositForm, expenseForm]);
+  }, [branches, depositForm, expenseForm]);
 
-  // Filter transactions when userBranchId or other filters change
+  // Filter transactions when filters change
   useEffect(() => {
-    if (userBranchId) {
-      filterTransactions(selectedSourceFilter, selectedTypeFilter, selectedDateRange, selectedBranchFilter);
-    }
-  }, [transactions, userBranchId, selectedSourceFilter, selectedTypeFilter, selectedDateRange, selectedBranchFilter]);
+    filterTransactions(selectedSourceFilter, selectedTypeFilter, selectedDateRange, selectedBranchFilter);
+  }, [transactions, selectedSourceFilter, selectedTypeFilter, selectedDateRange, selectedBranchFilter]);
 
   // Fetch balances
   const fetchBalances = async () => {
@@ -130,26 +99,20 @@ const FinancialManagement = () => {
       });
       const result = await response.json();
       if (response.ok) {
-        setBranchBalances([]); // Clear existing branch balances
+        setBranchBalances([]);
         result.forEach((balance) => {
           switch (balance.source) {
-            case 'IDFC BC-1':
-              setIdfcBc1Balance(balance.balance);
+            case 'IDFC 1':
+              setIdfc1Balance(balance.balance);
               break;
-            case 'IDFC BC-2':
-              setIdfcBc2Balance(balance.balance);
+            case 'IDFC 2':
+              setIdfc2Balance(balance.balance);
               break;
-            case 'IDFC MI-1':
-              setIdfcMi1Balance(balance.balance);
+            case 'IDFC 3':
+              setIdfc3Balance(balance.balance);
               break;
-            case 'IDFC MI-2':
-              setIdfcMi2Balance(balance.balance);
-              break;
-            case 'CENTRAL BANK':
-              setCentralBankBalance(balance.balance);
-              break;
-            case 'ICICI':
-              setIciciBalance(balance.balance);
+            case 'IDFC 4':
+              setIdfc4Balance(balance.balance);
               break;
             case 'TOTAL CASH IN HAND':
               setTotalCashBalance(balance.balance);
@@ -197,6 +160,7 @@ const FinancialManagement = () => {
           remarks: t.remarks,
         }));
         setTransactions(formattedTransactions);
+        setFilteredTransactions(formattedTransactions);
       } else {
         message.error(result.message || 'Failed to fetch transactions');
       }
@@ -240,7 +204,7 @@ const FinancialManagement = () => {
   };
 
   // Custom validator for expense amount against branch balance
-  const validateExpenseAmount = async (_, value, branchId) => {
+  const validateExpenseAmount = async (_, value, branchId, source) => {
     if (value === undefined || value === null) {
       return Promise.reject(new Error('Please enter an amount'));
     }
@@ -250,12 +214,43 @@ const FinancialManagement = () => {
     if (value < 1) {
       return Promise.reject(new Error('Amount must be at least 1'));
     }
-    if (!branchId) {
+    if (source === 'CASH IN HAND' && branchId) {
+      const branchBalance = branchBalances.find(bb => bb.branchId === branchId)?.balance || 0;
+      if (value > branchBalance) {
+        return Promise.reject(new Error('Insufficient cash balance for this branch'));
+      }
+    } else {
+      let bankBalance = 0;
+      switch (source) {
+        case 'IDFC 1':
+          bankBalance = idfc1Balance;
+          break;
+        case 'IDFC 2':
+          bankBalance = idfc2Balance;
+          break;
+        case 'IDFC 3':
+          bankBalance = idfc3Balance;
+          break;
+        case 'IDFC 4':
+          bankBalance = idfc4Balance;
+          break;
+        default:
+          break;
+      }
+      if (value > bankBalance) {
+        return Promise.reject(new Error(`Insufficient balance in ${source}`));
+      }
+    }
+    return Promise.resolve();
+  };
+
+  // Custom validator for branch based on selected bank
+  const validateBranchForBank = (_, value, source) => {
+    if (!value) {
       return Promise.reject(new Error('Please select a branch'));
     }
-    const branchBalance = branchBalances.find(bb => bb.branchId === branchId)?.balance || 0;
-    if (value > branchBalance) {
-      return Promise.reject(new Error('Insufficient cash balance for this branch'));
+    if (source !== 'CASH IN HAND' && bankBranchMapping[source] && !bankBranchMapping[source].includes(value)) {
+      return Promise.reject(new Error(`Selected branch is not valid for ${source}`));
     }
     return Promise.resolve();
   };
@@ -274,7 +269,6 @@ const FinancialManagement = () => {
       });
       const result = await response.json();
       if (response.ok) {
-        // Update balance
         if (source === 'CASH IN HAND') {
           setBranchBalances((prev) => {
             const existing = prev.find(bb => bb.branchId === result.balance.branch);
@@ -287,30 +281,23 @@ const FinancialManagement = () => {
           setTotalCashBalance(prev => prev + amount);
         } else {
           switch (source) {
-            case 'IDFC BC-1':
-              setIdfcBc1Balance(result.balance.balance);
+            case 'IDFC 1':
+              setIdfc1Balance(result.balance.balance);
               break;
-            case 'IDFC BC-2':
-              setIdfcBc2Balance(result.balance.balance);
+            case 'IDFC 2':
+              setIdfc2Balance(result.balance.balance);
               break;
-            case 'IDFC MI-1':
-              setIdfcMi1Balance(result.balance.balance);
+            case 'IDFC 3':
+              setIdfc3Balance(result.balance.balance);
               break;
-            case 'IDFC MI-2':
-              setIdfcMi2Balance(result.balance.balance);
-              break;
-            case 'CENTRAL BANK':
-              setCentralBankBalance(result.balance.balance);
-              break;
-            case 'ICICI':
-              setIciciBalance(result.balance.balance);
+            case 'IDFC 4':
+              setIdfc4Balance(result.balance.balance);
               break;
             default:
               break;
           }
         }
 
-        // Add transaction to history
         const newTransaction = {
           id: result.transaction._id,
           date: result.transaction.date,
@@ -350,7 +337,6 @@ const FinancialManagement = () => {
       });
       const result = await response.json();
       if (response.ok) {
-        // Update balance
         if (source === 'CASH IN HAND') {
           setBranchBalances((prev) => {
             const existing = prev.find(bb => bb.branchId === result.balance.branch);
@@ -363,30 +349,23 @@ const FinancialManagement = () => {
           setTotalCashBalance(prev => prev - amount);
         } else {
           switch (source) {
-            case 'IDFC BC-1':
-              setIdfcBc1Balance(result.balance.balance);
+            case 'IDFC 1':
+              setIdfc1Balance(result.balance.balance);
               break;
-            case 'IDFC BC-2':
-              setIdfcBc2Balance(result.balance.balance);
+            case 'IDFC 2':
+              setIdfc2Balance(result.balance.balance);
               break;
-            case 'IDFC MI-1':
-              setIdfcMi1Balance(result.balance.balance);
+            case 'IDFC 3':
+              setIdfc3Balance(result.balance.balance);
               break;
-            case 'IDFC MI-2':
-              setIdfcMi2Balance(result.balance.balance);
-              break;
-            case 'CENTRAL BANK':
-              setCentralBankBalance(result.balance.balance);
-              break;
-            case 'ICICI':
-              setIciciBalance(result.balance.balance);
+            case 'IDFC 4':
+              setIdfc4Balance(result.balance.balance);
               break;
             default:
               break;
           }
         }
 
-        // Add transaction to history
         const newTransaction = {
           id: result.transaction._id,
           date: result.transaction.date,
@@ -416,10 +395,7 @@ const FinancialManagement = () => {
   const filterTransactions = (source, type, dateRange, branchFilter) => {
     let filtered = [...transactions];
 
-    // Apply branch filter: non-Office users see only their branch, Office users filter by selected branch or see all
-    if (!isOfficeBranch) {
-      filtered = filtered.filter((t) => t.branchId === userBranchId);
-    } else if (branchFilter) {
+    if (branchFilter) {
       filtered = filtered.filter((t) => t.branchId === branchFilter);
     }
 
@@ -471,7 +447,6 @@ const FinancialManagement = () => {
     filterTransactions(null, null, null, null);
   };
 
-  // Print transaction history
   const handlePrint = () => {
     const printContent = `
       <html>
@@ -531,7 +506,6 @@ const FinancialManagement = () => {
     printWindow.print();
   };
 
-  // Transaction table columns
   const columns = [
     {
       title: 'Serial No',
@@ -580,7 +554,6 @@ const FinancialManagement = () => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <BranchHeader />
       <div
         style={{
           padding: '40px 20px',
@@ -593,7 +566,6 @@ const FinancialManagement = () => {
         }}
       >
         <div style={{ maxWidth: '1200px', width: '100%' }}>
-          {/* Page Title */}
           <Title
             level={2}
             style={{
@@ -606,164 +578,122 @@ const FinancialManagement = () => {
             Financial Management
           </Title>
 
-          {/* Section 1: Current Balances Overview (Office Branch Only) */}
-          {isOfficeBranch && (
-            <>
-              <Title level={4} style={{ marginBottom: '20px', color: '#1a3042' }}>
-                Current Balances
-              </Title>
-              <Row gutter={[24, 24]} style={{ marginBottom: '40px' }}>
-                <Col xs={24} sm={12} md={6}>
-                  <Card
-                    style={{
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      textAlign: 'center',
-                      height: '150px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                      IDFC BC-1: ₹{idfcBc1Balance.toFixed(2)}
-                    </Text>
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card
-                    style={{
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      textAlign: 'center',
-                      height: '150px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                      IDFC BC-2: ₹{idfcBc2Balance.toFixed(2)}
-                    </Text>
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card
-                    style={{
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      textAlign: 'center',
-                      height: '150px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                      IDFC MI-1: ₹{idfcMi1Balance.toFixed(2)}
-                    </Text>
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card
-                    style={{
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      textAlign: 'center',
-                      height: '150px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                      IDFC MI-2: ₹{idfcMi2Balance.toFixed(2)}
-                    </Text>
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card
-                    style={{
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      textAlign: 'center',
-                      height: '150px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                      CENTRAL BANK: ₹{centralBankBalance.toFixed(2)}
-                    </Text>
-                  </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Card
-                    style={{
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      textAlign: 'center',
-                      height: '150px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                      ICICI: ₹{iciciBalance.toFixed(2)}
-                    </Text>
-                  </Card>
-                </Col>
-                {branchBalances.map((bb) => (
-                  <Col xs={24} sm={12} md={6} key={bb.branchId}>
-                    <Card
-                      style={{
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        textAlign: 'center',
-                        height: '150px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                      <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                        {bb.source}: ₹{bb.balance.toFixed(2)}
-                      </Text>
-                    </Card>
-                  </Col>
-                ))}
-                <Col xs={24} sm={12} md={6}>
-                  <Card
-                    style={{
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      textAlign: 'center',
-                      height: '150px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                    <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                      TOTAL CASH IN HAND: ₹{totalCashBalance.toFixed(2)}
-                    </Text>
-                  </Card>
-                </Col>
-              </Row>
-            </>
-          )}
+          <Title level={4} style={{ marginBottom: '20px', color: '#1a3042' }}>
+            Current Balances
+          </Title>
+          <Row gutter={[24, 24]} style={{ marginBottom: '40px' }}>
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                  IDFC 1: ₹{idfc1Balance.toFixed(2)}
+                </Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                  IDFC 2: ₹{idfc2Balance.toFixed(2)}
+                </Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                  IDFC 3: ₹{idfc3Balance.toFixed(2)}
+                </Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                  IDFC 4: ₹{idfc4Balance.toFixed(2)}
+                </Text>
+              </Card>
+            </Col>
+            {branchBalances.map((bb) => (
+              <Col xs={24} sm={12} md={6} key={bb.branchId}>
+                <Card
+                  style={{
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    textAlign: 'center',
+                    height: '150px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                  <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                    {bb.source}: ₹{bb.balance.toFixed(2)}
+                  </Text>
+                </Card>
+              </Col>
+            ))}
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                  TOTAL CASH IN HAND: ₹{totalCashBalance.toFixed(2)}
+                </Text>
+              </Card>
+            </Col>
+          </Row>
 
-          {/* Section 2: Deposit Form */}
           <Title level={4} style={{ marginBottom: '20px', color: '#1a3042' }}>
             Deposit Funds
           </Title>
@@ -787,13 +717,16 @@ const FinancialManagement = () => {
                     name="source"
                     rules={[{ required: true, message: 'Please select a source' }]}
                   >
-                    <Select placeholder="Select Source">
-                      <Option value="IDFC BC-1">IDFC BC-1</Option>
-                      <Option value="IDFC BC-2">IDFC BC-2</Option>
-                      <Option value="IDFC MI-1">IDFC MI-1</Option>
-                      <Option value="IDFC MI-2">IDFC MI-2</Option>
-                      <Option value="CENTRAL BANK">CENTRAL BANK</Option>
-                      <Option value="ICICI">ICICI</Option>
+                    <Select
+                      placeholder="Select Source"
+                      onChange={(value) => {
+                        depositForm.setFieldsValue({ branch: undefined });
+                      }}
+                    >
+                      <Option value="IDFC 1">IDFC 1</Option>
+                      <Option value="IDFC 2">IDFC 2</Option>
+                      <Option value="IDFC 3">IDFC 3</Option>
+                      <Option value="IDFC 4">IDFC 4</Option>
                       <Option value="CASH IN HAND">CASH IN HAND</Option>
                     </Select>
                   </Form.Item>
@@ -811,30 +744,35 @@ const FinancialManagement = () => {
               <Row gutter={16}>
                 <Col xs={24} sm={12}>
                   <Form.Item
-                    label="Branch"
-                    name="branch"
-                    rules={[{ required: true, message: 'Please select a branch' }]}
+                    noStyle
+                    shouldUpdate={(prevValues, currentValues) => prevValues.source !== currentValues.source}
                   >
-                    {isOfficeBranch ? (
-                      <Select placeholder="Select Branch">
-                        {branches.map((branch) => (
-                          <Option key={branch._id} value={branch._id}>
-                            {branch.name}
-                          </Option>
-                        ))}
-                      </Select>
-                    ) : (
-                      <>
-                        <Input
-                          value={userBranchName}
-                          readOnly
-                          style={{ width: '100%', color: '#000000', background: '#f5f5f5', borderColor: '#d3d3d3' }}
-                        />
-                        <Form.Item name="branch" hidden>
-                          <Input hidden value={userBranchId} />
+                    {({ getFieldValue }) => {
+                      const source = getFieldValue('source');
+                      return (
+                        <Form.Item
+                          label="Branch"
+                          name="branch"
+                          rules={[{ validator: (_, value) => validateBranchForBank(_, value, source) }]}
+                        >
+                          <Select placeholder="Select Branch">
+                            {source && bankBranchMapping[source] && source !== 'CASH IN HAND'
+                              ? branches
+                                  .filter((branch) => bankBranchMapping[source].includes(branch._id))
+                                  .map((branch) => (
+                                    <Option key={branch._id} value={branch._id}>
+                                      {branch.name}
+                                    </Option>
+                                  ))
+                              : branches.map((branch) => (
+                                  <Option key={branch._id} value={branch._id}>
+                                    {branch.name}
+                                  </Option>
+                                ))}
+                          </Select>
                         </Form.Item>
-                      </>
-                    )}
+                      );
+                    }}
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
@@ -851,7 +789,6 @@ const FinancialManagement = () => {
             </Form>
           </Card>
 
-          {/* Section 3: Expense Form */}
           <Title level={4} style={{ marginBottom: '20px', color: '#1a3042' }}>
             Record Expense
           </Title>
@@ -875,13 +812,16 @@ const FinancialManagement = () => {
                     name="source"
                     rules={[{ required: true, message: 'Please select a payment source' }]}
                   >
-                    <Select placeholder="Select Source">
-                      <Option value="IDFC BC-1">IDFC BC-1</Option>
-                      <Option value="IDFC BC-2">IDFC BC-2</Option>
-                      <Option value="IDFC MI-1">IDFC MI-1</Option>
-                      <Option value="IDFC MI-2">IDFC MI-2</Option>
-                      <Option value="CENTRAL BANK">CENTRAL BANK</Option>
-                      <Option value="ICICI">ICICI</Option>
+                    <Select
+                      placeholder="Select Source"
+                      onChange={(value) => {
+                        expenseForm.setFieldsValue({ branch: undefined });
+                      }}
+                    >
+                      <Option value="IDFC 1">IDFC 1</Option>
+                      <Option value="IDFC 2">IDFC 2</Option>
+                      <Option value="IDFC 3">IDFC 3</Option>
+                      <Option value="IDFC 4">IDFC 4</Option>
                       <Option value="CASH IN HAND">CASH IN HAND</Option>
                     </Select>
                   </Form.Item>
@@ -907,15 +847,16 @@ const FinancialManagement = () => {
                 <Col xs={24} sm={12}>
                   <Form.Item
                     noStyle
-                    shouldUpdate={(prevValues, currentValues) => prevValues.branch !== currentValues.branch}
+                    shouldUpdate={(prevValues, currentValues) => prevValues.branch !== currentValues.branch || prevValues.source !== currentValues.source}
                   >
                     {({ getFieldValue }) => {
                       const branchId = getFieldValue('branch');
+                      const source = getFieldValue('source');
                       return (
                         <Form.Item
                           label="Amount (₹)"
                           name="amount"
-                          rules={[{ validator: (_, value) => validateExpenseAmount(_, value, branchId) }]}
+                          rules={[{ validator: (_, value) => validateExpenseAmount(_, value, branchId, source) }]}
                         >
                           <InputNumber min={1} style={{ width: '100%' }} />
                         </Form.Item>
@@ -925,30 +866,35 @@ const FinancialManagement = () => {
                 </Col>
                 <Col xs={24} sm={12}>
                   <Form.Item
-                    label="Branch"
-                    name="branch"
-                    rules={[{ required: true, message: 'Please select a branch' }]}
+                    noStyle
+                    shouldUpdate={(prevValues, currentValues) => prevValues.source !== currentValues.source}
                   >
-                    {isOfficeBranch ? (
-                      <Select placeholder="Select Branch">
-                        {branches.map((branch) => (
-                          <Option key={branch._id} value={branch._id}>
-                            {branch.name}
-                          </Option>
-                        ))}
-                      </Select>
-                    ) : (
-                      <>
-                        <Input
-                          value={userBranchName}
-                          readOnly
-                          style={{ width: '100%', color: '#000000', background: '#f5f5f5', borderColor: '#d3d3d3' }}
-                        />
-                        <Form.Item name="branch" hidden>
-                          <Input hidden value={userBranchId} />
+                    {({ getFieldValue }) => {
+                      const source = getFieldValue('source');
+                      return (
+                        <Form.Item
+                          label="Branch"
+                          name="branch"
+                          rules={[{ validator: (_, value) => validateBranchForBank(_, value, source) }]}
+                        >
+                          <Select placeholder="Select Branch">
+                            {source && bankBranchMapping[source] && source !== 'CASH IN HAND'
+                              ? branches
+                                  .filter((branch) => bankBranchMapping[source].includes(branch._id))
+                                  .map((branch) => (
+                                    <Option key={branch._id} value={branch._id}>
+                                      {branch.name}
+                                    </Option>
+                                  ))
+                              : branches.map((branch) => (
+                                  <Option key={branch._id} value={branch._id}>
+                                    {branch.name}
+                                  </Option>
+                                ))}
+                          </Select>
                         </Form.Item>
-                      </>
-                    )}
+                      );
+                    }}
                   </Form.Item>
                 </Col>
               </Row>
@@ -967,7 +913,6 @@ const FinancialManagement = () => {
             </Form>
           </Card>
 
-          {/* Section 4: Transaction History */}
           <Title level={4} style={{ marginBottom: '20px', color: '#1a3042' }}>
             Transaction History
           </Title>
@@ -978,7 +923,6 @@ const FinancialManagement = () => {
               marginBottom: '40px',
             }}
           >
-            {/* Transaction History Filters */}
             <Space wrap style={{ marginBottom: '20px', width: '100%' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <Text strong>Source</Text>
@@ -989,38 +933,28 @@ const FinancialManagement = () => {
                   allowClear
                   style={{ width: '200px' }}
                 >
-                  <Option value="IDFC BC-1">IDFC BC-1</Option>
-                  <Option value="IDFC BC-2">IDFC BC-2</Option>
-                  <Option value="IDFC MI-1">IDFC MI-1</Option>
-                  <Option value="IDFC MI-2">IDFC MI-2</Option>
-                  <Option value="CENTRAL BANK">CENTRAL BANK</Option>
-                  <Option value="ICICI">ICICI</Option>
+                  <Option value="IDFC 1">IDFC 1</Option>
+                  <Option value="IDFC 2">IDFC 2</Option>
+                  <Option value="IDFC 3">IDFC 3</Option>
+                  <Option value="IDFC 4">IDFC 4</Option>
                   <Option value="CASH IN HAND">CASH IN HAND</Option>
                 </Select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <Text strong>Branch</Text>
-                {isOfficeBranch ? (
-                  <Select
-                    placeholder="Filter by Branch"
-                    value={selectedBranchFilter}
-                    onChange={handleBranchFilter}
-                    allowClear
-                    style={{ width: '200px' }}
-                  >
-                    {branches.map((branch) => (
-                      <Option key={branch._id} value={branch._id}>
-                        {branch.name}
-                      </Option>
-                    ))}
-                  </Select>
-                ) : (
-                  <Input
-                    value={userBranchName}
-                    readOnly
-                    style={{ width: '200px', color: '#000000', background: '#f5f5f5', borderColor: '#d3d3d3' }}
-                  />
-                )}
+                <Select
+                  placeholder="Filter by Branch"
+                  value={selectedBranchFilter}
+                  onChange={handleBranchFilter}
+                  allowClear
+                  style={{ width: '200px' }}
+                >
+                  {branches.map((branch) => (
+                    <Option key={branch._id} value={branch._id}>
+                      {branch.name}
+                    </Option>
+                  ))}
+                </Select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <Text strong>Type</Text>
@@ -1052,7 +986,6 @@ const FinancialManagement = () => {
               </Space>
             </Space>
 
-            {/* Transaction History Table */}
             <Table
               columns={columns}
               dataSource={filteredTransactions}
@@ -1067,5 +1000,4 @@ const FinancialManagement = () => {
   );
 };
 
-FinancialManagement.useLayout = false;
 export default FinancialManagement;
