@@ -41,7 +41,7 @@ const BillingOrdersPage = ({ branchId }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [viewMode, setViewMode] = useState("summary");
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://apib.dinasuvadu.in";
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://apib.theblackforestcakes.com";
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");

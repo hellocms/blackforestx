@@ -26,7 +26,7 @@ const InventoryPage = () => {
   const [pageSize, setPageSize] = useState(10);
   const router = useRouter();
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
 
   useEffect(() => {
     const token = localStorage.getItem('token');

@@ -28,7 +28,7 @@ const PaymentHistory = () => {
   const [selectedPredefinedRange, setSelectedPredefinedRange] = useState(null);
 
   const router = useRouter();
-  const BACKEND_URL = "https://apib.dinasuvadu.in";
+  const BACKEND_URL = "https://apib.theblackforestcakes.com";
 
   const fetchTransactions = async () => {
     setLoading(true);

@@ -107,7 +107,7 @@ const BankEntryList = () => {
 
   const fetchBranches = async () => {
     try {
-      const response = await fetch('https://apib.dinasuvadu.in/api/branches/public', {
+      const response = await fetch('https://apib.theblackforestcakes.com/api/branches/public', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -123,7 +123,7 @@ const BankEntryList = () => {
   const fetchClosingEntries = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://apib.dinasuvadu.in/api/closing-entries', {
+      const response = await fetch('https://apib.theblackforestcakes.com/api/closing-entries', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });

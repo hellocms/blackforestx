@@ -47,7 +47,7 @@ const FinancialManagement = () => {
   const [expenseForm] = Form.useForm();
 
   const router = useRouter();
-  const BACKEND_URL = 'https://apib.dinasuvadu.in';
+  const BACKEND_URL = 'https://apib.theblackforestcakes.com';
 
   // Fetch initial data
   useEffect(() => {

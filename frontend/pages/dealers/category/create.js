@@ -15,7 +15,7 @@ const CreateDealerCategory = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('https://apib.dinasuvadu.in/api/dealer/categories', {
+        const response = await fetch('https://apib.theblackforestcakes.com/api/dealer/categories', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ const CreateDealerCategory = () => {
     setLoading(true);
     setErrors({ category_name: '' }); // Clear previous errors
     try {
-      const response = await fetch('https://apib.dinasuvadu.in/api/dealer/categories', {
+      const response = await fetch('https://apib.theblackforestcakes.com/api/dealer/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

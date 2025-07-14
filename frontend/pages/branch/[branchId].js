@@ -43,7 +43,7 @@ const BillingPage = ({ branchId }) => {
 
   const contentRef = useRef(null);
   const inputRefs = useRef({});
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
 
   // Define blocked categories
   const THOOTHUKUDI_MACROON_BRANCH_ID = '6841d8b5b5a0fc5644db5b10';

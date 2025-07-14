@@ -11,7 +11,7 @@ const Store = () => {
   const [searchText, setSearchText] = useState('');
   const [showImages, setShowImages] = useState(true);
   const [loading, setLoading] = useState(false);
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
 
   useEffect(() => {
     fetchCategories();

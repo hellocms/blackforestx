@@ -16,7 +16,7 @@ const AddBranchPage = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/branches`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com'}/api/branches`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

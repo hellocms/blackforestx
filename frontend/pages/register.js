@@ -23,7 +23,7 @@ const RegisterPage = () => {
 
   const fetchBranches = async (token) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/branches`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com'}/api/branches`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
@@ -45,7 +45,7 @@ const RegisterPage = () => {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('No token found');
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.dinasuvadu.in'}/api/auth/register`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com'}/api/auth/register`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

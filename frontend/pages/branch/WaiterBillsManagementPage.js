@@ -34,7 +34,7 @@ const WaiterBillsManagementPage = ({ branchId }) => {
   const [selectedBill, setSelectedBill] = useState(null);
   const [sortByAmount, setSortByAmount] = useState(false);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://apib.dinasuvadu.in";
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://apib.theblackforestcakes.com";
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
