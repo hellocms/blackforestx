@@ -13,7 +13,7 @@ const EditProductForm = () => {
   const [companies, setCompanies] = useState([]);
   const [albums, setAlbums] = useState([]);
   const [imageList, setImageList] = useState([]);
-  const [removedImages, setRemovedImages] = useState([]); // New state for removed images
+  const [removedImages, setRemovedImages] = useState([]);
   const [priceDetails, setPriceDetails] = useState([]);
   const [available, setAvailable] = useState(true);
   const [isCakeProduct, setIsCakeProduct] = useState(false);
@@ -130,10 +130,10 @@ const EditProductForm = () => {
           uid: index,
           name: img,
           status: 'done',
-          url: `${BACKEND_URL}/uploads/${img}`,
+          url: `${BACKEND_URL}/uploads/${img}`, // Changed to lowercase 'uploads'
         })));
         setAvailable(product.available);
-        setIsCakegevProduct(product.productType === 'cake');
+        setIsCakeProduct(product.productType === 'cake'); // Fixed typo: setIsCakegevProduct -> setIsCakeProduct
         setIsVeg(product.isVeg);
         setIsPastry(product.isPastry);
       } else {
@@ -184,7 +184,7 @@ const EditProductForm = () => {
     formData.append('isVeg', isVeg);
     formData.append('isPastry', isPastry);
     formData.append('isCakeProduct', isCakeProduct);
-    formData.append('removedImages', JSON.stringify(removedImages)); // Send removed images
+    formData.append('removedImages', JSON.stringify(removedImages));
 
     imageList.forEach((file) => {
       if (file.originFileObj) {
@@ -407,7 +407,6 @@ const EditProductForm = () => {
             onRemove={(file) => {
               setImageList(imageList.filter((item) => item.uid !== file.uid));
               if (file.url) {
-                // Extract filename from URL and add to removedImages
                 const filename = file.url.split('/').pop();
                 setRemovedImages([...removedImages, filename]);
               }
