@@ -130,7 +130,7 @@ const EditProductForm = () => {
           uid: index,
           name: img,
           status: 'done',
-          url: `${BACKEND_URL}/Uploads/${img}`,
+          url: `${BACKEND_URL}/uploads/${img}`,
         })));
         setAvailable(product.available);
         setIsCakegevProduct(product.productType === 'cake');

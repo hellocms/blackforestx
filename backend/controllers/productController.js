@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'Uploads/'),
+  destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
 const upload = multer({ storage }).array('images', 5);
@@ -66,7 +66,7 @@ exports.createProduct = async (req, res) => {
       const checkDigit = calculateEAN13CheckDigit(eanWithoutCheckDigit);
       const generatedUPC = eanWithoutCheckDigit + checkDigit;
 
-      const barcodePath = `Uploads/barcodes/${nextProductId}.png`;
+      const barcodePath = `uploads/barcodes/${nextProductId}.png`;
       await generateBarcode(generatedUPC, barcodePath);
 
       const newProduct = new Product({
@@ -161,7 +161,7 @@ exports.updateProduct = async (req, res) => {
           updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img));
           // Delete removed images from file system
           imagesToRemove.forEach(image => {
-            const imagePath = path.join(__dirname, '../Uploads', image);
+            const imagePath = path.join(__dirname, '../uploads', image);
             fs.unlink(imagePath, (err) => {
               if (err) console.error('Error deleting image:', err);
             });
@@ -241,7 +241,7 @@ exports.deleteProduct = async (req, res) => {
 
     if (product.images.length > 0) {
       product.images.forEach(image => {
-        const imagePath = path.join(__dirname, '../Uploads', image);
+        const imagePath = path.join(__dirname, '../uploads', image);
         fs.unlink(imagePath, (err) => {
           if (err) console.error('Error deleting image:', err);
         });
