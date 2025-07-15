@@ -1,4 +1,4 @@
-const Product = require('../models/Products'); // Updated to match schema file
+const Product = require('../models/Products');
 const Inventory = require('../models/Inventory');
 const mongoose = require('mongoose');
 const bwipjs = require('bwip-js');
@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
+  destination: (req, file, cb) => cb(null, 'Uploads/'),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
 const upload = multer({ storage }).array('images', 5);
@@ -66,7 +66,7 @@ exports.createProduct = async (req, res) => {
       const checkDigit = calculateEAN13CheckDigit(eanWithoutCheckDigit);
       const generatedUPC = eanWithoutCheckDigit + checkDigit;
 
-      const barcodePath = `uploads/barcodes/${nextProductId}.png`;
+      const barcodePath = `Uploads/barcodes/${nextProductId}.png`;
       await generateBarcode(generatedUPC, barcodePath);
 
       const newProduct = new Product({
@@ -76,7 +76,7 @@ exports.createProduct = async (req, res) => {
         name,
         category,
         dealers: parsedDealers,
-        company: parsedCompany, // Add company
+        company: parsedCompany,
         album: isCakeProduct === 'true' ? album : null,
         productType: isCakeProduct === 'true' ? 'cake' : 'non-cake',
         description,
@@ -109,7 +109,7 @@ exports.updateProduct = async (req, res) => {
 
     try {
       const { id } = req.params;
-      const { name, category, dealers, company, album, description, foodNotes, ingredients, available, isVeg, isCakeProduct, isPastry } = req.body;
+      const { name, category, dealers, company, album, description, foodNotes, ingredients, available, isVeg, isCakeProduct, isPastry, removedImages } = req.body;
 
       const product = await Product.findById(id);
       if (!product) return res.status(404).json({ message: '❌ Product not found' });
@@ -148,15 +148,38 @@ exports.updateProduct = async (req, res) => {
         }));
       }
 
+      // Handle image updates
       let updatedImages = product.images;
+      if (removedImages) {
+        let imagesToRemove;
+        try {
+          imagesToRemove = JSON.parse(removedImages);
+          if (!Array.isArray(imagesToRemove)) {
+            return res.status(400).json({ message: 'Invalid removedImages format' });
+          }
+          // Remove specified images from product.images
+          updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img));
+          // Delete removed images from file system
+          imagesToRemove.forEach(image => {
+            const imagePath = path.join(__dirname, '../Uploads', image);
+            fs.unlink(imagePath, (err) => {
+              if (err) console.error('Error deleting image:', err);
+            });
+          });
+        } catch (error) {
+          return res.status(400).json({ message: 'Invalid removedImages format' });
+        }
+      }
+
+      // Append new images
       if (req.files && req.files.length > 0) {
-        updatedImages = [...product.images, ...req.files.map(file => file.filename)];
+        updatedImages = [...updatedImages, ...req.files.map(file => file.filename)];
       }
 
       product.name = name || product.name;
       product.category = category || product.category;
       product.dealers = parsedDealers.length > 0 ? parsedDealers : product.dealers;
-      product.company = parsedCompany !== null ? parsedCompany : product.company; // Update company
+      product.company = parsedCompany !== null ? parsedCompany : product.company;
       product.productType = isCakeProduct === 'true' ? 'cake' : 'non-cake';
       product.album = isCakeProduct === 'true' ? (album || product.album) : null;
       product.description = description || product.description || '';
@@ -187,7 +210,7 @@ exports.getProducts = async (req, res) => {
     const products = await Product.find()
       .populate('category', 'name')
       .populate('dealers', 'dealer_name')
-      .populate('company', 'name') // Populate company
+      .populate('company', 'name')
       .populate('album', 'name');
     res.status(200).json(products);
   } catch (error) {
@@ -201,7 +224,7 @@ exports.getProductById = async (req, res) => {
     const product = await Product.findById(req.params.id)
       .populate('category', 'name')
       .populate('dealers', 'dealer_name')
-      .populate('company', 'name') // Populate company
+      .populate('company', 'name')
       .populate('album', 'name');
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.status(200).json(product);

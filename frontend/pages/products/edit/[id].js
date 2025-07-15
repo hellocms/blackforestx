@@ -10,9 +10,10 @@ const EditProductForm = () => {
   const [form] = Form.useForm();
   const [categories, setCategories] = useState([]);
   const [dealers, setDealers] = useState([]);
-  const [companies, setCompanies] = useState([]); // New state for companies
+  const [companies, setCompanies] = useState([]);
   const [albums, setAlbums] = useState([]);
   const [imageList, setImageList] = useState([]);
+  const [removedImages, setRemovedImages] = useState([]); // New state for removed images
   const [priceDetails, setPriceDetails] = useState([]);
   const [available, setAvailable] = useState(true);
   const [isCakeProduct, setIsCakeProduct] = useState(false);
@@ -118,7 +119,7 @@ const EditProductForm = () => {
           name: product.name,
           category: product.category?._id || product.category,
           dealers: dealerIds,
-          company: product.company?._id || product.company || undefined, // Pre-fill company
+          company: product.company?._id || product.company || undefined,
           album: product.album?._id || product.album,
           description: product.description || '',
           foodNotes: product.foodNotes || '',
@@ -132,7 +133,7 @@ const EditProductForm = () => {
           url: `${BACKEND_URL}/Uploads/${img}`,
         })));
         setAvailable(product.available);
-        setIsCakeProduct(product.productType === 'cake');
+        setIsCakegevProduct(product.productType === 'cake');
         setIsVeg(product.isVeg);
         setIsPastry(product.isPastry);
       } else {
@@ -149,7 +150,7 @@ const EditProductForm = () => {
       fetchProduct();
       fetchCategories();
       fetchDealers();
-      fetchCompanies(); // Fetch companies
+      fetchCompanies();
       fetchAlbums();
     }
   }, [id]);
@@ -172,7 +173,7 @@ const EditProductForm = () => {
     formData.append('name', values.name);
     formData.append('category', values.category);
     formData.append('dealers', JSON.stringify(values.dealers || []));
-    formData.append('company', values.company || ''); // Add company
+    formData.append('company', values.company || '');
     if (isCakeProduct && values.album) {
       formData.append('album', values.album);
     }
@@ -183,6 +184,7 @@ const EditProductForm = () => {
     formData.append('isVeg', isVeg);
     formData.append('isPastry', isPastry);
     formData.append('isCakeProduct', isCakeProduct);
+    formData.append('removedImages', JSON.stringify(removedImages)); // Send removed images
 
     imageList.forEach((file) => {
       if (file.originFileObj) {
@@ -404,6 +406,11 @@ const EditProductForm = () => {
             onChange={({ fileList }) => setImageList(fileList)}
             onRemove={(file) => {
               setImageList(imageList.filter((item) => item.uid !== file.uid));
+              if (file.url) {
+                // Extract filename from URL and add to removedImages
+                const filename = file.url.split('/').pop();
+                setRemovedImages([...removedImages, filename]);
+              }
             }}
           >
             <Button icon={<UploadOutlined />}>Upload</Button>
