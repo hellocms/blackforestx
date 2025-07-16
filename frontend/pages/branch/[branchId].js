@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Layout, Button, Space, Row, Col, message, Image, Radio, Badge, Tooltip, Select, Dropdown, Input } from "antd";
-import { LogoutOutlined, AccountBookFilled, ShoppingCartOutlined, MenuOutlined, ArrowLeftOutlined, CheckCircleFilled, WalletOutlined, CreditCardOutlined, SaveOutlined, PrinterOutlined, UserOutlined, CloseOutlined } from "@ant-design/icons";
+import { LogoutOutlined, AccountBookFilled, ShoppingCartOutlined, MenuOutlined, ArrowLeftOutlined, CheckCircleFilled, UserOutlined } from "@ant-design/icons";
 import { useRouter } from "next/router";
 import { jwtDecode as jwtDecodeLib } from "jwt-decode";
+import CartSider from '../../components/CartSider';
 
 const { Header, Content, Sider } = Layout;
 const { Option } = Select;
@@ -90,7 +91,6 @@ const BillingPage = ({ branchId }) => {
       });
       const data = await response.json();
       if (response.ok) {
-        // Filter categories based on branchId
         const blockedCategories = branchId === THOOTHUKUDI_MACROON_BRANCH_ID
           ? blockedCategoriesForThoothukudi
           : blockedCategoriesForOtherBranches;
@@ -328,7 +328,7 @@ const BillingPage = ({ branchId }) => {
 
     const touch = e.changedTouches[0];
     const swipeDistance = touch.clientX - touchStartX;
-    if (swipeDistance > 50) { // Swipe right threshold
+    if (swipeDistance > 50) {
       handleBackToCategories();
     }
   };
@@ -886,7 +886,7 @@ const BillingPage = ({ branchId }) => {
           return;
         }
         setName(decoded.name || decoded.username || "Branch User");
-        setBranchName('Unknown Branch'); // Updated default
+        setBranchName('Unknown Branch');
       } catch (error) {
         console.error('Error decoding token:', error);
         router.replace('/login');
@@ -933,8 +933,6 @@ const BillingPage = ({ branchId }) => {
       };
     }
   }, [router, branchId]);
-
-  const { totalQty, uniqueItems, subtotal, totalGST, totalWithGST } = calculateCartTotals();
 
   const userMenu = (
     <div style={{ padding: '10px', background: '#fff', borderRadius: '4px', width: '300px' }}>
@@ -1021,9 +1019,7 @@ const BillingPage = ({ branchId }) => {
           boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
         }}
       >
-        {/* Left Section */}
         <div style={{ display: "flex", alignItems: "center" }}>
-          {/* Mobile Navigation on Left */}
           <div style={{ display: isPortrait || isMobile ? "flex" : "none", alignItems: "center" }}>
             <Button
               type="text"
@@ -1036,8 +1032,6 @@ const BillingPage = ({ branchId }) => {
               }}
             />
           </div>
-
-          {/* User Info */}
           <div style={{ display: "flex", alignItems: "center" }}>
             <Space align="center">
               <span style={{ fontSize: "14px", color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "150px" }}>
@@ -1071,8 +1065,6 @@ const BillingPage = ({ branchId }) => {
             </Space>
           </div>
         </div>
-
-        {/* Desktop Center Section with Search Bar */}
         <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
           {selectedCategory && !(isPortrait || isMobile) && (
             <Input
@@ -1091,10 +1083,7 @@ const BillingPage = ({ branchId }) => {
             />
           )}
         </div>
-
-        {/* Right Section */}
         <div style={{ display: "flex", alignItems: "center" }}>
-          {/* Mobile Cart on Right */}
           <div style={{ display: isPortrait || isMobile ? "flex" : "none", alignItems: "center" }}>
             <Badge count={selectedProducts.length} showZero>
               <Button
@@ -1109,8 +1098,6 @@ const BillingPage = ({ branchId }) => {
               />
             </Badge>
           </div>
-
-          {/* Desktop Version */}
           <div
             style={{
               display: isPortrait || isMobile ? "none" : "flex",
@@ -1165,8 +1152,6 @@ const BillingPage = ({ branchId }) => {
             </Space>
           </div>
         </div>
-
-        {/* Mobile Navigation Drawer */}
         {isMobileMenuOpen && (isPortrait || isMobile) && (
           <div
             style={{
@@ -1362,208 +1347,26 @@ const BillingPage = ({ branchId }) => {
             display: isCartExpanded ? 'block' : 'none',
           }}
         >
-          <div
-            style={{
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              padding: '20px',
-              color: '#000000',
-              textAlign: 'left',
-            }}
-          >
-            <div style={{ flex: '0 0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <h3 style={{ margin: 0 }}>Cart</h3>
-                {lastBillNo && (
-                  <p style={{ margin: 0, fontWeight: 'bold' }}>
-                    Last Bill No: {lastBillNo}
-                  </p>
-                )}
-              </div>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Enter Waiter ID:</label>
-                <Input
-                  value={waiterInput}
-                  onChange={(e) => handleWaiterInputChange(e.target.value)}
-                  placeholder="Enter waiter ID (e.g., 4 for E004)"
-                  style={{ width: '100%' }}
-                />
-                {waiterName && (
-                  <p style={{ marginTop: '5px', color: '#52c41a' }}>
-                    Waiter: {waiterName}
-                  </p>
-                )}
-                {waiterError && (
-                  <p style={{ marginTop: '5px', color: '#ff4d4f' }}>
-                    {waiterError}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div
-              style={{
-                flex: '1 1 auto',
-                overflowY: 'auto',
-                marginBottom: '20px',
-                paddingBottom: '20px',
-              }}
-            >
-              {selectedProducts.length > 0 ? (
-                <ul style={{ listStyleType: 'none', padding: 0 }}>
-                  {selectedProducts.map(product => {
-                    const gstRate = product.priceDetails?.[product.selectedUnitIndex]?.gst || "non-gst";
-                    const unit = product.priceDetails?.[product.selectedUnitIndex]?.unit || '';
-                    const isKg = unit.toLowerCase().includes('kg');
-                    return (
-                      <li
-                        key={`${product._id}-${product.selectedUnitIndex}`}
-                        style={{ marginBottom: '30px', fontSize: '14px', display: 'flex', flexDirection: 'column' }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ flex: 1, fontWeight: 'bold' }}>
-                            {formatDisplayName(product)}{gstRate === "non-gst" ? " (Non-GST)" : ""}
-                          </span>
-                          <span style={{ flex: 1, textAlign: 'right' }}>
-                            {formatPriceDetails(product.priceDetails, product.selectedUnitIndex)}
-                          </span>
-                          <Button
-                            type="text"
-                            icon={<CloseOutlined />}
-                            onClick={() => handleRemoveProduct(product._id, product.selectedUnitIndex)}
-                            style={{
-                              width: '24px',
-                              height: '24px',
-                              minWidth: '24px',
-                              padding: 0,
-                              fontSize: '14px',
-                              color: '#ff4d4f',
-                              backgroundColor: '#fff',
-                              border: '2px solid #ff4d4f',
-                              borderRadius: '50%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              marginLeft: '10px',
-                            }}
-                          />
-                        </div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginTop: '10px',
-                            paddingBottom: '5px',
-                            borderBottom: '1px dotted #d9d9d9',
-                          }}
-                        >
-                          <Input
-                            type="number"
-                            value={product.count}
-                            onChange={(e) => handleQuantityChange(product._id, product.selectedUnitIndex, e.target.value, unit)}
-                            style={{ width: '80px' }}
-                            min="0"
-                            step={isKg ? "0.1" : "1"}
-                            onKeyPress={(e) => {
-                              if (!isKg && e.key === '.') {
-                                e.preventDefault();
-                              }
-                            }}
-                            className="no-arrows"
-                          />
-                          <span style={{ fontWeight: 'bold' }}>
-                            ₹{calculateProductTotal(product)}
-                            {gstRate !== "non-gst" && ` + ₹${calculateProductGST(product).toFixed(2)} GST`}
-                          </span>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p>No products selected.</p>
-              )}
-            </div>
-            {selectedProducts.length > 0 && (
-              <div
-                style={{
-                  flex: 0,
-                  backgroundColor: '#FFFFFF',
-                  padding: '10px',
-                  borderTop: '1px solid #000000',
-                }}
-              >
-                <div style={{ marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, marginBottom: 5 }}>
-                    <span style={{ flex: 1 }}>Total (Excl. GST):</span>
-                    <span style={{ textAlign: 'right' }}>₹{subtotal.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginBottom: 2 }}>
-                    <span style={{ flex: 1 }}>GST:</span>
-                    <span style={{ textAlign: 'right' }}>₹{totalGST.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', fontWeight: 'bold' }}>
-                    <span style={{ flex: 1, fontWeight: 'bold' }}>Total:</span>
-                    <span style={{ textAlign: 'right' }}>₹{totalWithGST.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginTop: 2 }}>
-                    <span style={{ flex: 1 }}>Total Items:</span>
-                    <span style={{ marginTop: '5px' }}>{uniqueItems}</span>
-                  </div>
-                </div>
-                <div style={{ marginBottom: '10px' }}>
-                  <Radio.Group
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    value={paymentMethod}
-                    style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}
-                  >
-                    <Radio.Button value="cash" style={{ borderRadius: '50px', textAlign: 'center' }}>
-                      <WalletOutlined />
-                      <span> Cash</span>
-                    </Radio.Button>
-                    <Radio.Button value="CreditCard" style={{ borderRadius: '50px', textAlign: 'center' }}>
-                      <CreditCardOutlined />
-                      <span>CreditCard</span>
-                    </Radio.Button>
-                    <Radio.Button value="upi" style={{ borderRadius: '50px', textAlign: 'center' }}>
-                      <CreditCardOutlined />
-                      <span> UPI</span>
-                    </Radio.Button>
-                  </Radio.Group>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px' }}>
-                  <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    onClick={handleSave}
-                    style={{ flex: 1 }}
-                    disabled={lastBillNo && selectedProducts.length === 0}
-                  >
-                    Save
-                  </Button>
-                  <Button
-                    type="default"
-                    icon={<CloseOutlined />}
-                    onClick={handleClearCart}
-                    style={{ flex: 1, backgroundColor: '#ff4d4f', color: '#fff' }}
-                    disabled={selectedProducts.length === 0}
-                  >
-                    Clear
-                  </Button>
-                  <Button
-                    type="primary"
-                    icon={<PrinterOutlined />}
-                    onClick={handleSaveAndPrint}
-                    style={{ flex: 1 }}
-                    disabled={lastBillNo && selectedProducts.length === 0}
-                  >
-                    Save & Print
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <CartSider
+            isCartExpanded={isCartExpanded}
+            selectedProducts={selectedProducts}
+            handleRemoveProduct={handleRemoveProduct}
+            handleQuantityChange={handleQuantityChange}
+            waiterInput={waiterInput}
+            handleWaiterInputChange={handleWaiterInputChange}
+            waiterName={waiterName}
+            waiterError={waiterError}
+            selectedWaiter={selectedWaiter}
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+            handleSave={handleSave}
+            handleSaveAndPrint={handleSaveAndPrint}
+            handleClearCart={handleClearCart}
+            lastBillNo={lastBillNo}
+            calculateCartTotals={calculateCartTotals}
+            formatDisplayName={formatDisplayName}
+            formatPriceDetails={formatPriceDetails}
+          />
         </Sider>
       </Layout>
       <style jsx global>{`
