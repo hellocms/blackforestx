@@ -833,18 +833,20 @@ const FinancialManagement = () => {
                     rules={[{ required: true, message: 'Please select an expense category' }]}
                   >
                     <Select placeholder="Select Category">
-                    <Option value="MAINTENANCE">Maintenance</Option>
-                    <Option value="TRANSPORT">Transport</Option>
-                    <Option value="FUEL">Fuel</Option>
-                    <Option value="PACKING">Packing</Option>
-                    <Option value="STAFF WELFARE">Staff Welfare</Option>
-                    <Option value="ADVERTISEMENT">Advertisement</Option>
-                    <Option value="ADVANCE">Advance</Option>
-                    <Option value="COMPLEMENTARY">Complementary</Option>
-                    <Option value="RAW MATERIAL">RAW MATERIAL</Option>
-                    <Option value="SALARY">SALARY</Option>
-                    <Option value="OC PRODUCTS">OC PRODUCTS</Option>
-                    <Option value="OTHERS">Others</Option>
+                      <Option value="Rent">Rent</Option>
+                      <Option value="EB">EB</Option>
+                      <Option value="MAINTENANCE">Maintenance</Option>
+                      <Option value="TRANSPORT">Transport</Option>
+                      <Option value="FUEL">Fuel</Option>
+                      <Option value="PACKING">Packing</Option>
+                      <Option value="STAFF WELFARE">Staff Welfare</Option>
+                      <Option value="ADVERTISEMENT">Advertisement</Option>
+                      <Option value="ADVANCE">Advance</Option>
+                      <Option value="COMPLEMENTARY">Complementary</Option>
+                      <Option value="RAW MATERIAL">RAW MATERIAL</Option>
+                      <Option value="SALARY">SALARY</Option>
+                      <Option value="OC PRODUCTS">OC PRODUCTS</Option>
+                      <Option value="OTHERS">Others</Option>
                     </Select>
                   </Form.Item>
                 </Col>
