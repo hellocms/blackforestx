@@ -13,7 +13,7 @@ const KotForm = () => {
     try {
       // Format dates
       const deliveryDate = values.deliveryDate ? values.deliveryDate.toISOString() : null;
-      const birthdayDate = values.birthdayDate ? values.birthdayDate.toISOString() : null;
+      c
 
       // Prepare data for submission
       const formData = {
