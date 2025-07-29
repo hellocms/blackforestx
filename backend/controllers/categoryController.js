@@ -26,7 +26,7 @@ exports.createCategory = async (req, res) => {
     if (err) return res.status(500).json({ message: 'File upload error', error: err });
 
     try {
-      const { name, parent } = req.body;
+      const { name, parent, isPastryProduct, isCake, isBiling } = req.body;
       console.log('Uploaded File:', req.file);
       const image = req.file ? path.join('uploads/categories', req.file.filename) : null;
 
@@ -42,6 +42,9 @@ exports.createCategory = async (req, res) => {
         name,
         parent: parent || null,
         image,
+        isPastryProduct: isPastryProduct === 'true' || isPastryProduct === true,
+        isCake: isCake === 'true' || isCake === true,
+        isBiling: isBiling === 'true' || isBiling === true,
       });
 
       await category.save();
@@ -71,7 +74,7 @@ exports.updateCategory = async (req, res) => {
 
     try {
       const { id } = req.params;
-      const { name, parent } = req.body;
+      const { name, parent, isPastryProduct, isCake, isBiling } = req.body;
       const image = req.file ? path.join('uploads/categories', req.file.filename) : null;
 
       const category = await Category.findById(id);
@@ -96,6 +99,9 @@ exports.updateCategory = async (req, res) => {
       category.name = name || category.name;
       category.parent = parent && parent !== 'null' ? parent : null;
       category.image = image || category.image;
+      category.isPastryProduct = isPastryProduct !== undefined ? (isPastryProduct === 'true' || isPastryProduct === true) : category.isPastryProduct;
+      category.isCake = isCake !== undefined ? (isCake === 'true' || isCake === true) : category.isCake;
+      category.isBiling = isBiling !== undefined ? (isBiling === 'true' || isBiling === true) : category.isBiling;
 
       await category.save();
       res.status(200).json({ message: '✅ Category updated successfully', category });
@@ -106,7 +112,7 @@ exports.updateCategory = async (req, res) => {
   });
 };
 
-// Delete Category (New)
+// Delete Category
 exports.deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;

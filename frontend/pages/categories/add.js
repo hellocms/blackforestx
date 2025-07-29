@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Select, Upload, message } from 'antd';
+import { Form, Input, Button, Select, Upload, message, Checkbox, Row, Col } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/router';
 
@@ -11,9 +11,14 @@ const AddCategoryPage = () => {
   const [fileList, setFileList] = useState([]);
   const [previewImage, setPreviewImage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [checkboxStates, setCheckboxStates] = useState({
+    isPastryProduct: false,
+    isCake: false,
+    isBiling: false,
+  });
   const router = useRouter();
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -38,14 +43,39 @@ const AddCategoryPage = () => {
     }
   };
 
+  const handleCheckboxChange = (name, checked) => {
+    setCheckboxStates(prev => ({
+      ...prev,
+      [name]: checked,
+    }));
+    // Reset parent category selection when any checkbox changes
+    form.setFieldsValue({ parent: undefined });
+  };
+
+  // Filter categories for parent dropdown based on selected checkboxes
+  const filteredParentCategories = categories.filter(category => {
+    const { isPastryProduct, isCake, isBiling } = checkboxStates;
+    // If no checkboxes are selected, show all categories
+    if (!isPastryProduct && !isCake && !isBiling) return true;
+    // Show categories that match any selected checkbox
+    return (
+      (isPastryProduct && category.isPastryProduct) ||
+      (isCake && category.isCake) ||
+      (isBiling && category.isBiling)
+    );
+  });
+
   const onFinish = async (values) => {
     setLoading(true);
     const formData = new FormData();
     formData.append('name', values.name);
     if (values.parent) formData.append('parent', values.parent);
-    console.log('FileList:', fileList); // ✅ Debug file list
+    formData.append('isPastryProduct', values.isPastryProduct || false);
+    formData.append('isCake', values.isCake || false);
+    formData.append('isBiling', values.isBiling || false);
+    console.log('FileList:', fileList);
     if (fileList.length > 0 && fileList[0].originFileObj) {
-      formData.append('image', fileList[0].originFileObj); // ✅ Ensure image is appended
+      formData.append('image', fileList[0].originFileObj);
     }
 
     try {
@@ -61,6 +91,7 @@ const AddCategoryPage = () => {
         form.resetFields();
         setFileList([]);
         setPreviewImage(null);
+        setCheckboxStates({ isPastryProduct: false, isCake: false, isBiling: false });
       } else {
         message.error(data.message || 'Failed to create category');
       }
@@ -74,7 +105,7 @@ const AddCategoryPage = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       setPreviewImage(e.target.result);
-      setFileList([{ ...file, originFileObj: file }]); // ✅ Ensure originFileObj is preserved
+      setFileList([{ ...file, originFileObj: file }]);
     };
     reader.readAsDataURL(file);
     return false;
@@ -101,15 +132,54 @@ const AddCategoryPage = () => {
         >
           <Input placeholder="e.g., Pastries" />
         </Form.Item>
+        <Row gutter={16}>
+          <Col span={8}>
+            <Form.Item
+              name="isPastryProduct"
+              valuePropName="checked"
+              rules={[{ required: false }]}
+            >
+              <Checkbox onChange={(e) => handleCheckboxChange('isPastryProduct', e.target.checked)}>
+                Pastry
+              </Checkbox>
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item
+              name="isCake"
+              valuePropName="checked"
+              rules={[{ required: false }]}
+            >
+              <Checkbox onChange={(e) => handleCheckboxChange('isCake', e.target.checked)}>
+                Cake
+              </Checkbox>
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item
+              name="isBiling"
+              valuePropName="checked"
+              rules={[{ required: false }]}
+            >
+              <Checkbox onChange={(e) => handleCheckboxChange('isBiling', e.target.checked)}>
+                Biling
+              </Checkbox>
+            </Form.Item>
+          </Col>
+        </Row>
         <Form.Item
           label="Parent Category"
           name="parent"
           rules={[{ required: false }]}
         >
           <Select placeholder="Select a parent category" allowClear>
-            {categories.map(category => (
-              <Option key={category._id} value={category._id}>{category.name}</Option>
-            ))}
+            {filteredParentCategories.length > 0 ? (
+              filteredParentCategories.map(category => (
+                <Option key={category._id} value={category._id}>{category.name}</Option>
+              ))
+            ) : (
+              <Option disabled>No matching parent categories available</Option>
+            )}
           </Select>
         </Form.Item>
         <Form.Item label="Category Image">
