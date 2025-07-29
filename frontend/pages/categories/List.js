@@ -17,7 +17,7 @@ const CategoryListPage = () => {
   const [form] = Form.useForm();
   const router = useRouter();
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
 
   useEffect(() => {
     const token = localStorage.getItem('token');
