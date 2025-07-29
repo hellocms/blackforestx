@@ -10,7 +10,7 @@ const ProductForm = () => {
   const [form] = Form.useForm();
   const [categories, setCategories] = useState([]);
   const [dealers, setDealers] = useState([]);
-  const [companies, setCompanies] = useState([]); // New state for companies
+  const [companies, setCompanies] = useState([]);
   const [albums, setAlbums] = useState([]);
   const [imageList, setImageList] = useState([]);
   const [priceDetails, setPriceDetails] = useState([]);
@@ -102,9 +102,22 @@ const ProductForm = () => {
   useEffect(() => {
     fetchCategories();
     fetchDealers();
-    fetchCompanies(); // Fetch companies
+    fetchCompanies();
     fetchAlbums();
   }, []);
+
+  // Filter categories based on isPastry and isCakeProduct
+  const filteredCategories = (() => {
+    if (isPastry && isCakeProduct) {
+      return categories.filter(category => category.isBiling);
+    } else if (isPastry) {
+      return categories.filter(category => category.isPastryProduct);
+    } else if (isCakeProduct) {
+      return categories.filter(category => category.isCake);
+    } else {
+      return categories.filter(category => category.isBiling);
+    }
+  })();
 
   const handlePriceChange = (index, field, value) => {
     const updatedDetails = [...priceDetails];
@@ -124,7 +137,7 @@ const ProductForm = () => {
     formData.append('name', values.name);
     formData.append('category', values.category);
     formData.append('dealers', JSON.stringify(values.dealers || []));
-    formData.append('company', values.company || ''); // Add company
+    formData.append('company', values.company || '');
     if (isCakeProduct && values.album) {
       formData.append('album', values.album);
     }
@@ -192,14 +205,20 @@ const ProductForm = () => {
           </Checkbox>
           <Checkbox
             checked={isCakeProduct}
-            onChange={(e) => setIsCakeProduct(e.target.checked)}
+            onChange={(e) => {
+              setIsCakeProduct(e.target.checked);
+              form.setFieldsValue({ category: undefined }); // Reset category when isCakeProduct changes
+            }}
             style={{ marginRight: '8px' }}
           >
             Enable Cake Product
           </Checkbox>
           <Checkbox
             checked={isPastry}
-            onChange={(e) => setIsPastry(e.target.checked)}
+            onChange={(e) => {
+              setIsPastry(e.target.checked);
+              form.setFieldsValue({ category: undefined }); // Reset category when isPastry changes
+            }}
             style={{ marginRight: '20px' }}
           >
             Pastry
@@ -222,6 +241,28 @@ const ProductForm = () => {
           style={{ marginBottom: '8px' }}
         >
           <Input placeholder="Enter product name" />
+        </Form.Item>
+
+        <Form.Item
+          label="Company"
+          name="company"
+          style={{ marginBottom: '8px' }}
+        >
+          <Select
+            placeholder="Select Company"
+            showSearch
+            allowClear
+            filterOption={(input, option) =>
+              option.children.toLowerCase().includes(input.toLowerCase())
+            }
+            style={{ width: 'auto', minWidth: companyDropdownWidth, maxWidth: '100%' }}
+          >
+            {companies.map(company => (
+              <Option key={company._id} value={company._id}>
+                {company.name}
+              </Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item
@@ -270,28 +311,6 @@ const ProductForm = () => {
           </Select>
         </Form.Item>
 
-        <Form.Item
-          label="Company"
-          name="company"
-          style={{ marginBottom: '8px' }}
-        >
-          <Select
-            placeholder="Select Company"
-            showSearch
-            allowClear
-            filterOption={(input, option) =>
-              option.children.toLowerCase().includes(input.toLowerCase())
-            }
-            style={{ width: 'auto', minWidth: companyDropdownWidth, maxWidth: '100%' }}
-          >
-            {companies.map(company => (
-              <Option key={company._id} value={company._id}>
-                {company.name}
-              </Option>
-            ))}
-          </Select>
-        </Form.Item>
-
         <Row gutter={12}>
           <Col span={isCakeProduct ? 12 : 24}>
             <Form.Item
@@ -301,12 +320,12 @@ const ProductForm = () => {
               style={{ marginBottom: '8px' }}
             >
               <Select placeholder="Select Category">
-                {Array.isArray(categories) && categories.length > 0 ? (
-                  categories.map(category => (
+                {Array.isArray(filteredCategories) && filteredCategories.length > 0 ? (
+                  filteredCategories.map(category => (
                     <Option key={category._id} value={category._id}>{category.name}</Option>
                   ))
                 ) : (
-                  <Option disabled>No categories available</Option>
+                  <Option disabled>No matching categories available</Option>
                 )}
               </Select>
             </Form.Item>
@@ -326,7 +345,7 @@ const ProductForm = () => {
                     ))
                   ) : (
                     <Option disabled>No albums available</Option>
-                )}
+                  )}
                 </Select>
               </Form.Item>
             </Col>
