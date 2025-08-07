@@ -188,9 +188,9 @@ const recordDeposit = async (req, res) => {
 
 // Record an expense
 const recordExpense = async (req, res) => {
-  const { source, amount, branch, remarks, category } = req.body;
+  const { source, amount, branch, remarks, category, date } = req.body;
 
-  console.log('Expense request body:', { source, amount, branch, remarks, category });
+  console.log('Expense request body:', { source, amount, branch, remarks, category, date });
 
   if (source === undefined || source === null || amount === undefined || amount === null || 
       branch === undefined || branch === null || category === undefined || category === null) {
@@ -272,7 +272,7 @@ const recordExpense = async (req, res) => {
       amount,
       expenseCategory: category,
       remarks: remarks || 'N/A',
-      date: new Date(), // Default to current date if not provided
+      date: date ? new Date(date) : new Date(),
     };
 
     financial.transactions.push(transaction);

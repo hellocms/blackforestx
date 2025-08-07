@@ -325,15 +325,15 @@ const FinancialManagement = () => {
 
   // Handle expense form submission
   const handleExpense = async (values) => {
-    const { source, category, amount, branch, remarks } = values;
+    const { source, category, amount, branch, remarks, date } = values;
 
-    console.log('Expense form values:', { source, category, amount, branch, remarks });
+    console.log('Expense form values:', { source, category, amount, branch, remarks, date });
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/financial/expense`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source, category, amount, branch, remarks }),
+        body: JSON.stringify({ source, category, amount, branch, remarks, date: date ? date.toISOString() : null }),
       });
       const result = await response.json();
       if (response.ok) {
@@ -833,7 +833,7 @@ const FinancialManagement = () => {
                     rules={[{ required: true, message: 'Please select an expense category' }]}
                   >
                     <Select placeholder="Select Category">
-                      <Option value="Rent">Rent</Option>
+                    <Option value="Rent">Rent</Option>
                       <Option value="EB">EB</Option>
                       <Option value="MAINTENANCE">Maintenance</Option>
                       <Option value="TRANSPORT">Transport</Option>
@@ -907,7 +907,16 @@ const FinancialManagement = () => {
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col xs={24}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    label="Date"
+                    name="date"
+                    rules={[{ required: true, message: 'Please select a date' }]}
+                  >
+                    <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" defaultValue={dayjs()} />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={12}>
                   <Form.Item label="Remarks" name="remarks">
                     <Input placeholder="Optional remarks" />
                   </Form.Item>
