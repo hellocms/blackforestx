@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { Layout, Button, Space, Row, Col, message, Image, Radio, Badge, Tooltip, Select, Dropdown, Input } from "antd";
 import { LogoutOutlined, AccountBookFilled, ShoppingCartOutlined, MenuOutlined, ArrowLeftOutlined, CheckCircleFilled, UserOutlined } from "@ant-design/icons";
@@ -200,14 +201,6 @@ const BillingPage = ({ branchId }) => {
     setSelectedProductType(null);
     setSearchQuery("");
     fetchProducts(category._id);
-    setSelectedUnits({});
-  };
-
-  const handleUnitChange = (productId, unitIndex) => {
-    setSelectedUnits(prev => ({
-      ...prev,
-      [productId]: unitIndex,
-    }));
   };
 
   const stopPropagation = (e) => {
@@ -215,14 +208,14 @@ const BillingPage = ({ branchId }) => {
   };
 
   const handleProductClick = (product) => {
-    const selectedUnitIndex = selectedUnits[product._id] || 0;
+    const selectedUnitIndex = 0;
     setSelectedProducts(prev => {
-      const existingProduct = prev.find(item => item._id === product._id && item.selectedUnitIndex === selectedUnitIndex);
+      const existingProduct = prev.find(item => item._id === product._id);
       const gstRate = product.priceDetails?.[selectedUnitIndex]?.gst || "non-gst";
       if (existingProduct) {
         const newCount = existingProduct.count + 1;
         return prev.map(item =>
-          item._id === product._id && item.selectedUnitIndex === selectedUnitIndex
+          item._id === product._id
             ? { ...item, count: newCount }
             : item
         );
@@ -248,7 +241,7 @@ const BillingPage = ({ branchId }) => {
     let parsedValue = isKg ? parseFloat(value) : parseInt(value, 10);
     
     if (isNaN(parsedValue) || parsedValue <= 0) {
-      setSelectedProducts(prev => prev.filter(item => !(item._id === productId && item.selectedUnitIndex === selectedUnitIndex)));
+      setSelectedProducts(prev => prev.filter(item => !(item._id === productId)));
       return;
     }
 
@@ -257,10 +250,10 @@ const BillingPage = ({ branchId }) => {
     }
 
     setSelectedProducts(prev => {
-      const existingProduct = prev.find(item => item._id === productId && item.selectedUnitIndex === selectedUnitIndex);
+      const existingProduct = prev.find(item => item._id === productId);
       if (existingProduct) {
         return prev.map(item =>
-          item._id === productId && item.selectedUnitIndex === selectedUnitIndex
+          item._id === productId
             ? { ...item, count: parsedValue }
             : item
         );
@@ -281,7 +274,7 @@ const BillingPage = ({ branchId }) => {
 
   const handleRemoveProduct = (productId, selectedUnitIndex) => {
     setSelectedProducts(prev => {
-      return prev.filter(item => !(item._id === productId && item.selectedUnitIndex === selectedUnitIndex));
+      return prev.filter(item => !(item._id === productId));
     });
     setLastBillNo(null);
   };
@@ -292,7 +285,6 @@ const BillingPage = ({ branchId }) => {
     setFilteredProducts([]);
     setSelectedProductType(null);
     setSearchQuery("");
-    setSelectedUnits({});
     setLastBillNo(null);
   };
 
@@ -1383,8 +1375,8 @@ const BillingPage = ({ branchId }) => {
   );
 
   function renderProductCard(product) {
-    const selectedUnitIndex = selectedUnits[product._id] || 0;
-    const selectedProduct = selectedProducts.find(item => item._id === product._id && item.selectedUnitIndex === selectedUnitIndex);
+    const selectedUnitIndex = 0;
+    const selectedProduct = selectedProducts.find(item => item._id === product._id);
     const count = selectedProduct ? selectedProduct.count : 0;
     const unit = product.priceDetails?.[selectedUnitIndex]?.unit || '';
     const isKg = unit.toLowerCase().includes('kg');
@@ -1427,7 +1419,7 @@ const BillingPage = ({ branchId }) => {
               {count > 0 && (
                 <Input
                   type="number"
-                  placeholder="Qty"
+                  value={count}
                   onChange={(e) => handleQuantityChange(product._id, selectedUnitIndex, e.target.value, unit)}
                   onClick={stopPropagation}
                   style={{
@@ -1457,7 +1449,7 @@ const BillingPage = ({ branchId }) => {
               {count > 0 && (
                 <Input
                   type="number"
-                  placeholder="Qty"
+                  value={count}
                   onChange={(e) => handleQuantityChange(product._id, selectedUnitIndex, e.target.value, unit)}
                   onClick={stopPropagation}
                   style={{
@@ -1489,81 +1481,50 @@ const BillingPage = ({ branchId }) => {
               left: 5,
               background: 'rgba(0, 0, 0, 0.6)',
               color: '#FFFFFF',
-              fontSize: `${fontSize * 0.7}px`,
+              fontSize: `${fontSize * 0.9}px`,
               fontWeight: 'bold',
               padding: '2px 5px',
               borderRadius: 4,
-              maxWidth: '80%',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
             }}
           >
-            {product.name}
+            <Tooltip
+              title={
+                product.priceDetails?.[selectedUnitIndex]
+                  ? formatTooltip(product.priceDetails[selectedUnitIndex], product.productType)
+                  : 'No Details'
+              }
+            >
+              {formatPriceDetails(product.priceDetails, selectedUnitIndex)}
+            </Tooltip>
           </div>
           <div
             style={{
+              width: '100%',
+              background: '#000000',
+              textAlign: 'center',
+              padding: 0,
+              margin: 0,
               position: 'absolute',
-              bottom: 5,
-              left: 5,
-              right: 5,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-end',
+              bottom: 0,
+              left: 0,
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              {count > 0 && (
-                <div
-                  style={{
-                    background: 'rgba(0, 0, 0, 0.6)',
-                    color: '#FFFFFF',
-                    fontSize: `${fontSize * 0.9}px`,
-                    fontWeight: 'bold',
-                    padding: '2px 5px',
-                    borderRadius: 4,
-                    marginBottom: '5px',
-                  }}
-                >
-                  {count}{unit}
-                </div>
-              )}
-              <div
-                style={{
-                  background: 'rgba(0, 0, 0, 0.6)',
-                  color: '#FFFFFF',
-                  fontSize: `${fontSize * 0.9}px`,
-                  fontWeight: 'bold',
-                  padding: '2px 5px',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                }}
-              >
-                <Tooltip
-                  title={
-                    product.priceDetails?.[selectedUnitIndex]
-                      ? formatTooltip(product.priceDetails[selectedUnitIndex], product.productType)
-                      : 'No Details'
-                  }
-                >
-                  {formatPriceDetails(product.priceDetails, selectedUnitIndex)}
-                </Tooltip>
-              </div>
-            </div>
-            <div style={{ width: '40%' }} onClick={stopPropagation}>
-              <Select
-                value={selectedUnitIndex}
-                onChange={(value) => handleUnitChange(product._id, value)}
-                size="small"
-                style={{ width: '100%' }}
-              >
-                {product.priceDetails?.map((detail, index) => (
-                  <Option key={index} value={index}>
-                    {formatUnitLabel(detail, product.productType)}
-                  </Option>
-                ))}
-              </Select>
-            </div>
+            <span
+              style={{
+                color: '#FFFFFF',
+                fontSize: `${fontSize}px`,
+                fontWeight: 'bold',
+                padding: 0,
+                margin: 0,
+                display: 'block',
+                lineHeight: `${lineHeight}px`,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {product.name}
+            </span>
           </div>
         </div>
         {count > 0 && (
