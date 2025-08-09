@@ -36,6 +36,7 @@ const menuItems = [
 
   { key: "report", label: "Report", isGroup: true },
   { key: "addons", label: "Billing", icon: <FileTextOutlined  />, path: "/branch/BillingOrdersPage" },
+  { key: "addons", label: "Timing", icon: <FileTextOutlined  />, path: "/branch/TimingReportPage" },
   { key: "addons", label: "Waiter", icon: <FileTextOutlined  />, path: "/branch/WaiterBillsManagementPage" },
   { key: "Closingentry", label: "Closingentry", icon: <FileTextOutlined />, path: "/dealers/closing-entry/list" },
   { key: "Expense List", label: "Expense List", icon: <FileTextOutlined />, path: "/dealers/closing-entry/expenselist" },

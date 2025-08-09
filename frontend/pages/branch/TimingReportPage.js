@@ -27,7 +27,7 @@ const TimingReportPage = () => {
   const [customDateRange, setCustomDateRange] = useState([dayjs(), dayjs()]);
   const [loading, setLoading] = useState(false);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://apib.theblackforestcakes.com";
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://apib.theblackforestcakes.com";
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
