@@ -899,6 +899,13 @@ const BillingOrdersPage = ({ branchId }) => {
       width: 120,
     },
     {
+      title: "Waiter",
+      dataIndex: "waiterId",
+      render: (waiterId) => waiterId?.name || "N/A",
+      sorter: (a, b) => (a.waiterId?.name || "").localeCompare(b.waiterId?.name || ""),
+      width: 150,
+    },
+    {
       title: "Payment Method",
       dataIndex: "paymentMethod",
       render: (value) => value ? value.charAt(0).toUpperCase() + value.slice(1) : "N/A",
