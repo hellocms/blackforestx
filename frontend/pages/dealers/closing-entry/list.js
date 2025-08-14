@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Table, Select, DatePicker, Button, Spin, Typography, Space, Card, Modal, Tooltip, Switch } from 'antd';
 import { RedoOutlined, PrinterOutlined } from '@ant-design/icons';
 import { Line, Pie, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, LineElement, PointElement, ArcElement, CategoryScale, LinearScale, BarElement, Tooltip as ChartTooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { useRouter } from "next/router";
+import { jwtDecode } from "jwt-decode";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -21,9 +22,12 @@ const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const ClosingEntryList = () => {
+  const router = useRouter();
+  const [token, setToken] = useState(null);
   const [closingEntries, setClosingEntries] = useState([]);
   const [filteredEntries, setFilteredEntries] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [branchFilter, setBranchFilter] = useState(null);
   const [dateFilter, setDateFilter] = useState('Today');
@@ -55,9 +59,31 @@ const ClosingEntryList = () => {
   ];
 
   useEffect(() => {
-    fetchBranches();
-    fetchClosingEntries();
-  }, []);
+    const storedToken = localStorage.getItem("token");
+    setToken(storedToken);
+
+    if (!storedToken) {
+      router.replace("/login");
+      return;
+    }
+
+    try {
+      const decoded = jwtDecode(storedToken);
+      const role = decoded.role;
+      if (!["admin", "superadmin"].includes(role)) {
+        router.replace("/login");
+        return;
+      }
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      router.replace("/login");
+      return;
+    }
+
+    fetchBranches(storedToken);
+    fetchClosingEntries(storedToken);
+    fetchOrders(storedToken);
+  }, [router]);
 
   useEffect(() => {
     let filtered = [...closingEntries];
@@ -68,7 +94,7 @@ const ClosingEntryList = () => {
 
     if (dateFilter) {
       let startDate, endDate;
-      const today = dayjs().startOf('day');
+      const today = dayjs().tz('Asia/Kolkata').startOf('day');
       switch (dateFilter) {
         case 'Today':
           startDate = today;
@@ -88,8 +114,8 @@ const ClosingEntryList = () => {
           break;
         case 'Custom':
           if (customDateRange && customDateRange.length === 2) {
-            startDate = dayjs(customDateRange[0]).startOf('day');
-            endDate = dayjs(customDateRange[1]).endOf('day');
+            startDate = dayjs(customDateRange[0]).tz('Asia/Kolkata').startOf('day');
+            endDate = dayjs(customDateRange[1]).tz('Asia/Kolkata').endOf('day');
           }
           break;
         default:
@@ -97,7 +123,7 @@ const ClosingEntryList = () => {
       }
       if (startDate && endDate) {
         filtered = filtered.filter((entry) => {
-          const entryDate = dateFilterType === 'Created' ? dayjs(entry.createdAt) : dayjs(entry.date);
+          const entryDate = dateFilterType === 'Created' ? dayjs(entry.createdAt).tz('Asia/Kolkata') : dayjs(entry.date).tz('Asia/Kolkata');
           return entryDate.isValid() && entryDate.isBetween(startDate, endDate, null, '[]');
         });
       }
@@ -112,11 +138,11 @@ const ClosingEntryList = () => {
     setFilteredEntries(filtered);
   }, [closingEntries, branchFilter, dateFilter, customDateRange, dateFilterType, expenseFilter]);
 
-  const fetchBranches = async () => {
+  const fetchBranches = async (token) => {
     try {
       const response = await fetch('https://apib.theblackforestcakes.com/api/branches/public', {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
       const result = await response.json();
       if (response.ok) {
@@ -127,12 +153,12 @@ const ClosingEntryList = () => {
     }
   };
 
-  const fetchClosingEntries = async () => {
+  const fetchClosingEntries = async (token) => {
     setLoading(true);
     try {
       const response = await fetch('https://apib.theblackforestcakes.com/api/closing-entries', {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
       const result = await response.json();
       if (response.ok) {
@@ -141,6 +167,24 @@ const ClosingEntryList = () => {
       }
     } catch (err) {
       console.error('Error fetching closing entries:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchOrders = async (token) => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://apib.theblackforestcakes.com/api/orders?tab=billing', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json();
+      if (response.ok) {
+        setOrders(result);
+      }
+    } catch (err) {
+      console.error('Error fetching orders:', err);
     } finally {
       setLoading(false);
     }
@@ -244,6 +288,7 @@ const ClosingEntryList = () => {
                 .difference-less { background-color: #ff4d4f; color: #ffffff; font-weight: bold; }
                 .difference-more { background-color: #fadb14; color: #000000; font-weight: bold; }
                 .total-sales { background-color: rgb(220, 248, 198); }
+                .billing { background-color: rgb(220, 248, 198); }
                 .total-payments { background-color: #50e0ff; }
               }
             </style>
@@ -261,6 +306,7 @@ const ClosingEntryList = () => {
                   <th>Cash</th>
                   <th>Expenses</th>
                   <th class="total-sales">Total Sales</th>
+                  <th class="billing">Billing</th>
                   <th class="total-payments">Total Payments</th>
                   <th>Difference</th>
                   <th>Created At</th>
@@ -281,6 +327,7 @@ const ClosingEntryList = () => {
                       <td>₹${entry.cashPayment}</td>
                       <td>₹${entry.expenses}</td>
                       <td class="total-sales">₹${entry.totalSales}</td>
+                      <td class="billing">₹${entry.billingTotal}</td>
                       <td class="total-payments">₹${entry.totalPayments}</td>
                       <td class="${diffClass}">₹${diff}</td>
                       <td>${entry.createdAt ? dayjs(entry.createdAt).format('D/M/YY') : 'N/A'}</td>
@@ -308,6 +355,7 @@ const ClosingEntryList = () => {
                 .difference-less { background-color: #ff4d4f; color: #ffffff; font-weight: bold; }
                 .difference-more { background-color: #fadb14; color: #000000; font-weight: bold; }
                 .total-sales { background-color: rgb(220, 248, 198); }
+                .billing { background-color: rgb(220, 248, 198); }
                 .total-payments { background-color: #50e0ff; }
               }
             </style>
@@ -325,6 +373,7 @@ const ClosingEntryList = () => {
                   <th>Cash</th>
                   <th>Expenses</th>
                   <th class="total-sales">Total Sales</th>
+                  <th class="billing">Billing</th>
                   <th class="total-payments">Total Payments</th>
                   <th>Difference</th>
                   <th>Created At</th>
@@ -333,7 +382,8 @@ const ClosingEntryList = () => {
               <tbody>
                 ${filteredEntries.map((entry, index) => {
                   const sales = entry.systemSales + entry.manualSales + entry.onlineSales;
-                  const payments = entry.creditCardPayment + entry.upiPayment + entry.cashPayment + entry.expenses;
+                  const billingTotal = getBillingTotalForEntry(entry);
+                  const payments = entry.creditCardPayment + entry.upiPayment + entry.cashPayment + entry.expenses + billingTotal;
                   const diff = payments - sales;
                   let diffClass = 'difference-equal';
                   if (diff < 0) diffClass = 'difference-less';
@@ -347,6 +397,7 @@ const ClosingEntryList = () => {
                       <td>₹${entry.cashPayment}</td>
                       <td>₹${entry.expenses}</td>
                       <td class="total-sales">₹${sales}</td>
+                      <td class="billing">₹${billingTotal}</td>
                       <td class="total-payments">₹${payments}</td>
                       <td class="${diffClass}">₹${diff}</td>
                       <td>${dayjs(entry.createdAt).format('D/M/YY')}</td>
@@ -365,7 +416,119 @@ const ClosingEntryList = () => {
     printWindow.print();
   };
 
+  const getBillingTotalForBranch = (branchId, startDate, endDate) => {
+    return orders
+      .filter((order) => {
+        const orderDate = dayjs(order.createdAt).tz('Asia/Kolkata');
+        return (
+          order.branchId?._id === branchId &&
+          orderDate.isBetween(startDate, endDate, null, '[]')
+        );
+      })
+      .reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
+  };
+
+  const getSegmentedBillingTotals = useMemo(() => {
+    const segmentedTotals = {};
+    const entriesByBranchAndDay = {};
+
+    filteredEntries.forEach((entry) => {
+      const branchId = entry.branchId?._id;
+      const entryDate = dayjs(dateFilterType === 'Created' ? entry.createdAt : entry.date).tz('Asia/Kolkata').startOf('day').format('YYYY-MM-DD');
+      if (!entriesByBranchAndDay[branchId]) {
+        entriesByBranchAndDay[branchId] = {};
+      }
+      if (!entriesByBranchAndDay[branchId][entryDate]) {
+        entriesByBranchAndDay[branchId][entryDate] = [];
+      }
+      entriesByBranchAndDay[branchId][entryDate].push(entry);
+    });
+
+    Object.keys(entriesByBranchAndDay).forEach((branchId) => {
+      Object.keys(entriesByBranchAndDay[branchId]).forEach((dayKey) => {
+        const dayEntries = entriesByBranchAndDay[branchId][dayKey].sort((a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix());
+        const dayStart = dayjs(dayKey).tz('Asia/Kolkata').startOf('day');
+        const dayEnd = dayStart.endOf('day');
+
+        let previousEnd = dayStart;
+        dayEntries.forEach((entry, index) => {
+          const currentEnd = dayjs(entry.createdAt).tz('Asia/Kolkata');
+          const periodStart = previousEnd;
+          const periodEnd = currentEnd;
+
+          const billingTotal = orders
+            .filter((order) => {
+              const orderDate = dayjs(order.createdAt).tz('Asia/Kolkata');
+              return (
+                order.branchId?._id === branchId &&
+                orderDate.isAfter(periodStart) &&
+                orderDate.isBefore(periodEnd)
+              );
+            })
+            .reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
+
+          segmentedTotals[entry._id] = billingTotal;
+
+          previousEnd = currentEnd;
+        });
+
+        // Assign remaining period after last entry to the last entry
+        if (previousEnd.isBefore(dayEnd)) {
+          const lastEntryId = dayEntries[dayEntries.length - 1]._id;
+          const remainingBilling = orders
+            .filter((order) => {
+              const orderDate = dayjs(order.createdAt).tz('Asia/Kolkata');
+              return (
+                order.branchId?._id === branchId &&
+                orderDate.isAfter(previousEnd) &&
+                orderDate.isBefore(dayEnd)
+              );
+            })
+            .reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
+
+          segmentedTotals[lastEntryId] += remainingBilling;
+        }
+      });
+    });
+
+    return segmentedTotals;
+  }, [filteredEntries, orders, dateFilterType]);
+
+  const getBillingTotalForEntry = (entry) => {
+    return getSegmentedBillingTotals[entry._id] || 0;
+  };
+
   const branchTotals = useMemo(() => {
+    let startDate, endDate;
+    const today = dayjs().tz('Asia/Kolkata').startOf('day');
+    switch (dateFilter) {
+      case 'Today':
+        startDate = today;
+        endDate = today.endOf('day');
+        break;
+      case 'Yesterday':
+        startDate = today.subtract(1, 'day').startOf('day');
+        endDate = today.subtract(1, 'day').endOf('day');
+        break;
+      case 'Last 7 Days':
+        startDate = today.subtract(6, 'day').startOf('day');
+        endDate = today.endOf('day');
+        break;
+      case 'Last 30 Days':
+        startDate = today.subtract(29, 'day').startOf('day');
+        endDate = today.endOf('day');
+        break;
+      case 'Custom':
+        if (customDateRange && customDateRange.length === 2) {
+          startDate = dayjs(customDateRange[0]).tz('Asia/Kolkata').startOf('day');
+          endDate = dayjs(customDateRange[1]).tz('Asia/Kolkata').endOf('day');
+        }
+        break;
+      default:
+        startDate = today;
+        endDate = today.endOf('day');
+    }
+
     const totals = {};
     filteredEntries.forEach((entry) => {
       const branchId = entry.branchId?._id || 'unknown';
@@ -375,6 +538,7 @@ const ClosingEntryList = () => {
           branchId,
           branchName,
           totalSales: 0,
+          billingTotal: 0,
           totalPayments: 0,
           expenses: 0,
           creditCardPayment: 0,
@@ -409,12 +573,19 @@ const ClosingEntryList = () => {
         totals[branchId].createdAt = entry.createdAt;
       }
     });
+
+    // Calculate billingTotal after aggregating other data
+    Object.keys(totals).forEach((branchId) => {
+      totals[branchId].billingTotal = getBillingTotalForBranch(branchId, startDate, endDate);
+      totals[branchId].totalPayments += totals[branchId].billingTotal;
+    });
+
     return Object.values(totals);
-  }, [filteredEntries]);
+  }, [filteredEntries, orders, dateFilter, customDateRange, dateFilterType]);
 
   const lineChartData = useMemo(() => {
     let startDate, endDate;
-    const today = dayjs().startOf('day');
+    const today = dayjs().tz('Asia/Kolkata').startOf('day');
     switch (dateFilter) {
       case 'Today':
         startDate = today;
@@ -434,8 +605,8 @@ const ClosingEntryList = () => {
         break;
       case 'Custom':
         if (customDateRange && customDateRange.length === 2) {
-          startDate = dayjs(customDateRange[0]).startOf('day');
-          endDate = dayjs(customDateRange[1]).endOf('day');
+          startDate = dayjs(customDateRange[0]).tz('Asia/Kolkata').startOf('day');
+          endDate = dayjs(customDateRange[1]).tz('Asia/Kolkata').endOf('day');
         }
         break;
       default:
@@ -458,7 +629,7 @@ const ClosingEntryList = () => {
     const dailyExpenses = Array(daysDiff).fill(0);
 
     filteredEntries.forEach((entry) => {
-      const entryDate = dayjs(dateFilterType === 'Created' ? entry.createdAt : entry.date);
+      const entryDate = dayjs(dateFilterType === 'Created' ? entry.createdAt : entry.date).tz('Asia/Kolkata');
       if (!entryDate.isValid()) {
         console.warn('Invalid entry date:', { entryDate, entry });
         return;
@@ -878,6 +1049,20 @@ const ClosingEntryList = () => {
       }),
     },
     {
+      title: 'Billing',
+      dataIndex: 'billingTotal',
+      key: 'billingTotal',
+      sorter: (a, b) => a.billingTotal - b.billingTotal,
+      render: (value) => <Text strong>₹{value}</Text>,
+      width: 120,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+    },
+    {
       title: 'Total Payments',
       dataIndex: 'totalPayments',
       key: 'totalPayments',
@@ -1055,10 +1240,26 @@ const ClosingEntryList = () => {
       }),
     },
     {
+      title: 'Billing',
+      key: 'billingTotal',
+      sorter: (a, b) => getBillingTotalForEntry(a) - getBillingTotalForEntry(b),
+      render: (record) => <Text strong>₹{getBillingTotalForEntry(record)}</Text>,
+      width: 120,
+      onHeaderCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+      onCell: () => ({
+        style: { backgroundColor: 'rgb(220, 248, 198)' },
+      }),
+    },
+    {
       title: 'Total Payments',
       key: 'totalPayments',
-      sorter: (a, b) => (a.creditCardPayment + a.upiPayment + a.cashPayment + a.expenses) - (b.creditCardPayment + b.upiPayment + b.cashPayment + b.expenses),
-      render: (record) => <Text strong>₹{record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses}</Text>,
+      sorter: (a, b) => (a.creditCardPayment + a.upiPayment + a.cashPayment + a.expenses + getBillingTotalForEntry(a)) - (b.creditCardPayment + b.upiPayment + b.cashPayment + b.expenses + getBillingTotalForEntry(b)),
+      render: (record) => {
+        const billingTotal = getBillingTotalForEntry(record);
+        return <Text strong>₹{record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses + billingTotal}</Text>;
+      },
       width: 120,
       onHeaderCell: () => ({
         style: { backgroundColor: '#50e0ff' },
@@ -1072,7 +1273,8 @@ const ClosingEntryList = () => {
       key: 'difference',
       render: (record) => {
         const sales = record.systemSales + record.manualSales + record.onlineSales;
-        const payments = record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses;
+        const billingTotal = getBillingTotalForEntry(record);
+        const payments = record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses + billingTotal;
         const diff = payments - sales;
         let backgroundColor, textColor;
         if (diff === 0) {
@@ -1093,7 +1295,8 @@ const ClosingEntryList = () => {
       },
       onCell: (record) => {
         const sales = record.systemSales + record.manualSales + record.onlineSales;
-        const payments = record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses;
+        const billingTotal = getBillingTotalForEntry(record);
+        const payments = record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses + billingTotal;
         const diff = payments - sales;
         let backgroundColor;
         if (diff === 0) {
@@ -1146,6 +1349,7 @@ const ClosingEntryList = () => {
             .ant-table th, .ant-table td { padding: 4px !important; font-weight: bold; line-height: 1 !important; }
             @page { size: A4; margin: 10mm; }
             .total-sales { background-color: rgb(220, 248, 198); }
+            .billing { background-color: rgb(220, 248, 198); }
             .total-payments { background-color: #50e0ff; }
           }
           .filter-header {
@@ -1164,7 +1368,7 @@ const ClosingEntryList = () => {
           .upper-graphs {
             display: flex;
             flex-direction: row;
-            justify-content: flex-start;
+            justifyContent: flex-start;
             width: 100%;
             max-width: 1600px;
             gap: 20px;
@@ -1172,7 +1376,7 @@ const ClosingEntryList = () => {
           .lower-graphs {
             display: flex;
             flex-direction: row;
-            justify-content: center;
+            justifyContent: center;
             width: 100%;
             max-width: 1600px;
             gap: 20px;
@@ -1193,8 +1397,8 @@ const ClosingEntryList = () => {
           }
           .chart-container.pie {
             display: flex;
-            justify-content: center;
-            align-items: center;
+            justifyContent: center;
+            alignItems: center;
             width: 50%;
             max-width: 800px;
             height: 60vh;
@@ -1208,12 +1412,12 @@ const ClosingEntryList = () => {
             background: #fff;
             padding: 20px;
             display: flex;
-            justify-content: flex-start;
-            align-items: center;
+            justifyContent: flex-start;
+            alignItems: center;
           }
           .pie-card, .bar-card {
             max-width: 800px;
-            justify-content: center;
+            justifyContent: center;
           }
           .line-card {
             max-width: 1600px;
@@ -1221,12 +1425,12 @@ const ClosingEntryList = () => {
           .chart-legend-bottom-left {
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
+            alignItems: flex-start;
             padding: 10px 0;
           }
           .chart-legend-bottom-left .legend-item {
             display: flex;
-            align-items: center;
+            alignItems: center;
             margin-bottom: 8px;
           }
           .chart-legend-bottom-left .legend-item span {
@@ -1237,8 +1441,8 @@ const ClosingEntryList = () => {
             line-height: 1 !important;
           }
           @media (max-width: 1200px) {
-            .upper-graphs { flex-direction: column; align-items: flex-start; }
-            .lower-graphs { flex-direction: column; align-items: center; }
+            .upper-graphs { flex-direction: column; alignItems: flex-start; }
+            .lower-graphs { flex-direction: column; alignItems: center; }
             .chart-container.line { width: 95vw; max-width: 1200px; min-width: 700px; height: 45vh; min-height: 350px; }
             .chart-container.bar { width: 95vw; max-width: 600px; min-width: 500px; height: 45vh; min-height: 350px; }
             .chart-container.pie { width: 95vw; max-width: 600px; min-width: 500px; height: 55vh; min-height: 400px; }
@@ -1255,7 +1459,7 @@ const ClosingEntryList = () => {
             .chart-container.pie { width: 98vw; max-width: 400px; min-width: 350px; height: 45vh; min-height: 300px; }
           }
           @media (max-width: 768px) {
-            .custom-legend { flex-direction: column; align-items: flex-start; }
+            .custom-legend { flex-direction: column; alignItems: flex-start; }
             .custom-legend > div { margin-bottom: 10px; margin-right: 0; }
           }
         `}
@@ -1381,6 +1585,7 @@ const ClosingEntryList = () => {
                         acc.cashPayment += record.cashPayment || 0;
                         acc.expenses += record.expenses || 0;
                         acc.totalSales += record.totalSales || 0;
+                        acc.billingTotal += record.billingTotal || 0;
                         acc.totalPayments += record.totalPayments || 0;
                         acc.difference += (record.totalPayments || 0) - (record.totalSales || 0);
                         acc.expenseDetails.push(...(record.expenseDetails || []));
@@ -1392,13 +1597,15 @@ const ClosingEntryList = () => {
                         acc.denom20 += record.denom20 || 0;
                         acc.denom10 += record.denom10 || 0;
                       } else {
+                        const billingTotal = getBillingTotalForEntry(record);
                         acc.creditCardPayment += record.creditCardPayment || 0;
                         acc.upiPayment += record.upiPayment || 0;
                         acc.cashPayment += record.cashPayment || 0;
                         acc.expenses += record.expenses || 0;
                         acc.totalSales += (record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0);
-                        acc.totalPayments += (record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0);
-                        acc.difference += ((record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0)) - ((record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0));
+                        acc.billingTotal += billingTotal || 0;
+                        acc.totalPayments += (record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0) + billingTotal;
+                        acc.difference += ((record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0) + billingTotal) - ((record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0));
                         acc.expenseDetails.push(...(record.expenseDetails || []));
                         acc.denom2000 += record.denom2000 || 0;
                         acc.denom500 += record.denom500 || 0;
@@ -1416,6 +1623,7 @@ const ClosingEntryList = () => {
                       cashPayment: 0,
                       expenses: 0,
                       totalSales: 0,
+                      billingTotal: 0,
                       totalPayments: 0,
                       difference: 0,
                       expenseDetails: [],
@@ -1484,10 +1692,15 @@ const ClosingEntryList = () => {
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={showSummaryTable ? 7 : 7}>
                         <Text strong style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
-                          ₹{formatNumber(totals.totalPayments)}
+                          ₹{formatNumber(totals.billingTotal)}
                         </Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={showSummaryTable ? 8 : 8}>
+                        <Text strong style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
+                          ₹{formatNumber(totals.totalPayments)}
+                        </Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={showSummaryTable ? 9 : 9}>
                         <Text
                           strong
                           style={{
@@ -1501,7 +1714,7 @@ const ClosingEntryList = () => {
                           ₹{formatNumber(totals.difference)}
                         </Text>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={showSummaryTable ? 9 : 9} />
+                      <Table.Summary.Cell index={showSummaryTable ? 10 : 10} />
                     </Table.Summary.Row>
                   );
                 }}
