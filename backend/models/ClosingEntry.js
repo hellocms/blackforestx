@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const closingEntrySchema = new mongoose.Schema(
@@ -110,6 +111,11 @@ const closingEntrySchema = new mongoose.Schema(
     denom10: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    billingTotal: {
+      type: Number,
+      default: 0,
       min: 0,
     },
   },

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Table, Select, DatePicker, Button, Spin, Typography, Space, Card, Modal, Tooltip, Switch } from 'antd';
 import { RedoOutlined, PrinterOutlined } from '@ant-design/icons';
@@ -27,7 +28,6 @@ const ClosingEntryList = () => {
   const [closingEntries, setClosingEntries] = useState([]);
   const [filteredEntries, setFilteredEntries] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [branchFilter, setBranchFilter] = useState(null);
   const [dateFilter, setDateFilter] = useState('Today');
@@ -82,7 +82,6 @@ const ClosingEntryList = () => {
 
     fetchBranches(storedToken);
     fetchClosingEntries(storedToken);
-    fetchOrders(storedToken);
   }, [router]);
 
   useEffect(() => {
@@ -167,24 +166,6 @@ const ClosingEntryList = () => {
       }
     } catch (err) {
       console.error('Error fetching closing entries:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchOrders = async (token) => {
-    setLoading(true);
-    try {
-      const response = await fetch('https://apib.theblackforestcakes.com/api/orders?tab=billing', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      });
-      const result = await response.json();
-      if (response.ok) {
-        setOrders(result);
-      }
-    } catch (err) {
-      console.error('Error fetching orders:', err);
     } finally {
       setLoading(false);
     }
@@ -288,7 +269,6 @@ const ClosingEntryList = () => {
                 .difference-less { background-color: #ff4d4f; color: #ffffff; font-weight: bold; }
                 .difference-more { background-color: #fadb14; color: #000000; font-weight: bold; }
                 .total-sales { background-color: rgb(220, 248, 198); }
-                .billing { background-color: rgb(220, 248, 198); }
                 .total-payments { background-color: #50e0ff; }
               }
             </style>
@@ -305,8 +285,8 @@ const ClosingEntryList = () => {
                   <th>UPI</th>
                   <th>Cash</th>
                   <th>Expenses</th>
+                  <th class="total-sales">System Sales</th>
                   <th class="total-sales">Total Sales</th>
-                  <th class="billing">Billing</th>
                   <th class="total-payments">Total Payments</th>
                   <th>Difference</th>
                   <th>Created At</th>
@@ -326,8 +306,8 @@ const ClosingEntryList = () => {
                       <td>₹${entry.upiPayment}</td>
                       <td>₹${entry.cashPayment}</td>
                       <td>₹${entry.expenses}</td>
+                      <td class="total-sales">₹${entry.systemSales}</td>
                       <td class="total-sales">₹${entry.totalSales}</td>
-                      <td class="billing">₹${entry.billingTotal}</td>
                       <td class="total-payments">₹${entry.totalPayments}</td>
                       <td class="${diffClass}">₹${diff}</td>
                       <td>${entry.createdAt ? dayjs(entry.createdAt).format('D/M/YY') : 'N/A'}</td>
@@ -355,7 +335,6 @@ const ClosingEntryList = () => {
                 .difference-less { background-color: #ff4d4f; color: #ffffff; font-weight: bold; }
                 .difference-more { background-color: #fadb14; color: #000000; font-weight: bold; }
                 .total-sales { background-color: rgb(220, 248, 198); }
-                .billing { background-color: rgb(220, 248, 198); }
                 .total-payments { background-color: #50e0ff; }
               }
             </style>
@@ -372,8 +351,8 @@ const ClosingEntryList = () => {
                   <th>UPI</th>
                   <th>Cash</th>
                   <th>Expenses</th>
+                  <th class="total-sales">System Sales</th>
                   <th class="total-sales">Total Sales</th>
-                  <th class="billing">Billing</th>
                   <th class="total-payments">Total Payments</th>
                   <th>Difference</th>
                   <th>Created At</th>
@@ -382,8 +361,7 @@ const ClosingEntryList = () => {
               <tbody>
                 ${filteredEntries.map((entry, index) => {
                   const sales = entry.systemSales + entry.manualSales + entry.onlineSales;
-                  const billingTotal = getBillingTotalForEntry(entry);
-                  const payments = entry.creditCardPayment + entry.upiPayment + entry.cashPayment + entry.expenses + billingTotal;
+                  const payments = entry.creditCardPayment + entry.upiPayment + entry.cashPayment + entry.expenses;
                   const diff = payments - sales;
                   let diffClass = 'difference-equal';
                   if (diff < 0) diffClass = 'difference-less';
@@ -396,8 +374,8 @@ const ClosingEntryList = () => {
                       <td>₹${entry.upiPayment}</td>
                       <td>₹${entry.cashPayment}</td>
                       <td>₹${entry.expenses}</td>
+                      <td class="total-sales">₹${entry.systemSales}</td>
                       <td class="total-sales">₹${sales}</td>
-                      <td class="billing">₹${billingTotal}</td>
                       <td class="total-payments">₹${payments}</td>
                       <td class="${diffClass}">₹${diff}</td>
                       <td>${dayjs(entry.createdAt).format('D/M/YY')}</td>
@@ -416,119 +394,7 @@ const ClosingEntryList = () => {
     printWindow.print();
   };
 
-  const getBillingTotalForBranch = (branchId, startDate, endDate) => {
-    return orders
-      .filter((order) => {
-        const orderDate = dayjs(order.createdAt).tz('Asia/Kolkata');
-        return (
-          order.branchId?._id === branchId &&
-          orderDate.isBetween(startDate, endDate, null, '[]')
-        );
-      })
-      .reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
-  };
-
-  const getSegmentedBillingTotals = useMemo(() => {
-    const segmentedTotals = {};
-    const entriesByBranchAndDay = {};
-
-    filteredEntries.forEach((entry) => {
-      const branchId = entry.branchId?._id;
-      const entryDate = dayjs(dateFilterType === 'Created' ? entry.createdAt : entry.date).tz('Asia/Kolkata').startOf('day').format('YYYY-MM-DD');
-      if (!entriesByBranchAndDay[branchId]) {
-        entriesByBranchAndDay[branchId] = {};
-      }
-      if (!entriesByBranchAndDay[branchId][entryDate]) {
-        entriesByBranchAndDay[branchId][entryDate] = [];
-      }
-      entriesByBranchAndDay[branchId][entryDate].push(entry);
-    });
-
-    Object.keys(entriesByBranchAndDay).forEach((branchId) => {
-      Object.keys(entriesByBranchAndDay[branchId]).forEach((dayKey) => {
-        const dayEntries = entriesByBranchAndDay[branchId][dayKey].sort((a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix());
-        const dayStart = dayjs(dayKey).tz('Asia/Kolkata').startOf('day');
-        const dayEnd = dayStart.endOf('day');
-
-        let previousEnd = dayStart;
-        dayEntries.forEach((entry, index) => {
-          const currentEnd = dayjs(entry.createdAt).tz('Asia/Kolkata');
-          const periodStart = previousEnd;
-          const periodEnd = currentEnd;
-
-          const billingTotal = orders
-            .filter((order) => {
-              const orderDate = dayjs(order.createdAt).tz('Asia/Kolkata');
-              return (
-                order.branchId?._id === branchId &&
-                orderDate.isAfter(periodStart) &&
-                orderDate.isBefore(periodEnd)
-              );
-            })
-            .reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
-
-          segmentedTotals[entry._id] = billingTotal;
-
-          previousEnd = currentEnd;
-        });
-
-        // Assign remaining period after last entry to the last entry
-        if (previousEnd.isBefore(dayEnd)) {
-          const lastEntryId = dayEntries[dayEntries.length - 1]._id;
-          const remainingBilling = orders
-            .filter((order) => {
-              const orderDate = dayjs(order.createdAt).tz('Asia/Kolkata');
-              return (
-                order.branchId?._id === branchId &&
-                orderDate.isAfter(previousEnd) &&
-                orderDate.isBefore(dayEnd)
-              );
-            })
-            .reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
-
-          segmentedTotals[lastEntryId] += remainingBilling;
-        }
-      });
-    });
-
-    return segmentedTotals;
-  }, [filteredEntries, orders, dateFilterType]);
-
-  const getBillingTotalForEntry = (entry) => {
-    return getSegmentedBillingTotals[entry._id] || 0;
-  };
-
   const branchTotals = useMemo(() => {
-    let startDate, endDate;
-    const today = dayjs().tz('Asia/Kolkata').startOf('day');
-    switch (dateFilter) {
-      case 'Today':
-        startDate = today;
-        endDate = today.endOf('day');
-        break;
-      case 'Yesterday':
-        startDate = today.subtract(1, 'day').startOf('day');
-        endDate = today.subtract(1, 'day').endOf('day');
-        break;
-      case 'Last 7 Days':
-        startDate = today.subtract(6, 'day').startOf('day');
-        endDate = today.endOf('day');
-        break;
-      case 'Last 30 Days':
-        startDate = today.subtract(29, 'day').startOf('day');
-        endDate = today.endOf('day');
-        break;
-      case 'Custom':
-        if (customDateRange && customDateRange.length === 2) {
-          startDate = dayjs(customDateRange[0]).tz('Asia/Kolkata').startOf('day');
-          endDate = dayjs(customDateRange[1]).tz('Asia/Kolkata').endOf('day');
-        }
-        break;
-      default:
-        startDate = today;
-        endDate = today.endOf('day');
-    }
-
     const totals = {};
     filteredEntries.forEach((entry) => {
       const branchId = entry.branchId?._id || 'unknown';
@@ -537,8 +403,8 @@ const ClosingEntryList = () => {
         totals[branchId] = {
           branchId,
           branchName,
+          systemSales: 0,
           totalSales: 0,
-          billingTotal: 0,
           totalPayments: 0,
           expenses: 0,
           creditCardPayment: 0,
@@ -555,6 +421,7 @@ const ClosingEntryList = () => {
           expenseDetails: [],
         };
       }
+      totals[branchId].systemSales += entry.systemSales || 0;
       totals[branchId].totalSales += (entry.systemSales || 0) + (entry.manualSales || 0) + (entry.onlineSales || 0);
       totals[branchId].totalPayments += (entry.creditCardPayment || 0) + (entry.upiPayment || 0) + (entry.cashPayment || 0) + (entry.expenses || 0);
       totals[branchId].expenses += entry.expenses || 0;
@@ -573,15 +440,8 @@ const ClosingEntryList = () => {
         totals[branchId].createdAt = entry.createdAt;
       }
     });
-
-    // Calculate billingTotal after aggregating other data
-    Object.keys(totals).forEach((branchId) => {
-      totals[branchId].billingTotal = getBillingTotalForBranch(branchId, startDate, endDate);
-      totals[branchId].totalPayments += totals[branchId].billingTotal;
-    });
-
     return Object.values(totals);
-  }, [filteredEntries, orders, dateFilter, customDateRange, dateFilterType]);
+  }, [filteredEntries]);
 
   const lineChartData = useMemo(() => {
     let startDate, endDate;
@@ -1035,10 +895,10 @@ const ClosingEntryList = () => {
       }),
     },
     {
-      title: 'Total Sales',
-      dataIndex: 'totalSales',
-      key: 'totalSales',
-      sorter: (a, b) => a.totalSales - b.totalSales,
+      title: 'System Sales',
+      dataIndex: 'systemSales',
+      key: 'systemSales',
+      sorter: (a, b) => a.systemSales - b.systemSales,
       render: (value) => <Text strong>₹{value}</Text>,
       width: 120,
       onHeaderCell: () => ({
@@ -1049,10 +909,10 @@ const ClosingEntryList = () => {
       }),
     },
     {
-      title: 'Billing',
-      dataIndex: 'billingTotal',
-      key: 'billingTotal',
-      sorter: (a, b) => a.billingTotal - b.billingTotal,
+      title: 'Total Sales',
+      dataIndex: 'totalSales',
+      key: 'totalSales',
+      sorter: (a, b) => a.totalSales - b.totalSales,
       render: (value) => <Text strong>₹{value}</Text>,
       width: 120,
       onHeaderCell: () => ({
@@ -1227,10 +1087,11 @@ const ClosingEntryList = () => {
       }),
     },
     {
-      title: 'Total Sales',
-      key: 'totalSales',
-      sorter: (a, b) => (a.systemSales + a.manualSales + a.onlineSales) - (b.systemSales + b.manualSales + b.onlineSales),
-      render: (record) => <Text strong>₹{record.systemSales + record.manualSales + record.onlineSales}</Text>,
+      title: 'System Sales',
+      dataIndex: 'systemSales',
+      key: 'systemSales',
+      sorter: (a, b) => a.systemSales - b.systemSales,
+      render: (value) => <Text strong>₹{value}</Text>,
       width: 120,
       onHeaderCell: () => ({
         style: { backgroundColor: 'rgb(220, 248, 198)' },
@@ -1240,10 +1101,10 @@ const ClosingEntryList = () => {
       }),
     },
     {
-      title: 'Billing',
-      key: 'billingTotal',
-      sorter: (a, b) => getBillingTotalForEntry(a) - getBillingTotalForEntry(b),
-      render: (record) => <Text strong>₹{getBillingTotalForEntry(record)}</Text>,
+      title: 'Total Sales',
+      key: 'totalSales',
+      sorter: (a, b) => (a.systemSales + a.manualSales + a.onlineSales) - (b.systemSales + b.manualSales + b.onlineSales),
+      render: (record) => <Text strong>₹{(record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0)}</Text>,
       width: 120,
       onHeaderCell: () => ({
         style: { backgroundColor: 'rgb(220, 248, 198)' },
@@ -1255,11 +1116,8 @@ const ClosingEntryList = () => {
     {
       title: 'Total Payments',
       key: 'totalPayments',
-      sorter: (a, b) => (a.creditCardPayment + a.upiPayment + a.cashPayment + a.expenses + getBillingTotalForEntry(a)) - (b.creditCardPayment + b.upiPayment + b.cashPayment + b.expenses + getBillingTotalForEntry(b)),
-      render: (record) => {
-        const billingTotal = getBillingTotalForEntry(record);
-        return <Text strong>₹{record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses + billingTotal}</Text>;
-      },
+      sorter: (a, b) => (a.creditCardPayment + a.upiPayment + a.cashPayment + a.expenses) - (b.creditCardPayment + b.upiPayment + b.cashPayment + b.expenses),
+      render: (record) => <Text strong>₹{record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses}</Text>,
       width: 120,
       onHeaderCell: () => ({
         style: { backgroundColor: '#50e0ff' },
@@ -1273,8 +1131,7 @@ const ClosingEntryList = () => {
       key: 'difference',
       render: (record) => {
         const sales = record.systemSales + record.manualSales + record.onlineSales;
-        const billingTotal = getBillingTotalForEntry(record);
-        const payments = record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses + billingTotal;
+        const payments = record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses;
         const diff = payments - sales;
         let backgroundColor, textColor;
         if (diff === 0) {
@@ -1295,8 +1152,7 @@ const ClosingEntryList = () => {
       },
       onCell: (record) => {
         const sales = record.systemSales + record.manualSales + record.onlineSales;
-        const billingTotal = getBillingTotalForEntry(record);
-        const payments = record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses + billingTotal;
+        const payments = record.creditCardPayment + record.upiPayment + record.cashPayment + record.expenses;
         const diff = payments - sales;
         let backgroundColor;
         if (diff === 0) {
@@ -1349,7 +1205,6 @@ const ClosingEntryList = () => {
             .ant-table th, .ant-table td { padding: 4px !important; font-weight: bold; line-height: 1 !important; }
             @page { size: A4; margin: 10mm; }
             .total-sales { background-color: rgb(220, 248, 198); }
-            .billing { background-color: rgb(220, 248, 198); }
             .total-payments { background-color: #50e0ff; }
           }
           .filter-header {
@@ -1584,8 +1439,8 @@ const ClosingEntryList = () => {
                         acc.upiPayment += record.upiPayment || 0;
                         acc.cashPayment += record.cashPayment || 0;
                         acc.expenses += record.expenses || 0;
+                        acc.systemSales += record.systemSales || 0;
                         acc.totalSales += record.totalSales || 0;
-                        acc.billingTotal += record.billingTotal || 0;
                         acc.totalPayments += record.totalPayments || 0;
                         acc.difference += (record.totalPayments || 0) - (record.totalSales || 0);
                         acc.expenseDetails.push(...(record.expenseDetails || []));
@@ -1597,15 +1452,14 @@ const ClosingEntryList = () => {
                         acc.denom20 += record.denom20 || 0;
                         acc.denom10 += record.denom10 || 0;
                       } else {
-                        const billingTotal = getBillingTotalForEntry(record);
                         acc.creditCardPayment += record.creditCardPayment || 0;
                         acc.upiPayment += record.upiPayment || 0;
                         acc.cashPayment += record.cashPayment || 0;
                         acc.expenses += record.expenses || 0;
+                        acc.systemSales += record.systemSales || 0;
                         acc.totalSales += (record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0);
-                        acc.billingTotal += billingTotal || 0;
-                        acc.totalPayments += (record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0) + billingTotal;
-                        acc.difference += ((record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0) + billingTotal) - ((record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0));
+                        acc.totalPayments += (record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0);
+                        acc.difference += ((record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0)) - ((record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0));
                         acc.expenseDetails.push(...(record.expenseDetails || []));
                         acc.denom2000 += record.denom2000 || 0;
                         acc.denom500 += record.denom500 || 0;
@@ -1622,8 +1476,8 @@ const ClosingEntryList = () => {
                       upiPayment: 0,
                       cashPayment: 0,
                       expenses: 0,
+                      systemSales: 0,
                       totalSales: 0,
-                      billingTotal: 0,
                       totalPayments: 0,
                       difference: 0,
                       expenseDetails: [],
@@ -1687,12 +1541,12 @@ const ClosingEntryList = () => {
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={showSummaryTable ? 6 : 6}>
                         <Text strong style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
-                          ₹{formatNumber(totals.totalSales)}
+                          ₹{formatNumber(totals.systemSales)}
                         </Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={showSummaryTable ? 7 : 7}>
                         <Text strong style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
-                          ₹{formatNumber(totals.billingTotal)}
+                          ₹{formatNumber(totals.totalSales)}
                         </Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={showSummaryTable ? 8 : 8}>

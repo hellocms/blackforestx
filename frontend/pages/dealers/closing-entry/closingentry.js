@@ -191,6 +191,32 @@ const ClosingEntry = () => {
     setIsSubmitted(true);
   };
 
+  const fetchBillingAmount = async (branchId, selectedDate) => {
+    try {
+      const token = localStorage.getItem('token');
+      const startDate = selectedDate.startOf('day').toISOString();
+      const endDate = selectedDate.endOf('day').toISOString();
+      const response = await fetch(`${BACKEND_URL}/api/orders?tab=billing&branchId=${branchId}&startDate=${startDate}&endDate=${endDate}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (response.ok) {
+        const billingTotal = result.reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
+        return billingTotal;
+      } else {
+        message.error('Failed to fetch billing amount');
+        return 0;
+      }
+    } catch (err) {
+      message.error('Error fetching billing amount');
+      return 0;
+    }
+  };
+
   useEffect(() => {
     const totalExpenses = expenseDetails.reduce((sum, detail) => sum + (Number(detail.amount) || 0), 0);
     setExpenses(totalExpenses);
@@ -462,6 +488,9 @@ const ClosingEntry = () => {
       message.error('Please select a date');
       return;
     }
+    const billingAmount = await fetchBillingAmount(branchId, date);
+    const updatedSystemSales = Number(systemSales) + billingAmount;
+
     if (systemSales === '' || systemSales === null || systemSales === undefined) {
       message.error('Please enter system sales');
       return;
@@ -537,7 +566,7 @@ const ClosingEntry = () => {
         body: JSON.stringify({
           branchId,
           date: date.format('YYYY-MM-DD'),
-          systemSales: Number(systemSales),
+          systemSales: updatedSystemSales,
           manualSales: Number(manualSales),
           onlineSales: Number(onlineSales),
           expenses: Number(expenses),
@@ -578,6 +607,9 @@ const ClosingEntry = () => {
       return;
     }
 
+    const billingAmount = await fetchBillingAmount(branchId, date);
+    const updatedSystemSales = Number(systemSales) + billingAmount;
+
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
@@ -590,7 +622,7 @@ const ClosingEntry = () => {
         body: JSON.stringify({
           branchId,
           date: date.format('YYYY-MM-DD'),
-          systemSales: Number(systemSales),
+          systemSales: updatedSystemSales,
           manualSales: Number(manualSales),
           onlineSales: Number(onlineSales),
           expenses: Number(expenses),
@@ -683,20 +715,23 @@ const ClosingEntry = () => {
         const sales = (record.systemSales || 0) + (record.manualSales || 0) + (record.onlineSales || 0);
         const payments = (record.creditCardPayment || 0) + (record.upiPayment || 0) + (record.cashPayment || 0) + (record.expenses || 0);
         const diff = payments - sales;
-        let backgroundColor, textColor;
+        let backgroundColor, textColor, statusText;
         if (diff === 0) {
           backgroundColor = '#52c41a';
           textColor = '#ffffff';
+          statusText = `Difference: ₹${diff}`;
         } else if (diff < 0) {
           backgroundColor = '#ff4d4f';
           textColor = '#ffffff';
+          statusText = `Difference: ₹${diff}`;
         } else {
           backgroundColor = '#fadb14';
           textColor = '#000000';
+          statusText = `Difference: ₹${diff}`;
         }
         return (
           <Text style={{ backgroundColor, color: textColor, fontWeight: 'bold', padding: '4px 8px', borderRadius: '4px' }}>
-            ₹{diff}
+            {statusText}
           </Text>
         );
       },

@@ -1,5 +1,7 @@
+
 const mongoose = require('mongoose');
 const ClosingEntry = require('../models/ClosingEntry');
+const Order = require('../models/Order'); // Assuming Order model exists
 const Financial = require('../models/Financial');
 
 // Extended bank to branch mapping including UPI and Credit Card
@@ -26,6 +28,48 @@ const bankBranchMapping = {
     '6841d8b5b5a0fc5644db5b10': 'IDFC 3',
     '6841d9b7b5a0fc5644db5b18': 'IDFC 4',
   },
+};
+
+const calculateSegmentedBillingAmount = async (branchId, date, createdAt) => {
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(date);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  // Find previous closing entry for the same branch and date
+  const previousEntry = await ClosingEntry.findOne({
+    branchId: new mongoose.Types.ObjectId(branchId),
+    date: { $gte: dayStart, $lte: dayEnd },
+    createdAt: { $lt: createdAt },
+  }).sort({ createdAt: -1 });
+
+  const periodStart = previousEntry ? previousEntry.createdAt : dayStart;
+  const periodEnd = createdAt;
+
+  const orders = await Order.find({
+    branchId: new mongoose.Types.ObjectId(branchId),
+    createdAt: { $gt: periodStart, $lte: periodEnd },
+  });
+
+  const billingTotal = orders.reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
+
+  // Calculate remaining billing after this entry
+  const nextEntries = await ClosingEntry.find({
+    branchId: new mongoose.Types.ObjectId(branchId),
+    date: { $gte: dayStart, $lte: dayEnd },
+    createdAt: { $gt: createdAt },
+  });
+
+  if (nextEntries.length === 0) {
+    const remainingOrders = await Order.find({
+      branchId: new mongoose.Types.ObjectId(branchId),
+      createdAt: { $gt: createdAt, $lte: dayEnd },
+    });
+    const remainingBilling = remainingOrders.reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
+    return billingTotal + remainingBilling;
+  }
+
+  return billingTotal;
 };
 
 // Create a new closing entry
@@ -146,11 +190,16 @@ exports.createClosingEntry = async (req, res) => {
     // Calculate net result
     const netResult = totalSales - expenses;
 
+    // Fetch segmented billing amount and add to systemSales
+    const createdAt = new Date(); // Use current time as createdAt for new entry
+    const billingAmount = await calculateSegmentedBillingAmount(branchId, date, createdAt);
+    const updatedSystemSales = systemSales + billingAmount;
+
     // Create new closing entry
     const closingEntry = new ClosingEntry({
       branchId,
       date,
-      systemSales,
+      systemSales: updatedSystemSales,
       manualSales,
       onlineSales,
       expenses,
@@ -166,6 +215,7 @@ exports.createClosingEntry = async (req, res) => {
       denom50,
       denom20,
       denom10,
+      billingTotal: billingAmount, // Store billing separately if needed
     });
 
     // Save closing entry
@@ -585,13 +635,18 @@ exports.updateClosingEntry = async (req, res) => {
     financial.lastUpdated = Date.now();
     await financial.save();
 
+    // Fetch segmented billing amount and add to systemSales for update
+    const existingCreatedAt = existingEntry.createdAt;
+    const billingAmount = await calculateSegmentedBillingAmount(branchId, date, existingCreatedAt);
+    const updatedSystemSales = systemSales + billingAmount;
+
     // Update the closing entry
     const updatedClosingEntry = await ClosingEntry.findByIdAndUpdate(
       id,
       {
         branchId,
         date,
-        systemSales,
+        systemSales: updatedSystemSales,
         manualSales,
         onlineSales,
         expenses,
@@ -607,6 +662,7 @@ exports.updateClosingEntry = async (req, res) => {
         denom50,
         denom20,
         denom10,
+        billingTotal: billingAmount, // Store billing separately if needed
       },
       { new: true, runValidators: true }
     );
