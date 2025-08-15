@@ -21,10 +21,6 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import BranchHeader from '../../../components/BranchHeader';
-import Chart from 'chart.js/auto';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
-
-Chart.register(ChartDataLabels);
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -42,7 +38,7 @@ const ClosingEntry = () => {
   const [branchName, setBranchName] = useState('');
   const [userName, setUserName] = useState('User');
   const [date, setDate] = useState(dayjs());
-  const [systemSales, setSystemSales] = useState('');
+  const [systemSales, setSystemSales] = useState(0); // Read-only, set by billing fetch
   const [manualSales, setManualSales] = useState('');
   const [onlineSales, setOnlineSales] = useState('');
   const [expenses, setExpenses] = useState('');
@@ -164,7 +160,7 @@ const ClosingEntry = () => {
   const populateForm = (entry) => {
     setClosingEntryId(entry._id);
     setDate(dayjs(entry.date));
-    setSystemSales(entry.systemSales || '');
+    setSystemSales(entry.systemSales || 0); // Set to fetched value or 0
     setManualSales(entry.manualSales || '');
     setOnlineSales(entry.onlineSales || '');
     setExpenses(entry.expenses || '');
@@ -203,16 +199,19 @@ const ClosingEntry = () => {
           'Authorization': `Bearer ${token}`,
         },
       });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const result = await response.json();
-      if (response.ok) {
+      if (Array.isArray(result)) {
         const billingTotal = result.reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
         return billingTotal;
       } else {
-        message.error('Failed to fetch billing amount');
-        return 0;
+        throw new Error('Unexpected response format');
       }
     } catch (err) {
-      message.error('Error fetching billing amount');
+      console.error('Failed to fetch billing amount:', err.message);
+      message.warning('Billing amount could not be fetched. Using default value of 0.');
       return 0;
     }
   };
@@ -271,177 +270,6 @@ const ClosingEntry = () => {
     return () => clearInterval(interval);
   }, [lastSubmittedDate]);
 
-  useEffect(() => {
-    if (closingEntries.length === 0 || !chartRef.current) return;
-    if (chartInstanceRef.current) {
-      chartInstanceRef.current.destroy();
-    }
-
-    const currentMonth = 4; // May (0-based index)
-    const currentYear = 2025;
-    const daysInMonth = 31;
-
-    const labels = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
-
-    const totalSalesData = new Array(daysInMonth).fill(0);
-    const totalPaymentsData = new Array(daysInMonth).fill(0);
-    const totalExpensesData = new Array(daysInMonth).fill(0);
-
-    closingEntries.forEach(entry => {
-      const entryDate = dayjs(entry.date);
-      if (
-        entryDate.year() === currentYear &&
-        entryDate.month() === currentMonth
-      ) {
-        const day = entryDate.date() - 1;
-        totalSalesData[day] += (entry.systemSales || 0) + (entry.manualSales || 0) + (entry.onlineSales || 0);
-        totalPaymentsData[day] += (entry.creditCardPayment || 0) + (entry.upiPayment || 0) + (entry.cashPayment || 0) + (entry.expenses || 0);
-        totalExpensesData[day] += entry.expenses || 0;
-      }
-    });
-
-    const ctx = chartRef.current.getContext('2d');
-    chartInstanceRef.current = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Total Sales (₹)',
-            data: totalSalesData,
-            backgroundColor: 'rgba(54, 162, 235, 0.6)',
-            borderColor: 'rgba(54, 162, 235, 1)',
-            borderWidth: 1,
-          },
-          {
-            label: 'Total Payments (₹)',
-            data: totalPaymentsData,
-            backgroundColor: 'rgba(255, 99, 132, 0.6)',
-            borderColor: 'rgba(255, 99, 132, 1)',
-            borderWidth: 1,
-          },
-          {
-            label: 'Total Expenses (₹)',
-            data: totalExpensesData,
-            backgroundColor: 'rgba(255, 206, 86, 0.6)',
-            borderColor: 'rgba(255, 206, 86, 1)',
-            borderWidth: 1,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            title: {
-              display: true,
-              text: 'Day of Month (May 2025)',
-            },
-            grid: {
-              display: false,
-            },
-          },
-          y: {
-            beginAtZero: true,
-            title: {
-              display: true,
-              text: 'Amount (₹)',
-            },
-            ticks: {
-              callback: function(value) {
-                return '₹' + value;
-              },
-            },
-          },
-        },
-        plugins: {
-          legend: {
-            position: 'top',
-          },
-          title: {
-            display: true,
-            text: 'Monthly Financial Overview (May 2025)',
-            font: {
-              size: 16,
-            },
-          },
-          datalabels: {
-            anchor: 'end',
-            align: 'top',
-            offset: (context) => {
-              const index = context.dataIndex;
-              const sales = totalSalesData[index];
-              const payments = totalPaymentsData[index];
-              return (sales === payments && sales !== 0) ? 15 : 0;
-            },
-            font: {
-              size: 12,
-              weight: 'bold',
-            },
-            padding: (context) => {
-              const value = context.dataset.data[context.dataIndex];
-              return value === 0 ? 0 : 4;
-            },
-            borderRadius: (context) => {
-              const value = context.dataset.data[context.dataIndex];
-              return value === 0 ? 0 : 3;
-            },
-            backgroundColor: (context) => {
-              const value = context.dataset.data[context.dataIndex];
-              return value === 0 ? null : 'black';
-            },
-            color: (context) => {
-              const value = context.dataset.data[context.dataIndex];
-              return value === 0 ? 'black' : 'white';
-            },
-            formatter: (value, context) => {
-              const index = context.dataIndex;
-              const datasetIndex = context.datasetIndex;
-              const sales = totalSalesData[index];
-              const payments = totalPaymentsData[index];
-
-              if (datasetIndex === 2) {
-                return value === 0 ? '0' : `₹${value}`;
-              }
-
-              if (sales === payments && sales !== 0) {
-                if (datasetIndex === 0) {
-                  return `₹${value}`;
-                }
-                return '';
-              }
-
-              return value === 0 ? '0' : `₹${value}`;
-            },
-            display: (context) => {
-              const index = context.dataIndex;
-              const datasetIndex = context.datasetIndex;
-              const sales = totalSalesData[index];
-              const payments = totalPaymentsData[index];
-
-              if (datasetIndex === 2) {
-                return true;
-              }
-
-              if (sales === payments && sales !== 0) {
-                return datasetIndex === 0;
-              }
-
-              return context.dataset.data[context.dataIndex] !== 0;
-            },
-          },
-        },
-      },
-    });
-
-    return () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.destroy();
-      }
-    };
-  }, [closingEntries]);
-
   const handleAddExpense = () => {
     setExpenseDetails([...expenseDetails, { serialNo: expenseDetails.length + 1, reason: '', recipient: '', amount: '' }]);
   };
@@ -489,12 +317,8 @@ const ClosingEntry = () => {
       return;
     }
     const billingAmount = await fetchBillingAmount(branchId, date);
-    const updatedSystemSales = Number(systemSales) + billingAmount;
+    setSystemSales(billingAmount); // Update systemSales with fetched value
 
-    if (systemSales === '' || systemSales === null || systemSales === undefined) {
-      message.error('Please enter system sales');
-      return;
-    }
     if (manualSales === '' || manualSales === null || manualSales === undefined) {
       message.error('Please enter manual sales');
       return;
@@ -566,7 +390,7 @@ const ClosingEntry = () => {
         body: JSON.stringify({
           branchId,
           date: date.format('YYYY-MM-DD'),
-          systemSales: updatedSystemSales,
+          systemSales: systemSales,
           manualSales: Number(manualSales),
           onlineSales: Number(onlineSales),
           expenses: Number(expenses),
@@ -608,7 +432,7 @@ const ClosingEntry = () => {
     }
 
     const billingAmount = await fetchBillingAmount(branchId, date);
-    const updatedSystemSales = Number(systemSales) + billingAmount;
+    setSystemSales(billingAmount); // Update systemSales with fetched value
 
     setSubmitting(true);
     try {
@@ -622,7 +446,7 @@ const ClosingEntry = () => {
         body: JSON.stringify({
           branchId,
           date: date.format('YYYY-MM-DD'),
-          systemSales: updatedSystemSales,
+          systemSales: systemSales,
           manualSales: Number(manualSales),
           onlineSales: Number(onlineSales),
           expenses: Number(expenses),
@@ -656,7 +480,7 @@ const ClosingEntry = () => {
 
   const handleClearForm = () => {
     setDate(dayjs());
-    setSystemSales('');
+    setSystemSales(0); // Reset to 0, will be updated with billing
     setManualSales('');
     setOnlineSales('');
     setExpenses('');
@@ -772,89 +596,89 @@ const ClosingEntry = () => {
   ];
 
   const expenseColumns = [
-  {
-    title: 'Serial No',
-    dataIndex: 'serialNo',
-    key: 'serialNo',
-    width: 80,
-    align: 'center',
-    render: (text) => <Input value={text} disabled style={{ textAlign: 'center' }} />,
-  },
-  {
-    title: 'Reason',
-    dataIndex: 'reason',
-    key: 'reason',
-    width: 250, // Increased to 250px to fit ~15 characters
-    render: (text, record, index) => (
-      <Select
-        value={text}
-        onChange={(value) => handleReasonChange(index, value)}
-        placeholder="Select reason"
-        style={{ width: '100%' }}
-        size="large"
-        allowClear
-      >
-        <Option value="MAINTENANCE">Maintenance</Option>
-        <Option value="TRANSPORT">Transport</Option>
-        <Option value="FUEL">Fuel</Option>
-        <Option value="PACKING">Packing</Option>
-        <Option value="STAFF WELFARE">Staff Welfare</Option>
-        <Option value="ADVERTISEMENT">Advertisement</Option>
-        <Option value="ADVANCE">Advance</Option>
-        <Option value="COMPLEMENTARY">Complementary</Option>
-        <Option value="RAW MATERIAL">RAW MATERIAL</Option>
-        <Option value="SALARY">SALARY</Option>
-        <Option value="OC PRODUCTS">OC PRODUCTS</Option>
-        <Option value="OTHERS">Others</Option>
-      </Select>
-    ),
-  },
-  {
-    title: 'Recipient/Reason',
-    dataIndex: 'recipient',
-    key: 'recipient',
-    width: 250,
-    render: (text, record, index) => (
-      <Input
-        value={text}
-        onChange={(e) => handleRecipientChange(index, e.target.value)}
-        placeholder="Enter recipient or reason (e.g., John Doe)"
-        size="large"
-      />
-    ),
-  },
-  {
-    title: 'Amount',
-    dataIndex: 'amount',
-    key: 'amount',
-    width: 200,
-    align: 'center',
-    render: (text, record, index) => (
-      <InputNumber
-        value={text}
-        onChange={(value) => handleAmountChange(index, value)}
-        max={999999}
-        style={{ width: '100%' }}
-        size="large"
-        controls={false}
-      />
-    ),
-  },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 60,
-    align: 'center',
-    render: (text, record, index) => (
-      <Button
-        icon={<DeleteOutlined />}
-        onClick={() => handleRemoveExpense(index)}
-        style={{ color: '#ff4d4f' }}
-        size="small"
-      />
-    ),
-  },
-];
+    {
+      title: 'Serial No',
+      dataIndex: 'serialNo',
+      key: 'serialNo',
+      width: 80,
+      align: 'center',
+      render: (text) => <Input value={text} disabled style={{ textAlign: 'center' }} />,
+    },
+    {
+      title: 'Reason',
+      dataIndex: 'reason',
+      key: 'reason',
+      width: 250,
+      render: (text, record, index) => (
+        <Select
+          value={text}
+          onChange={(value) => handleReasonChange(index, value)}
+          placeholder="Select reason"
+          style={{ width: '100%' }}
+          size="large"
+          allowClear
+        >
+          <Option value="MAINTENANCE">Maintenance</Option>
+          <Option value="TRANSPORT">Transport</Option>
+          <Option value="FUEL">Fuel</Option>
+          <Option value="PACKING">Packing</Option>
+          <Option value="STAFF WELFARE">Staff Welfare</Option>
+          <Option value="ADVERTISEMENT">Advertisement</Option>
+          <Option value="ADVANCE">Advance</Option>
+          <Option value="COMPLEMENTARY">Complementary</Option>
+          <Option value="RAW MATERIAL">RAW MATERIAL</Option>
+          <Option value="SALARY">SALARY</Option>
+          <Option value="OC PRODUCTS">OC PRODUCTS</Option>
+          <Option value="OTHERS">Others</Option>
+        </Select>
+      ),
+    },
+    {
+      title: 'Recipient/Reason',
+      dataIndex: 'recipient',
+      key: 'recipient',
+      width: 250,
+      render: (text, record, index) => (
+        <Input
+          value={text}
+          onChange={(e) => handleRecipientChange(index, e.target.value)}
+          placeholder="Enter recipient or reason (e.g., John Doe)"
+          size="large"
+        />
+      ),
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
+      width: 200,
+      align: 'center',
+      render: (text, record, index) => (
+        <InputNumber
+          value={text}
+          onChange={(value) => handleAmountChange(index, value)}
+          max={999999}
+          style={{ width: '100%' }}
+          size="large"
+          controls={false}
+        />
+      ),
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      width: 60,
+      align: 'center',
+      render: (text, record, index) => (
+        <Button
+          icon={<DeleteOutlined />}
+          onClick={() => handleRemoveExpense(index)}
+          style={{ color: '#ff4d4f' }}
+          size="small"
+        />
+      ),
+    },
+  ];
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -932,12 +756,12 @@ const ClosingEntry = () => {
                       <Text strong>System Sales (₹):</Text>
                       <InputNumber
                         value={systemSales}
-                        onChange={(value) => setSystemSales(value)}
                         formatter={(value) => `₹${value}`}
                         parser={(value) => value.replace('₹', '')}
                         style={{ width: '100%' }}
                         size="large"
                         controls={false}
+                        disabled // Disabled to prevent manual entry
                       />
 
                       <Text strong>Manual Sales (₹):</Text>
@@ -1402,27 +1226,6 @@ const ClosingEntry = () => {
                     pagination={{ pageSize: 5 }}
                     bordered
                   />
-                )}
-              </Card>
-
-              <Card
-                title={<Title level={4} style={{ margin: 0, color: '#34495e' }}>Monthly Financial Overview</Title>}
-                style={{
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  background: '#fff',
-                  marginTop: '40px',
-                  marginBottom: '40px',
-                }}
-              >
-                {closingEntries.length === 0 ? (
-                  <Text style={{ display: 'block', textAlign: 'center', padding: '20px' }}>
-                    No data available for the current month.
-                  </Text>
-                ) : (
-                  <div style={{ position: 'relative', height: '400px', width: '100%' }}>
-                    <canvas ref={chartRef}></canvas>
-                  </div>
                 )}
               </Card>
             </>
