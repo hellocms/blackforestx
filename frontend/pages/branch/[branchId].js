@@ -351,14 +351,9 @@ const BillingPage = ({ branchId }) => {
       message.warning('Please select a payment method!');
       return;
     }
-    if (!selectedWaiter) {
-      message.warning('Please enter a valid Waiter ID!');
-      setWaiterError('Waiter ID is required');
-      return;
-    }
-  
+
     const { totalQty, uniqueItems, subtotal, totalGST, totalWithGST } = calculateCartTotals();
-  
+
     const orderData = {
       branchId,
       tab: 'billing',
@@ -382,9 +377,9 @@ const BillingPage = ({ branchId }) => {
       totalWithGST,
       totalItems: uniqueItems,
       status: 'draft',
-      waiterId: selectedWaiter._id,
+      waiterId: selectedWaiter?._id || null,
     };
-  
+
     try {
       const response = await fetch(`${BACKEND_URL}/api/orders`, {
         method: 'POST',
@@ -394,7 +389,7 @@ const BillingPage = ({ branchId }) => {
         },
         body: JSON.stringify(orderData),
       });
-  
+
       const data = await response.json();
       if (response.ok) {
         message.success(data.message || 'Cart saved as draft!');
@@ -411,7 +406,7 @@ const BillingPage = ({ branchId }) => {
       message.error('Error saving order');
     }
   };
-  
+
   const handleSaveAndPrint = async () => {
     if (selectedProducts.length === 0) {
       message.warning('Cart is empty!');
@@ -421,21 +416,16 @@ const BillingPage = ({ branchId }) => {
       message.warning('Please select a payment method!');
       return;
     }
-    if (!selectedWaiter) {
-      message.warning('Please enter a valid Waiter ID!');
-      setWaiterError('Waiter ID is required');
-      return;
-    }
-  
+
     const { totalQty, uniqueItems, subtotal, totalGST, totalWithGST } = calculateCartTotals();
-  
+
     const totalWithGSTRounded = Math.round(totalWithGST);
     const roundOff = totalWithGSTRounded - totalWithGST;
     const tenderAmount = totalWithGSTRounded;
     const balance = tenderAmount - totalWithGSTRounded;
     const sgst = totalGST / 2;
     const cgst = totalGST / 2;
-  
+
     const orderData = {
       branchId,
       tab: 'billing',
@@ -459,9 +449,9 @@ const BillingPage = ({ branchId }) => {
       totalWithGST,
       totalItems: uniqueItems,
       status: 'completed',
-      waiterId: selectedWaiter._id,
+      waiterId: selectedWaiter?._id || null,
     };
-  
+
     try {
       const response = await fetch(`${BACKEND_URL}/api/orders`, {
         method: 'POST',
@@ -471,7 +461,7 @@ const BillingPage = ({ branchId }) => {
         },
         body: JSON.stringify(orderData),
       });
-  
+
       const data = await response.json();
       if (response.ok) {
         message.success(data.message || 'Cart saved and ready to print!');
