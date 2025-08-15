@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 const ClosingEntry = require('../models/ClosingEntry');
 const Order = require('../models/Order'); // Assuming Order model exists

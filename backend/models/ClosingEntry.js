@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const closingEntrySchema = new mongoose.Schema(
