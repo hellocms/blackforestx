@@ -38,7 +38,7 @@ const ClosingEntry = () => {
   const [branchName, setBranchName] = useState('');
   const [userName, setUserName] = useState('User');
   const [date, setDate] = useState(dayjs());
-  const [systemSales, setSystemSales] = useState(0); // Read-only, set by billing fetch
+  const [systemSales, setSystemSales] = useState(''); // Allow manual input initially
   const [manualSales, setManualSales] = useState('');
   const [onlineSales, setOnlineSales] = useState('');
   const [expenses, setExpenses] = useState('');
@@ -65,6 +65,9 @@ const ClosingEntry = () => {
   const chartInstanceRef = useRef(null);
 
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
+
+  // Branches where systemSales input should be enabled
+  const enabledBranches = ['6841d9b7b5a0fc5644db5b18', '6841da1cb5a0fc5644db5b20'];
 
   const fetchBranchDetails = async (token, branchId) => {
     try {
@@ -160,7 +163,7 @@ const ClosingEntry = () => {
   const populateForm = (entry) => {
     setClosingEntryId(entry._id);
     setDate(dayjs(entry.date));
-    setSystemSales(entry.systemSales || 0); // Set to fetched value or 0
+    setSystemSales(entry.systemSales || (enabledBranches.includes(branchId) ? '' : 0)); // Allow manual input for enabled branches
     setManualSales(entry.manualSales || '');
     setOnlineSales(entry.onlineSales || '');
     setExpenses(entry.expenses || '');
@@ -316,8 +319,14 @@ const ClosingEntry = () => {
       message.error('Please select a date');
       return;
     }
-    const billingAmount = await fetchBillingAmount(branchId, date);
-    setSystemSales(billingAmount); // Update systemSales with fetched value
+    let billingAmount = 0;
+    if (!enabledBranches.includes(branchId)) {
+      billingAmount = await fetchBillingAmount(branchId, date);
+      setSystemSales(billingAmount); // Update systemSales for non-enabled branches
+    } else if (systemSales === '' || systemSales === null || systemSales === undefined) {
+      message.error('Please enter system sales for this branch');
+      return;
+    }
 
     if (manualSales === '' || manualSales === null || manualSales === undefined) {
       message.error('Please enter manual sales');
@@ -390,7 +399,7 @@ const ClosingEntry = () => {
         body: JSON.stringify({
           branchId,
           date: date.format('YYYY-MM-DD'),
-          systemSales: systemSales,
+          systemSales: enabledBranches.includes(branchId) ? Number(systemSales) : systemSales,
           manualSales: Number(manualSales),
           onlineSales: Number(onlineSales),
           expenses: Number(expenses),
@@ -431,8 +440,14 @@ const ClosingEntry = () => {
       return;
     }
 
-    const billingAmount = await fetchBillingAmount(branchId, date);
-    setSystemSales(billingAmount); // Update systemSales with fetched value
+    let billingAmount = 0;
+    if (!enabledBranches.includes(branchId)) {
+      billingAmount = await fetchBillingAmount(branchId, date);
+      setSystemSales(billingAmount); // Update systemSales for non-enabled branches
+    } else if (systemSales === '' || systemSales === null || systemSales === undefined) {
+      message.error('Please enter system sales for this branch');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -446,7 +461,7 @@ const ClosingEntry = () => {
         body: JSON.stringify({
           branchId,
           date: date.format('YYYY-MM-DD'),
-          systemSales: systemSales,
+          systemSales: enabledBranches.includes(branchId) ? Number(systemSales) : systemSales,
           manualSales: Number(manualSales),
           onlineSales: Number(onlineSales),
           expenses: Number(expenses),
@@ -480,7 +495,7 @@ const ClosingEntry = () => {
 
   const handleClearForm = () => {
     setDate(dayjs());
-    setSystemSales(0); // Reset to 0, will be updated with billing
+    setSystemSales(enabledBranches.includes(branchId) ? '' : 0); // Reset based on branch
     setManualSales('');
     setOnlineSales('');
     setExpenses('');
@@ -756,12 +771,13 @@ const ClosingEntry = () => {
                       <Text strong>System Sales (₹):</Text>
                       <InputNumber
                         value={systemSales}
+                        onChange={(value) => setSystemSales(value)} // Enabled for specific branches
                         formatter={(value) => `₹${value}`}
                         parser={(value) => value.replace('₹', '')}
                         style={{ width: '100%' }}
                         size="large"
                         controls={false}
-                        disabled // Disabled to prevent manual entry
+                        disabled={!enabledBranches.includes(branchId)} // Enable only for specified branches
                       />
 
                       <Text strong>Manual Sales (₹):</Text>
