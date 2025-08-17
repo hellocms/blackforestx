@@ -112,11 +112,6 @@ const closingEntrySchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    billingTotal: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
   },
   { timestamps: true }
 );

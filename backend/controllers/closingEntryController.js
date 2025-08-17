@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const ClosingEntry = require('../models/ClosingEntry');
-const Order = require('../models/Order'); // Assuming Order model exists
 const Financial = require('../models/Financial');
+const Order = require('../models/Order');
 
 // Extended bank to branch mapping including UPI and Credit Card
 const bankBranchMapping = {
@@ -29,60 +29,13 @@ const bankBranchMapping = {
   },
 };
 
-const calculateSegmentedBillingAmount = async (branchId, date, createdAt) => {
-  try {
-    const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(date);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    // Find previous closing entry for the same branch and date
-    const previousEntry = await ClosingEntry.findOne({
-      branchId: new mongoose.Types.ObjectId(branchId),
-      date: { $gte: dayStart, $lte: dayEnd },
-      createdAt: { $lt: createdAt },
-    }).sort({ createdAt: -1 });
-
-    const periodStart = previousEntry ? previousEntry.createdAt : dayStart;
-    const periodEnd = createdAt;
-
-    const orders = await Order.find({
-      branchId: new mongoose.Types.ObjectId(branchId),
-      createdAt: { $gt: periodStart, $lte: periodEnd },
-    });
-
-    const billingTotal = orders.reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
-
-    // Calculate remaining billing after this entry
-    const nextEntries = await ClosingEntry.find({
-      branchId: new mongoose.Types.ObjectId(branchId),
-      date: { $gte: dayStart, $lte: dayEnd },
-      createdAt: { $gt: createdAt },
-    });
-
-    if (nextEntries.length === 0) {
-      const remainingOrders = await Order.find({
-        branchId: new mongoose.Types.ObjectId(branchId),
-        createdAt: { $gt: createdAt, $lte: dayEnd },
-      });
-      const remainingBilling = remainingOrders.reduce((sum, order) => sum + (order.totalWithGST || 0), 0);
-      return billingTotal + remainingBilling;
-    }
-
-    return billingTotal;
-  } catch (error) {
-    console.error('Error calculating segmented billing amount:', error);
-    return 0; // Fallback to 0 on error
-  }
-};
-
 // Create a new closing entry
 exports.createClosingEntry = async (req, res) => {
   try {
     const {
       branchId,
       date,
-      systemSales,
+      systemSales: inputSystemSales,
       manualSales,
       onlineSales,
       expenses,
@@ -103,6 +56,7 @@ exports.createClosingEntry = async (req, res) => {
     if (
       !branchId ||
       !date ||
+      inputSystemSales === undefined ||
       manualSales === undefined ||
       onlineSales === undefined ||
       expenses === undefined ||
@@ -117,7 +71,7 @@ exports.createClosingEntry = async (req, res) => {
       denom20 === undefined ||
       denom10 === undefined
     ) {
-      return res.status(400).json({ success: false, message: 'All required fields are mandatory' });
+      return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
     // Validate expenseDetails
@@ -142,7 +96,7 @@ exports.createClosingEntry = async (req, res) => {
     }
 
     // Validate that the sum of expenseDetails amounts matches the expenses total
-    const totalExpenseDetails = expenseDetails.reduce((sum, detail) => sum + (detail.amount || 0), 0);
+    const totalExpenseDetails = expenseDetails.reduce((sum, detail) => sum + detail.amount, 0);
     if (totalExpenseDetails !== expenses) {
       return res.status(400).json({
         success: false,
@@ -152,6 +106,7 @@ exports.createClosingEntry = async (req, res) => {
 
     // Validate non-negative values
     if (
+      inputSystemSales < 0 ||
       manualSales < 0 ||
       onlineSales < 0 ||
       expenses < 0 ||
@@ -169,18 +124,15 @@ exports.createClosingEntry = async (req, res) => {
       return res.status(400).json({ success: false, message: 'All values must be non-negative' });
     }
 
-    // Calculate total sales (excluding systemSales as it will be overridden)
-    const totalSales = (manualSales || 0) + (onlineSales || 0);
-
     // Calculate total cash from denominations
     const totalCashFromDenom =
-      (denom2000 || 0) * 2000 +
-      (denom500 || 0) * 500 +
-      (denom200 || 0) * 200 +
-      (denom100 || 0) * 100 +
-      (denom50 || 0) * 50 +
-      (denom20 || 0) * 20 +
-      (denom10 || 0) * 10;
+      denom2000 * 2000 +
+      denom500 * 500 +
+      denom200 * 200 +
+      denom100 * 100 +
+      denom50 * 50 +
+      denom20 * 20 +
+      denom10 * 10;
 
     if (totalCashFromDenom !== cashPayment) {
       return res.status(400).json({
@@ -189,24 +141,70 @@ exports.createClosingEntry = async (req, res) => {
       });
     }
 
-    // Calculate net result (excluding systemSales initially)
-    const netResult = totalSales - expenses;
+    // Handle systemSales: if input is 0, calculate the delta from billing tab
+    let systemSales = inputSystemSales;
+    if (inputSystemSales === 0) {
+      const dateObj = new Date(date);
+      const startOfDay = new Date(dateObj);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(dateObj);
+      endOfDay.setHours(23, 59, 59, 999);
 
-    // Fetch segmented billing amount and set systemSales
-    const createdAt = new Date();
-    const billingAmount = await calculateSegmentedBillingAmount(branchId, date, createdAt);
-    const updatedSystemSales = billingAmount; // Override systemSales with billing amount
+      const billingOrdersAgg = await Order.aggregate([
+        {
+          $match: {
+            branchId: new mongoose.Types.ObjectId(branchId),
+            tab: 'billing',
+            status: 'completed',
+            createdAt: { $gte: startOfDay, $lte: endOfDay },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$totalWithGST' },
+          },
+        },
+      ]);
+
+      const totalBilling = billingOrdersAgg.length > 0 ? billingOrdersAgg[0].total : 0;
+
+      const previousClosingAgg = await ClosingEntry.aggregate([
+        {
+          $match: {
+            branchId: new mongoose.Types.ObjectId(branchId),
+            date: dateObj,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            sum: { $sum: '$systemSales' },
+          },
+        },
+      ]);
+
+      const previousSum = previousClosingAgg.length > 0 ? previousClosingAgg[0].sum : 0;
+
+      systemSales = Math.max(0, totalBilling - previousSum);
+    }
+
+    // Calculate total sales
+    const totalSales = systemSales + manualSales + onlineSales;
+
+    // Calculate net result
+    const netResult = totalSales - expenses;
 
     // Create new closing entry
     const closingEntry = new ClosingEntry({
       branchId,
       date,
-      systemSales: updatedSystemSales,
+      systemSales,
       manualSales,
       onlineSales,
       expenses,
       expenseDetails,
-      netResult: netResult + updatedSystemSales, // Adjust netResult with systemSales
+      netResult,
       creditCardPayment,
       upiPayment,
       cashPayment,
@@ -217,7 +215,6 @@ exports.createClosingEntry = async (req, res) => {
       denom50,
       denom20,
       denom10,
-      billingTotal: billingAmount,
     });
 
     // Save closing entry
@@ -351,7 +348,7 @@ exports.updateClosingEntry = async (req, res) => {
     const {
       branchId,
       date,
-      systemSales,
+      systemSales: inputSystemSales,
       manualSales,
       onlineSales,
       expenses,
@@ -372,6 +369,7 @@ exports.updateClosingEntry = async (req, res) => {
     if (
       !branchId ||
       !date ||
+      inputSystemSales === undefined ||
       manualSales === undefined ||
       onlineSales === undefined ||
       expenses === undefined ||
@@ -386,7 +384,7 @@ exports.updateClosingEntry = async (req, res) => {
       denom20 === undefined ||
       denom10 === undefined
     ) {
-      return res.status(400).json({ success: false, message: 'All required fields are mandatory' });
+      return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
     // Validate expenseDetails
@@ -411,7 +409,7 @@ exports.updateClosingEntry = async (req, res) => {
     }
 
     // Validate that the sum of expenseDetails amounts matches the expenses total
-    const totalExpenseDetails = expenseDetails.reduce((sum, detail) => sum + (detail.amount || 0), 0);
+    const totalExpenseDetails = expenseDetails.reduce((sum, detail) => sum + detail.amount, 0);
     if (totalExpenseDetails !== expenses) {
       return res.status(400).json({
         success: false,
@@ -421,6 +419,7 @@ exports.updateClosingEntry = async (req, res) => {
 
     // Validate non-negative values
     if (
+      inputSystemSales < 0 ||
       manualSales < 0 ||
       onlineSales < 0 ||
       expenses < 0 ||
@@ -438,18 +437,15 @@ exports.updateClosingEntry = async (req, res) => {
       return res.status(400).json({ success: false, message: 'All values must be non-negative' });
     }
 
-    // Calculate total sales (excluding systemSales as it will be overridden)
-    const totalSales = (manualSales || 0) + (onlineSales || 0);
-
     // Calculate total cash from denominations
     const totalCashFromDenom =
-      (denom2000 || 0) * 2000 +
-      (denom500 || 0) * 500 +
-      (denom200 || 0) * 200 +
-      (denom100 || 0) * 100 +
-      (denom50 || 0) * 50 +
-      (denom20 || 0) * 20 +
-      (denom10 || 0) * 10;
+      denom2000 * 2000 +
+      denom500 * 500 +
+      denom200 * 200 +
+      denom100 * 100 +
+      denom50 * 50 +
+      denom20 * 20 +
+      denom10 * 10;
 
     if (totalCashFromDenom !== cashPayment) {
       return res.status(400).json({
@@ -458,14 +454,66 @@ exports.updateClosingEntry = async (req, res) => {
       });
     }
 
-    // Calculate net result (excluding systemSales initially)
-    const netResult = totalSales - expenses;
-
     // Find the existing closing entry
     const existingEntry = await ClosingEntry.findById(id);
     if (!existingEntry) {
       return res.status(404).json({ success: false, message: 'Closing entry not found' });
     }
+
+    // Handle systemSales: if input is 0, calculate the delta from billing tab
+    let systemSales = inputSystemSales;
+    if (inputSystemSales === 0) {
+      const dateObj = new Date(date);
+      const startOfDay = new Date(dateObj);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(dateObj);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const billingOrdersAgg = await Order.aggregate([
+        {
+          $match: {
+            branchId: new mongoose.Types.ObjectId(branchId),
+            tab: 'billing',
+            status: 'completed',
+            createdAt: { $gte: startOfDay, $lte: endOfDay },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$totalWithGST' },
+          },
+        },
+      ]);
+
+      const totalBilling = billingOrdersAgg.length > 0 ? billingOrdersAgg[0].total : 0;
+
+      const previousClosingAgg = await ClosingEntry.aggregate([
+        {
+          $match: {
+            branchId: new mongoose.Types.ObjectId(branchId),
+            date: dateObj,
+            _id: { $ne: new mongoose.Types.ObjectId(id) },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            sum: { $sum: '$systemSales' },
+          },
+        },
+      ]);
+
+      const previousSum = previousClosingAgg.length > 0 ? previousClosingAgg[0].sum : 0;
+
+      systemSales = Math.max(0, totalBilling - previousSum);
+    }
+
+    // Calculate total sales
+    const totalSales = systemSales + manualSales + onlineSales;
+
+    // Calculate net result
+    const netResult = totalSales - expenses;
 
     // Find financial document
     const financial = await Financial.findOne();
@@ -635,23 +683,18 @@ exports.updateClosingEntry = async (req, res) => {
     financial.lastUpdated = Date.now();
     await financial.save();
 
-    // Fetch segmented billing amount and add to systemSales for update
-    const existingCreatedAt = existingEntry.createdAt;
-    const billingAmount = await calculateSegmentedBillingAmount(branchId, date, existingCreatedAt);
-    const updatedSystemSales = billingAmount; // Override systemSales with billing amount
-
     // Update the closing entry
     const updatedClosingEntry = await ClosingEntry.findByIdAndUpdate(
       id,
       {
         branchId,
         date,
-        systemSales: updatedSystemSales,
+        systemSales,
         manualSales,
         onlineSales,
         expenses,
         expenseDetails,
-        netResult: netResult + updatedSystemSales, // Adjust netResult with systemSales
+        netResult,
         creditCardPayment,
         upiPayment,
         cashPayment,
@@ -662,7 +705,6 @@ exports.updateClosingEntry = async (req, res) => {
         denom50,
         denom20,
         denom10,
-        billingTotal: billingAmount,
       },
       { new: true, runValidators: true }
     );
