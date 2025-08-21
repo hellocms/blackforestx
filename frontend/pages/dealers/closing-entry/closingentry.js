@@ -70,9 +70,6 @@ const ClosingEntry = () => {
 
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
 
-  // Define allowed branch IDs for enabling System Sales input
-  const allowedBranchIds = ['6841d9b7b5a0fc5644db5b18', '6841da1cb5a0fc5644db5b20'];
-
   const fetchBranchDetails = async (token, branchId) => {
     try {
       const response = await fetch(`${BACKEND_URL}/api/branches`, {
@@ -960,7 +957,6 @@ const ClosingEntry = () => {
                         style={{ width: '100%' }}
                         size="large"
                         controls={false}
-                        disabled={!allowedBranchIds.includes(branchId)}
                       />
 
                       <Text strong>Manual Sales (₹):</Text>
