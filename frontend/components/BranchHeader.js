@@ -16,7 +16,7 @@ const BranchHeader = () => {
     { key: '/branch/[branchId]', label: 'Billing', link: `/branch/${branchName ? branchName.replace(/\s+/g, '-').toLowerCase() : 'unknown'}`, icon: <ShopOutlined /> },
     { key: '/dealers/bill-entry/create', label: 'Stock Entry', link: '/dealers/bill-entry/create', icon: <FileTextOutlined /> },
     { key: '/dealers/closing-entry/closingentry', label: 'Closing Entry', link: '/dealers/closing-entry/closingentry', icon: <FileDoneOutlined /> },
-    { key: '/dealers/expense/ExpenseEntry', label: 'Expense Entry', link: '/dealers/expense/ExpenseEntry', icon: <DollarOutlined /> },
+    { key: '/dealers/expense/ExpenseEntry', label: 'Expense Entry', link: '/dealers/closing-entry/ExpenseSheet', icon: <DollarOutlined /> },
     { key: '/FinancialManagement', label: 'Financial Management', link: '/FinancialManagement', icon: <BankOutlined /> },
   ];
 
