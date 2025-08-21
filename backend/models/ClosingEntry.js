@@ -112,6 +112,10 @@ const closingEntrySchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    isFinalized: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

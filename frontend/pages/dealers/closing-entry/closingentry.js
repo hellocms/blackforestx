@@ -14,7 +14,7 @@ import {
   Table,
   Layout,
 } from 'antd';
-import { SaveOutlined, CreditCardOutlined, MobileOutlined, DollarOutlined, PlusOutlined, CloseOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SaveOutlined, CreditCardOutlined, MobileOutlined, DollarOutlined, PlusOutlined, CloseOutlined,DeleteOutlined, EditOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
@@ -69,6 +69,9 @@ const ClosingEntry = () => {
   const chartInstanceRef = useRef(null);
 
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
+
+  // Define allowed branch IDs for enabling System Sales input
+  const allowedBranchIds = ['6841d9b7b5a0fc5644db5b18', '6841da1cb5a0fc5644db5b20'];
 
   const fetchBranchDetails = async (token, branchId) => {
     try {
@@ -552,6 +555,7 @@ const ClosingEntry = () => {
           denom50: Number(denom50),
           denom20: Number(denom20),
           denom10: Number(denom10),
+          isFinalized: false,
         }),
       });
       const result = await response.json();
@@ -605,6 +609,7 @@ const ClosingEntry = () => {
           denom50: Number(denom50),
           denom20: Number(denom20),
           denom10: Number(denom10),
+          isFinalized: false,
         }),
       });
       const result = await response.json();
@@ -617,6 +622,58 @@ const ClosingEntry = () => {
       }
     } catch (err) {
       message.error('Server error while updating closing entry');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDone = async () => {
+    if (!closingEntryId) {
+      message.error('No closing entry ID found for finalizing');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${BACKEND_URL}/api/closing-entries/${closingEntryId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          branchId,
+          date: date.format('YYYY-MM-DD'),
+          systemSales: Number(systemSales),
+          manualSales: Number(manualSales),
+          onlineSales: Number(onlineSales),
+          expenses: Number(expenses),
+          expenseDetails,
+          creditCardPayment: Number(creditCardPayment),
+          upiPayment: Number(upiPayment),
+          cashPayment: Number(cashPayment),
+          denom2000: Number(denom2000),
+          denom500: Number(denom500),
+          denom200: Number(denom200),
+          denom100: Number(denom100),
+          denom50: Number(denom50),
+          denom20: Number(denom20),
+          denom10: Number(denom10),
+          isFinalized: true,
+        }),
+      });
+      const result = await response.json();
+      if (response.ok) {
+        message.success('Closing entry finalized successfully');
+        setLastSubmittedDate(date);
+        fetchClosingEntries(branchId);
+        handleClearForm();
+      } else {
+        message.error(result.message || 'Failed to finalize closing entry');
+      }
+    } catch (err) {
+      message.error('Server error while finalizing closing entry');
     } finally {
       setSubmitting(false);
     }
@@ -722,7 +779,7 @@ const ClosingEntry = () => {
       render: (text, record) => {
         const entryDate = dayjs(record.date).format('YYYY-MM-DD');
         const today = dayjs().format('YYYY-MM-DD');
-        return entryDate === today ? (
+        return entryDate === today && !record.isFinalized ? (
           <Button
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
@@ -737,89 +794,89 @@ const ClosingEntry = () => {
   ];
 
   const expenseColumns = [
-  {
-    title: 'Serial No',
-    dataIndex: 'serialNo',
-    key: 'serialNo',
-    width: 80,
-    align: 'center',
-    render: (text) => <Input value={text} disabled style={{ textAlign: 'center' }} />,
-  },
-  {
-    title: 'Reason',
-    dataIndex: 'reason',
-    key: 'reason',
-    width: 250, // Increased to 250px to fit ~15 characters
-    render: (text, record, index) => (
-      <Select
-        value={text}
-        onChange={(value) => handleReasonChange(index, value)}
-        placeholder="Select reason"
-        style={{ width: '100%' }}
-        size="large"
-        allowClear
-      >
-        <Option value="MAINTENANCE">Maintenance</Option>
-        <Option value="TRANSPORT">Transport</Option>
-        <Option value="FUEL">Fuel</Option>
-        <Option value="PACKING">Packing</Option>
-        <Option value="STAFF WELFARE">Staff Welfare</Option>
-        <Option value="ADVERTISEMENT">Advertisement</Option>
-        <Option value="ADVANCE">Advance</Option>
-        <Option value="COMPLEMENTARY">Complementary</Option>
-        <Option value="RAW MATERIAL">RAW MATERIAL</Option>
-        <Option value="SALARY">SALARY</Option>
-        <Option value="OC PRODUCTS">OC PRODUCTS</Option>
-        <Option value="OTHERS">Others</Option>
-      </Select>
-    ),
-  },
-  {
-    title: 'Recipient/Reason',
-    dataIndex: 'recipient',
-    key: 'recipient',
-    width: 250,
-    render: (text, record, index) => (
-      <Input
-        value={text}
-        onChange={(e) => handleRecipientChange(index, e.target.value)}
-        placeholder="Enter recipient or reason (e.g., John Doe)"
-        size="large"
-      />
-    ),
-  },
-  {
-    title: 'Amount',
-    dataIndex: 'amount',
-    key: 'amount',
-    width: 200,
-    align: 'center',
-    render: (text, record, index) => (
-      <InputNumber
-        value={text}
-        onChange={(value) => handleAmountChange(index, value)}
-        max={999999}
-        style={{ width: '100%' }}
-        size="large"
-        controls={false}
-      />
-    ),
-  },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 60,
-    align: 'center',
-    render: (text, record, index) => (
-      <Button
-        icon={<DeleteOutlined />}
-        onClick={() => handleRemoveExpense(index)}
-        style={{ color: '#ff4d4f' }}
-        size="small"
-      />
-    ),
-  },
-];
+    {
+      title: 'Serial No',
+      dataIndex: 'serialNo',
+      key: 'serialNo',
+      width: 80,
+      align: 'center',
+      render: (text) => <Input value={text} disabled style={{ textAlign: 'center' }} />,
+    },
+    {
+      title: 'Reason',
+      dataIndex: 'reason',
+      key: 'reason',
+      width: 250,
+      render: (text, record, index) => (
+        <Select
+          value={text}
+          onChange={(value) => handleReasonChange(index, value)}
+          placeholder="Select reason"
+          style={{ width: '100%' }}
+          size="large"
+          allowClear
+        >
+          <Option value="MAINTENANCE">Maintenance</Option>
+          <Option value="TRANSPORT">Transport</Option>
+          <Option value="FUEL">Fuel</Option>
+          <Option value="PACKING">Packing</Option>
+          <Option value="STAFF WELFARE">Staff Welfare</Option>
+          <Option value="ADVERTISEMENT">Advertisement</Option>
+          <Option value="ADVANCE">Advance</Option>
+          <Option value="COMPLEMENTARY">Complementary</Option>
+          <Option value="RAW MATERIAL">RAW MATERIAL</Option>
+          <Option value="SALARY">SALARY</Option>
+          <Option value="OC PRODUCTS">OC PRODUCTS</Option>
+          <Option value="OTHERS">Others</Option>
+        </Select>
+      ),
+    },
+    {
+      title: 'Recipient/Reason',
+      dataIndex: 'recipient',
+      key: 'recipient',
+      width: 250,
+      render: (text, record, index) => (
+        <Input
+          value={text}
+          onChange={(e) => handleRecipientChange(index, e.target.value)}
+          placeholder="Enter recipient or reason (e.g., John Doe)"
+          size="large"
+        />
+      ),
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
+      width: 200,
+      align: 'center',
+      render: (text, record, index) => (
+        <InputNumber
+          value={text}
+          onChange={(value) => handleAmountChange(index, value)}
+          max={999999}
+          style={{ width: '100%' }}
+          size="large"
+          controls={false}
+        />
+      ),
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      width: 60,
+      align: 'center',
+      render: (text, record, index) => (
+        <Button
+          icon={<DeleteOutlined />}
+          onClick={() => handleRemoveExpense(index)}
+          style={{ color: '#ff4d4f' }}
+          size="small"
+        />
+      ),
+    },
+  ];
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -903,6 +960,7 @@ const ClosingEntry = () => {
                         style={{ width: '100%' }}
                         size="large"
                         controls={false}
+                        disabled={!allowedBranchIds.includes(branchId)}
                       />
 
                       <Text strong>Manual Sales (₹):</Text>
@@ -1035,6 +1093,22 @@ const ClosingEntry = () => {
                           }}
                         >
                           Update
+                        </Button>
+                        <Button
+                          type="primary"
+                          icon={<CheckCircleOutlined />}
+                          onClick={handleDone}
+                          loading={submitting}
+                          size="large"
+                          style={{
+                            width: '150px',
+                            background: 'linear-gradient(to right, #52c41a, #389e0d)',
+                            borderColor: '#52c41a',
+                            borderRadius: '8px',
+                            transition: 'all 0.3s ease',
+                          }}
+                        >
+                          Done
                         </Button>
                         <Button
                           type="default"

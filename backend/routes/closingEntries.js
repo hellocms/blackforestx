@@ -8,6 +8,9 @@ router.post('/', closingEntryController.createClosingEntry);
 // Update an existing closing entry
 router.put('/:id', closingEntryController.updateClosingEntry);
 
+// Create a closing entry from expense sheet
+router.post('/expense-sheet', closingEntryController.createExpenseSheetEntry);
+
 // Get all closing entries
 router.get('/', closingEntryController.getClosingEntries);
 
