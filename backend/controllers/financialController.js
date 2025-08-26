@@ -92,9 +92,9 @@ const getTransactions = async (req, res) => {
 
 // Record a deposit
 const recordDeposit = async (req, res) => {
-  const { source, amount, branch, remarks } = req.body;
+  const { source, amount, branch, remarks, date } = req.body;
 
-  console.log('Deposit request body:', { source, amount, branch, remarks });
+  console.log('Deposit request body:', { source, amount, branch, remarks, date });
 
   if (source === undefined || source === null || amount === undefined || amount === null || branch === undefined || branch === null) {
     return res.status(400).json({ message: 'Source, amount, and branch are required' });
@@ -164,7 +164,7 @@ const recordDeposit = async (req, res) => {
       amount,
       expenseCategory: 'N/A',
       remarks: remarks || 'N/A',
-      date: new Date(), // Default to current date if not provided
+      date: date ? new Date(date) : new Date(), // Use provided date or default to current
     };
 
     financial.transactions.push(transaction);
