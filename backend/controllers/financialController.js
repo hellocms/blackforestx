@@ -27,6 +27,9 @@ const bankBranchMapping = {
   },
 };
 
+// Blackforest branch IDs for pooled cash logic
+const blackforestBranchIds = ['67e2e29328541a7b58d1ca11', '67ed2c7b62b722c49a251e26', '67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca'];
+
 // Initialize the financial document
 const initializeFinancial = async () => {
   const result = await Financial.findOneAndUpdate(
@@ -221,14 +224,32 @@ const recordExpense = async (req, res) => {
     let updatedBalance;
     if (source === 'CASH IN HAND') {
       const branchId = new mongoose.Types.ObjectId(branch);
-      const branchBalanceIndex = financial.branchBalances.findIndex(bb => bb.branch.toString() === branch);
-      if (branchBalanceIndex === -1 || financial.branchBalances[branchBalanceIndex].cashBalance < amount) {
-        return res.status(400).json({ message: `Insufficient balance in CASH IN HAND for branch ${branch}` });
+      let branchBalanceIndex = financial.branchBalances.findIndex(bb => bb.branch.toString() === branch);
+      if (branchBalanceIndex === -1) {
+        financial.branchBalances.push({ branch: branchId, cashBalance: 0 });
+        branchBalanceIndex = financial.branchBalances.length - 1;
       }
-      financial.branchBalances[branchBalanceIndex].cashBalance -= amount;
+
+      if (blackforestBranchIds.includes(branch)) {
+        // Pooled logic for Blackforest
+        const blackforestBalances = financial.branchBalances.filter(bb => blackforestBranchIds.includes(bb.branch.toString()));
+        const sumBlackforest = blackforestBalances.reduce((acc, bb) => acc + bb.cashBalance, 0);
+        if (sumBlackforest < amount) {
+          return res.status(400).json({ message: 'Insufficient pooled cash balance for Blackforest group' });
+        }
+        // Deduct from selected branch, allowing negative
+        financial.branchBalances[branchBalanceIndex].cashBalance -= amount;
+        updatedBalance = financial.branchBalances[branchBalanceIndex].cashBalance;
+      } else {
+        // Standard per-branch logic
+        if (financial.branchBalances[branchBalanceIndex].cashBalance < amount) {
+          return res.status(400).json({ message: `Insufficient balance in CASH IN HAND for branch ${branch}` });
+        }
+        financial.branchBalances[branchBalanceIndex].cashBalance -= amount;
+        updatedBalance = financial.branchBalances[branchBalanceIndex].cashBalance;
+      }
       financial.markModified('branchBalances');
       financial.totalCashBalance -= amount;
-      updatedBalance = financial.branchBalances[branchBalanceIndex].cashBalance;
     } else {
       const bank = transactionSource;
       switch (bank) {

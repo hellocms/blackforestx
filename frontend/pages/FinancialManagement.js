@@ -235,9 +235,19 @@ const FinancialManagement = () => {
       return Promise.reject(new Error('Amount must be at least 1'));
     }
     if (source === 'CASH IN HAND' && branchId) {
-      const branchBalance = branchBalances.find(bb => bb.branchId === branchId)?.balance || 0;
-      if (value > branchBalance) {
-        return Promise.reject(new Error('Insufficient cash balance for this branch'));
+      if (selectedGroup === 'blackforestCakes') {
+        // Pooled validation for Blackforest
+        const blackforestBranchBalances = branchBalances.filter(bb => groupMapping.blackforestCakes.branchIds.includes(bb.branchId));
+        const sumBlackforest = blackforestBranchBalances.reduce((acc, bb) => acc + bb.balance, 0);
+        if (value > sumBlackforest) {
+          return Promise.reject(new Error('Insufficient pooled cash balance for Blackforest group'));
+        }
+      } else {
+        // Standard per-branch validation
+        const branchBalance = branchBalances.find(bb => bb.branchId === branchId)?.balance || 0;
+        if (value > branchBalance) {
+          return Promise.reject(new Error('Insufficient cash balance for this branch'));
+        }
       }
     } else {
       let bankBalance = 0;
@@ -598,8 +608,15 @@ const FinancialManagement = () => {
       source: bank,
       balance: bank === 'IDFC 1' ? idfc1Balance : bank === 'IDFC 2' ? idfc2Balance : bank === 'IDFC 3' ? idfc3Balance : idfc4Balance,
     }));
-    const filteredBranchBalances = branchBalances.filter((bb) => groupConfig.branchIds.includes(bb.branchId));
-    return [...filteredBanks, ...filteredBranchBalances];
+    let cashBalances = [];
+    if (selectedGroup === 'blackforestCakes') {
+      const blackforestBranchBalances = branchBalances.filter((bb) => groupConfig.branchIds.includes(bb.branchId));
+      const sumBlackforestCash = blackforestBranchBalances.reduce((acc, bb) => acc + bb.balance, 0);
+      cashBalances = [{ source: 'CASH IN HAND - Blackforest', balance: sumBlackforestCash }];
+    } else {
+      cashBalances = branchBalances.filter((bb) => groupConfig.branchIds.includes(bb.branchId));
+    }
+    return [...filteredBanks, ...cashBalances];
   };
 
   // Get available sources for forms based on group
