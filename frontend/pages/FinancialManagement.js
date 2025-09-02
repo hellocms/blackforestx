@@ -18,8 +18,21 @@ const { RangePicker } = DatePicker;
 
 // Bank to Branch mapping
 const bankBranchMapping = {
-  'IDFC 1': ['67e2e29328541a7b58d1ca11', '67ed2c7b62b722c49a251e26'],
-  'IDFC 2': ['67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca', '6841bef0b5a0fc5644db227d', '6838102f710163091394b581'],
+  'IDFC 1': [
+    '67e2e29328541a7b58d1ca11',
+    '67ed2c7b62b722c49a251e26',
+    '6841c13ab5a0fc5644db2f7e', // New branch
+    '67ea89f5524fad83e386415b'  // New branch
+  ],
+  'IDFC 2': [
+    '67e1a4b22191787a139a749f',
+    '67e2e1f928541a7b58d1c9f8',
+    '67ed2be162b722c49a251dca',
+    '6841bef0b5a0fc5644db227d',
+    '6838102f710163091394b581',
+    '6841c13ab5a0fc5644db2f7e', // New branch
+    '67ea89f5524fad83e386415b'  // New branch
+  ],
   'IDFC 3': ['6841d8b5b5a0fc5644db5b10'],
   'IDFC 4': ['6841d9b7b5a0fc5644db5b18'],
 };
@@ -39,7 +52,17 @@ const groupMapping = {
   blackforestCakes: {
     name: 'Blackforest Cakes',
     banks: ['IDFC 1', 'IDFC 2'],
-    branchIds: ['67e2e29328541a7b58d1ca11', '67ed2c7b62b722c49a251e26', '67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca', '6841bef0b5a0fc5644db227d', '6838102f710163091394b581'],
+    branchIds: [
+      '67e2e29328541a7b58d1ca11',
+      '67ed2c7b62b722c49a251e26',
+      '67e1a4b22191787a139a749f',
+      '67e2e1f928541a7b58d1c9f8',
+      '67ed2be162b722c49a251dca',
+      '6841bef0b5a0fc5644db227d',
+      '6838102f710163091394b581',
+      '6841c13ab5a0fc5644db2f7e', // New branch
+      '67ea89f5524fad83e386415b'  // New branch
+    ],
   },
 };
 
