@@ -19,7 +19,7 @@ const { RangePicker } = DatePicker;
 // Bank to Branch mapping
 const bankBranchMapping = {
   'IDFC 1': ['67e2e29328541a7b58d1ca11', '67ed2c7b62b722c49a251e26'],
-  'IDFC 2': ['67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca'],
+  'IDFC 2': ['67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca', '6841bef0b5a0fc5644db227d', '6838102f710163091394b581'],
   'IDFC 3': ['6841d8b5b5a0fc5644db5b10'],
   'IDFC 4': ['6841d9b7b5a0fc5644db5b18'],
 };
@@ -39,7 +39,7 @@ const groupMapping = {
   blackforestCakes: {
     name: 'Blackforest Cakes',
     banks: ['IDFC 1', 'IDFC 2'],
-    branchIds: ['67e2e29328541a7b58d1ca11', '67ed2c7b62b722c49a251e26', '67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca'],
+    branchIds: ['67e2e29328541a7b58d1ca11', '67ed2c7b62b722c49a251e26', '67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca', '6841bef0b5a0fc5644db227d', '6838102f710163091394b581'],
   },
 };
 
@@ -223,7 +223,7 @@ const FinancialManagement = () => {
     return Promise.resolve();
   };
 
-  // Custom validator for expense amount against branch balance
+  // Custom validator for expense amount against balance
   const validateExpenseAmount = async (_, value, branchId, source) => {
     if (value === undefined || value === null) {
       return Promise.reject(new Error('Please enter an amount'));
@@ -236,14 +236,12 @@ const FinancialManagement = () => {
     }
     if (source === 'CASH IN HAND' && branchId) {
       if (selectedGroup === 'blackforestCakes') {
-        // Pooled validation for Blackforest
-        const blackforestBranchBalances = branchBalances.filter(bb => groupMapping.blackforestCakes.branchIds.includes(bb.branchId));
-        const sumBlackforest = blackforestBranchBalances.reduce((acc, bb) => acc + bb.balance, 0);
-        if (value > sumBlackforest) {
-          return Promise.reject(new Error('Insufficient pooled cash balance for Blackforest group'));
+        // Validate against totalCashBalance for Blackforest expenses
+        if (value > totalCashBalance) {
+          return Promise.reject(new Error('Insufficient total cash balance for Blackforest group'));
         }
       } else {
-        // Standard per-branch validation
+        // Standard per-branch validation for non-Blackforest branches
         const branchBalance = branchBalances.find(bb => bb.branchId === branchId)?.balance || 0;
         if (value > branchBalance) {
           return Promise.reject(new Error('Insufficient cash balance for this branch'));
@@ -344,7 +342,7 @@ const FinancialManagement = () => {
 
         message.success('Deposit recorded successfully');
         depositForm.resetFields();
-        depositForm.setFieldsValue({ date: dayjs() }); // Reset date to today
+        depositForm.setFieldsValue({ date: dayjs() });
       } else {
         message.error(result.message || 'Failed to record deposit');
       }
@@ -369,15 +367,21 @@ const FinancialManagement = () => {
       const result = await response.json();
       if (response.ok) {
         if (source === 'CASH IN HAND') {
-          setBranchBalances((prev) => {
-            const existing = prev.find(bb => bb.branchId === result.balance.branch);
-            if (existing) {
-              return prev.map(bb => bb.branchId === result.balance.branch ? { ...bb, balance: result.balance.balance } : bb);
-            }
-            const branchName = branches.find(b => b._id === result.balance.branch)?.name || 'Unknown Branch';
-            return [...prev, { branchId: result.balance.branch, source: `CASH IN HAND - ${branchName}`, balance: result.balance.balance }];
-          });
-          setTotalCashBalance(prev => prev - amount);
+          if (groupMapping.blackforestCakes.branchIds.includes(branch)) {
+            // Update totalCashBalance for Blackforest CASH IN HAND expenses
+            setTotalCashBalance(result.balance.balance);
+          } else {
+            // Update branch-specific balance for non-Blackforest branches
+            setBranchBalances((prev) => {
+              const existing = prev.find(bb => bb.branchId === result.balance.branch);
+              if (existing) {
+                return prev.map(bb => bb.branchId === result.balance.branch ? { ...bb, balance: result.balance.balance } : bb);
+              }
+              const branchName = branches.find(b => b._id === result.balance.branch)?.name || 'Unknown Branch';
+              return [...prev, { branchId: result.balance.branch, source: `CASH IN HAND - ${branchName}`, balance: result.balance.balance }];
+            });
+            setTotalCashBalance(prev => prev - amount);
+          }
         } else {
           switch (source) {
             case 'IDFC 1':
@@ -413,7 +417,7 @@ const FinancialManagement = () => {
 
         message.success('Expense recorded successfully');
         expenseForm.resetFields();
-        expenseForm.setFieldsValue({ date: dayjs() }); // Reset date to today
+        expenseForm.setFieldsValue({ date: dayjs() });
       } else {
         message.error(result.message || 'Failed to record expense');
       }
@@ -611,8 +615,14 @@ const FinancialManagement = () => {
     let cashBalances = [];
     if (selectedGroup === 'blackforestCakes') {
       const blackforestBranchBalances = branchBalances.filter((bb) => groupConfig.branchIds.includes(bb.branchId));
-      const sumBlackforestCash = blackforestBranchBalances.reduce((acc, bb) => acc + bb.balance, 0);
-      cashBalances = [{ source: 'CASH IN HAND - Blackforest', balance: sumBlackforestCash }];
+      cashBalances = [
+        ...blackforestBranchBalances.map((bb) => ({
+          source: bb.source,
+          branchId: bb.branchId,
+          balance: bb.balance,
+        })),
+        { source: 'CASH IN HAND - Blackforest Total', balance: totalCashBalance }, // Display updated totalCashBalance
+      ];
     } else {
       cashBalances = branchBalances.filter((bb) => groupConfig.branchIds.includes(bb.branchId));
     }
