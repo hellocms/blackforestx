@@ -21,8 +21,8 @@ const bankBranchMapping = {
   'IDFC 1': [
     '67e2e29328541a7b58d1ca11',
     '67ed2c7b62b722c49a251e26',
-    '6841c13ab5a0fc5644db2f7e', // New branch
-    '67ea89f5524fad83e386415b'  // New branch
+    '6841c13ab5a0fc5644db2f7e',
+    '67ea89f5524fad83e386415b'
   ],
   'IDFC 2': [
     '67e1a4b22191787a139a749f',
@@ -30,8 +30,8 @@ const bankBranchMapping = {
     '67ed2be162b722c49a251dca',
     '6841bef0b5a0fc5644db227d',
     '6838102f710163091394b581',
-    '6841c13ab5a0fc5644db2f7e', // New branch
-    '67ea89f5524fad83e386415b'  // New branch
+    '6841c13ab5a0fc5644db2f7e',
+    '67ea89f5524fad83e386415b'
   ],
   'IDFC 3': ['6841d8b5b5a0fc5644db5b10'],
   'IDFC 4': ['6841d9b7b5a0fc5644db5b18'],
@@ -60,8 +60,8 @@ const groupMapping = {
       '67ed2be162b722c49a251dca',
       '6841bef0b5a0fc5644db227d',
       '6838102f710163091394b581',
-      '6841c13ab5a0fc5644db2f7e', // New branch
-      '67ea89f5524fad83e386415b'  // New branch
+      '6841c13ab5a0fc5644db2f7e',
+      '67ea89f5524fad83e386415b'
     ],
   },
 };
@@ -73,7 +73,12 @@ const FinancialManagement = () => {
   const [idfc3Balance, setIdfc3Balance] = useState(0);
   const [idfc4Balance, setIdfc4Balance] = useState(0);
   const [branchBalances, setBranchBalances] = useState([]);
-  const [totalCashBalance, setTotalCashBalance] = useState(0);
+  const [cashTotals, setCashTotals] = useState({
+    thoothukudiHotel: 0,
+    thoothukudiMacroon: 0,
+    blackforestCakes: 0,
+    total: 0,
+  });
 
   // State for transactions and filters
   const [transactions, setTransactions] = useState([]);
@@ -83,7 +88,7 @@ const FinancialManagement = () => {
   const [selectedTypeFilter, setSelectedTypeFilter] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState(null);
   const [selectedBranchFilter, setSelectedBranchFilter] = useState(null);
-  const [selectedGroup, setSelectedGroup] = useState('total'); // Default to total overview
+  const [selectedGroup, setSelectedGroup] = useState('total');
 
   // Form instances
   const [depositForm] = Form.useForm();
@@ -143,6 +148,12 @@ const FinancialManagement = () => {
       const result = await response.json();
       if (response.ok) {
         setBranchBalances([]);
+        let newCashTotals = {
+          thoothukudiHotel: 0,
+          thoothukudiMacroon: 0,
+          blackforestCakes: 0,
+          total: 0,
+        };
         result.forEach((balance) => {
           switch (balance.source) {
             case 'IDFC 1':
@@ -158,7 +169,7 @@ const FinancialManagement = () => {
               setIdfc4Balance(balance.balance);
               break;
             case 'TOTAL CASH IN HAND':
-              setTotalCashBalance(balance.balance);
+              newCashTotals.total = balance.balance;
               break;
             default:
               if (balance.source.startsWith('CASH IN HAND - ')) {
@@ -169,10 +180,19 @@ const FinancialManagement = () => {
                   }
                   return [...prev, { branchId: balance.branchId, source: balance.source, balance: balance.balance }];
                 });
+                // Update group-specific cash totals
+                if (groupMapping.thoothukudiHotel.branchIds.includes(balance.branchId)) {
+                  newCashTotals.thoothukudiHotel += balance.balance;
+                } else if (groupMapping.thoothukudiMacroon.branchIds.includes(balance.branchId)) {
+                  newCashTotals.thoothukudiMacroon += balance.balance;
+                } else if (groupMapping.blackforestCakes.branchIds.includes(balance.branchId)) {
+                  newCashTotals.blackforestCakes += balance.balance;
+                }
               }
               break;
           }
         });
+        setCashTotals(newCashTotals);
       } else {
         message.error(result.message || 'Failed to fetch balances');
       }
@@ -259,8 +279,8 @@ const FinancialManagement = () => {
     }
     if (source === 'CASH IN HAND' && branchId) {
       if (selectedGroup === 'blackforestCakes') {
-        // Validate against totalCashBalance for Blackforest expenses
-        if (value > totalCashBalance) {
+        // Validate against Blackforest group cash total
+        if (value > cashTotals.blackforestCakes) {
           return Promise.reject(new Error('Insufficient total cash balance for Blackforest group'));
         }
       } else {
@@ -329,7 +349,19 @@ const FinancialManagement = () => {
             const branchName = branches.find(b => b._id === result.balance.branch)?.name || 'Unknown Branch';
             return [...prev, { branchId: result.balance.branch, source: `CASH IN HAND - ${branchName}`, balance: result.balance.balance }];
           });
-          setTotalCashBalance(prev => prev + amount);
+          // Update group-specific cash total
+          setCashTotals((prev) => {
+            const newTotals = { ...prev };
+            if (groupMapping.thoothukudiHotel.branchIds.includes(branch)) {
+              newTotals.thoothukudiHotel += amount;
+            } else if (groupMapping.thoothukudiMacroon.branchIds.includes(branch)) {
+              newTotals.thoothukudiMacroon += amount;
+            } else if (groupMapping.blackforestCakes.branchIds.includes(branch)) {
+              newTotals.blackforestCakes += amount;
+            }
+            newTotals.total += amount;
+            return newTotals;
+          });
         } else {
           switch (source) {
             case 'IDFC 1':
@@ -391,8 +423,12 @@ const FinancialManagement = () => {
       if (response.ok) {
         if (source === 'CASH IN HAND') {
           if (groupMapping.blackforestCakes.branchIds.includes(branch)) {
-            // Update totalCashBalance for Blackforest CASH IN HAND expenses
-            setTotalCashBalance(result.balance.balance);
+            // Update Blackforest group cash total only
+            setCashTotals((prev) => ({
+              ...prev,
+              blackforestCakes: result.balance.balance,
+              total: prev.total - amount,
+            }));
           } else {
             // Update branch-specific balance for non-Blackforest branches
             setBranchBalances((prev) => {
@@ -403,7 +439,17 @@ const FinancialManagement = () => {
               const branchName = branches.find(b => b._id === result.balance.branch)?.name || 'Unknown Branch';
               return [...prev, { branchId: result.balance.branch, source: `CASH IN HAND - ${branchName}`, balance: result.balance.balance }];
             });
-            setTotalCashBalance(prev => prev - amount);
+            // Update group-specific cash total
+            setCashTotals((prev) => {
+              const newTotals = { ...prev };
+              if (groupMapping.thoothukudiHotel.branchIds.includes(branch)) {
+                newTotals.thoothukudiHotel -= amount;
+              } else if (groupMapping.thoothukudiMacroon.branchIds.includes(branch)) {
+                newTotals.thoothukudiMacroon -= amount;
+              }
+              newTotals.total -= amount;
+              return newTotals;
+            });
           }
         } else {
           switch (source) {
@@ -627,7 +673,7 @@ const FinancialManagement = () => {
         { source: 'IDFC 3', balance: idfc3Balance },
         { source: 'IDFC 4', balance: idfc4Balance },
         ...branchBalances,
-        { source: 'TOTAL CASH IN HAND', balance: totalCashBalance },
+        { source: 'TOTAL CASH IN HAND', balance: cashTotals.total },
       ];
     }
     const groupConfig = groupMapping[selectedGroup];
@@ -635,21 +681,24 @@ const FinancialManagement = () => {
       source: bank,
       balance: bank === 'IDFC 1' ? idfc1Balance : bank === 'IDFC 2' ? idfc2Balance : bank === 'IDFC 3' ? idfc3Balance : idfc4Balance,
     }));
-    let cashBalances = [];
+    const cashBalances = branchBalances.filter((bb) => groupConfig.branchIds.includes(bb.branchId));
     if (selectedGroup === 'blackforestCakes') {
-      const blackforestBranchBalances = branchBalances.filter((bb) => groupConfig.branchIds.includes(bb.branchId));
-      cashBalances = [
-        ...blackforestBranchBalances.map((bb) => ({
+      return [
+        ...filteredBanks,
+        ...cashBalances.map((bb) => ({
           source: bb.source,
           branchId: bb.branchId,
           balance: bb.balance,
         })),
-        { source: 'CASH IN HAND - Blackforest Total', balance: totalCashBalance }, // Display updated totalCashBalance
+        { source: 'CASH IN HAND - Blackforest Total', balance: cashTotals.blackforestCakes },
       ];
     } else {
-      cashBalances = branchBalances.filter((bb) => groupConfig.branchIds.includes(bb.branchId));
+      return [
+        ...filteredBanks,
+        ...cashBalances,
+        { source: `CASH IN HAND - ${groupConfig.name} Total`, balance: cashTotals[selectedGroup] },
+      ];
     }
-    return [...filteredBanks, ...cashBalances];
   };
 
   // Get available sources for forms based on group
@@ -723,7 +772,7 @@ const FinancialManagement = () => {
                     justifyContent: 'center',
                   }}
                 >
-                  {balance.source.startsWith('CASH IN HAND') || balance.source === 'TOTAL CASH IN HAND' ? (
+                  {balance.source.startsWith('CASH IN HAND') || balance.source.includes('Total') ? (
                     <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
                   ) : (
                     <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
