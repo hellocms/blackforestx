@@ -431,13 +431,13 @@ const FinancialManagement = () => {
             setCashTotals((prev) => {
               const newTotals = {
                 ...prev,
-                blackforestCakes: prev.blackforestCakes - amount, // Subtract amount directly
+                blackforestCakes: prev.blackforestCakes - amount,
                 total: prev.total - amount,
               };
               console.log('New cashTotals:', newTotals);
               return newTotals;
             });
-            await fetchBalances(); // Force refresh to sync with backend
+            await fetchBalances();
             message.success(`Expense recorded. Blackforest Total: ₹${(cashTotals.blackforestCakes - amount).toFixed(2)}`);
           } else {
             setBranchBalances((prev) => {
@@ -505,9 +505,35 @@ const FinancialManagement = () => {
     }
   };
 
+  // Calculate total amount for filtered transactions
+  const calculateTransactionTotal = () => {
+    return filteredTransactions.reduce((total, t) => {
+      if (t.type === 'Credit - Deposit') {
+        return total + t.amount;
+      } else if (t.type === 'Debit - Expense') {
+        return total - t.amount;
+      }
+      return total;
+    }, 0);
+  };
+
+  // Calculate running balance for a transaction
+  const calculateRunningBalance = (index) => {
+    return filteredTransactions
+      .slice(0, index + 1)
+      .reduce((balance, t) => {
+        if (t.type === 'Credit - Deposit') {
+          return balance + t.amount;
+        } else if (t.type === 'Debit - Expense') {
+          return balance - t.amount;
+        }
+        return balance;
+      }, 0);
+  };
+
   // Filter transactions
   const filterTransactions = (source, type, dateRange, branchFilter, group) => {
-    let filtered = [...transactions];
+    let filtered = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     if (group !== 'total') {
       const groupConfig = groupMapping[group];
@@ -515,7 +541,11 @@ const FinancialManagement = () => {
     }
 
     if (branchFilter) {
-      filtered = filtered.filter((t) => t.branchId === branchFilter);
+      if (branchFilter === 'blackforestGroup') {
+        filtered = filtered.filter((t) => groupMapping.blackforestCakes.branchIds.includes(t.branchId));
+      } else {
+        filtered = filtered.filter((t) => t.branchId === branchFilter);
+      }
     }
 
     if (source) {
@@ -580,6 +610,7 @@ const FinancialManagement = () => {
               th, td { border: 1px solid #000; padding: 8px; text-align: left; }
               th { background-color: #f2f2f2; font-weight: bold; }
               .no-print { display: none; }
+              .total-row { font-weight: bold; }
             }
           </style>
         </head>
@@ -594,6 +625,7 @@ const FinancialManagement = () => {
                 <th>Source</th>
                 <th>Branch</th>
                 <th>Amount (₹)</th>
+                <th>Current Balance (₹)</th>
                 <th>Expense Category</th>
                 <th>Remarks</th>
               </tr>
@@ -609,12 +641,20 @@ const FinancialManagement = () => {
                       <td>${t.source}</td>
                       <td>${t.branch}</td>
                       <td>₹${t.amount.toFixed(2)}</td>
+                      <td>₹${calculateRunningBalance(index).toFixed(2)}</td>
                       <td>${t.expenseCategory}</td>
                       <td>${t.remarks}</td>
                     </tr>
                   `
                 )
                 .join('')}
+              <tr class="total-row">
+                <td colspan="5">Total</td>
+                <td>₹${calculateTransactionTotal().toFixed(2)}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
             </tbody>
           </table>
         </body>
@@ -659,6 +699,11 @@ const FinancialManagement = () => {
       dataIndex: 'amount',
       key: 'amount',
       render: (amount) => `₹${amount.toFixed(2)}`,
+    },
+    {
+      title: 'Current Balance (₹)',
+      key: 'currentBalance',
+      render: (_, __, index) => `₹${calculateRunningBalance(index).toFixed(2)}`,
     },
     {
       title: 'Expense Category',
@@ -1068,6 +1113,9 @@ const FinancialManagement = () => {
                   allowClear
                   style={{ width: '200px' }}
                 >
+                  <Option key="blackforestGroup" value="blackforestGroup">
+                    Blackforest Group
+                  </Option>
                   {getAvailableBranches().map((branch) => (
                     <Option key={branch._id} value={branch._id}>
                       {branch.name}
@@ -1111,6 +1159,15 @@ const FinancialManagement = () => {
               rowKey="id"
               pagination={{ pageSize: 10 }}
               bordered
+              summary={() => (
+                <Table.Summary.Row style={{ fontWeight: 'bold' }}>
+                  <Table.Summary.Cell colSpan={5}>Total</Table.Summary.Cell>
+                  <Table.Summary.Cell>₹{calculateTransactionTotal().toFixed(2)}</Table.Summary.Cell>
+                  <Table.Summary.Cell />
+                  <Table.Summary.Cell />
+                  <Table.Summary.Cell />
+                </Table.Summary.Row>
+              )}
             />
           </Card>
         </div>
