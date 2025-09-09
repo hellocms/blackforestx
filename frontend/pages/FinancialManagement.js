@@ -155,6 +155,7 @@ const FinancialManagement = () => {
           blackforestCakes: 0,
           total: 0,
         };
+        let nonBlackforestSum = 0;
         result.forEach((balance) => {
           switch (balance.source) {
             case 'IDFC 1':
@@ -171,7 +172,6 @@ const FinancialManagement = () => {
               break;
             case 'TOTAL CASH IN HAND':
               newCashTotals.total = balance.balance;
-              newCashTotals.blackforestCakes = balance.balance; // Use totalCashBalance for Blackforest
               break;
             default:
               if (balance.source.startsWith('CASH IN HAND - ')) {
@@ -182,16 +182,22 @@ const FinancialManagement = () => {
                   }
                   return [...prev, { branchId: balance.branchId, source: balance.source, balance: balance.balance }];
                 });
-                // Update group-specific cash totals for non-Blackforest groups
+                // Update group-specific cash totals
                 if (groupMapping.thoothukudiHotel.branchIds.includes(balance.branchId)) {
                   newCashTotals.thoothukudiHotel += balance.balance;
+                  nonBlackforestSum += balance.balance;
                 } else if (groupMapping.thoothukudiMacroon.branchIds.includes(balance.branchId)) {
                   newCashTotals.thoothukudiMacroon += balance.balance;
+                  nonBlackforestSum += balance.balance;
+                } else if (groupMapping.blackforestCakes.branchIds.includes(balance.branchId)) {
+                  newCashTotals.blackforestCakes += balance.balance;
                 }
               }
               break;
           }
         });
+        // Adjust Blackforest total as total - nonBlackforestSum
+        newCashTotals.blackforestCakes = newCashTotals.total - nonBlackforestSum;
         console.log('fetchBalances newCashTotals:', newCashTotals);
         setCashTotals(newCashTotals);
       } else {
@@ -279,7 +285,8 @@ const FinancialManagement = () => {
       return Promise.reject(new Error('Amount must be at least 1'));
     }
     if (source === 'CASH IN HAND' && branchId) {
-      if (groupMapping.blackforestCakes.branchIds.includes(branchId)) {
+      if (selectedGroup === 'blackforestCakes') {
+        // Validate against Blackforest group cash total
         if (value > cashTotals.blackforestCakes) {
           return Promise.reject(new Error('Insufficient total cash balance for Blackforest group'));
         }
@@ -735,6 +742,12 @@ const FinancialManagement = () => {
       balance: bank === 'IDFC 1' ? idfc1Balance : bank === 'IDFC 2' ? idfc2Balance : bank === 'IDFC 3' ? idfc3Balance : idfc4Balance,
     }));
     const cashBalances = branchBalances.filter((bb) => groupConfig.branchIds.includes(bb.branchId));
+    if (selectedGroup === 'blackforestCakes') {
+      return [
+        ...filteredBanks,
+        { source: 'CASH IN HAND - Blackforest Cakes Total', balance: cashTotals.blackforestCakes },
+      ];
+    }
     return [
       ...filteredBanks,
       ...cashBalances.map((bb) => ({
