@@ -225,16 +225,36 @@ const updateSendingQty = async (req, res) => {
 
       const updatedProducts = order.products.map((existingProduct, index) => {
         const newProduct = products[index] || {};
-        return {
+        const updated = {
           ...existingProduct.toObject(),
           sendingQty: newProduct.sendingQty !== undefined ? newProduct.sendingQty : existingProduct.sendingQty || 0,
           confirmed: newProduct.confirmed !== undefined ? newProduct.confirmed : existingProduct.confirmed || false,
-          // Preserve gstRate and productGST integrity
+          // Add explicit handling for quantity update
+          quantity: newProduct.quantity !== undefined ? newProduct.quantity : existingProduct.quantity,
           gstRate: newProduct.gstRate !== undefined ? newProduct.gstRate : existingProduct.gstRate,
-          productGST: newProduct.gstRate === 'non-gst' ? 0 : (newProduct.productGST !== undefined ? newProduct.productGST : existingProduct.productGST),
         };
+
+        // Recalculate productTotal based on (possibly updated) quantity
+        updated.productTotal = updated.quantity * updated.price;
+
+        // Recalculate productGST
+        if (updated.gstRate === 'non-gst') {
+          updated.productGST = 0;
+        } else if (typeof updated.gstRate === 'number' && updated.gstRate >= 0) {
+          updated.productGST = updated.productTotal * (updated.gstRate / 100);
+        } else {
+          updated.productGST = newProduct.productGST !== undefined ? newProduct.productGST : existingProduct.productGST;
+        }
+
+        return updated;
       });
       order.products = updatedProducts;
+
+      // Recalculate order-level totals
+      order.subtotal = order.products.reduce((sum, p) => sum + p.productTotal, 0);
+      order.totalGST = order.products.reduce((sum, p) => sum + p.productGST, 0);
+      order.totalWithGST = order.subtotal + order.totalGST;
+      order.totalItems = order.products.length;  // Update if totalItems means product count
     }
 
     if (status) {
