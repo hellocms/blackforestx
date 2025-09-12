@@ -35,6 +35,7 @@ const menuItems = [
 
 
   { key: "report", label: "Report", isGroup: true },
+  { key: "billing", label: "StockOrders", icon: <FileTextOutlined  />, path: "/branch/orders" },
   { key: "billing", label: "Billing", icon: <FileTextOutlined  />, path: "/branch/BillingOrdersPage" },
   { key: "timing", label: "Timing", icon: <FileTextOutlined  />, path: "/branch/TimingReportPage" },
   { key: "waiter", label: "Waiter", icon: <FileTextOutlined  />, path: "/branch/WaiterBillsManagementPage" },
