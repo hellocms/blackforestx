@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { jwtDecode } from "jwt-decode";
 import { Button, Table, Input, Select, DatePicker, Modal, Space, Tag, message, InputNumber, Typography } from "antd";
-import { EditOutlined, EyeOutlined, PrinterOutlined, CheckCircleFilled, EyeFilled, PrinterFilled, CloseSquareFilled, TruckFilled, CheckSquareFilled } from "@ant-design/icons";
+import { EditOutlined, EyeOutlined, PrinterOutlined, CheckCircleFilled, EyeFilled, PrinterFilled, CloseSquareFilled, TruckFilled, CheckSquareFilled, CloseCircleFilled } from "@ant-design/icons";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -32,9 +32,10 @@ const OrderListPage = ({ branchId }) => {
   const [dateRange, setDateRange] = useState([null, null]);
   const [dateFilterMode, setDateFilterMode] = useState("created");
   const [loading, setLoading] = useState(false);
-  const [visibleModal, setVisibleModal] = useState(false);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [editingOrderId, setEditingOrderId] = useState(null);
+  const [visibleModal, setVisibleModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
   const handleClearFilters = () => {
@@ -49,64 +50,6 @@ const OrderListPage = ({ branchId }) => {
   };
 
   const getDateRangeAndOrderIds = () => {
-    let filteredOrders = orders.filter((order) => order.status === statusFilter);
-    
-    if (branchFilter !== "All") {
-      filteredOrders = filteredOrders.filter((order) => order.branchId?._id === branchFilter);
-    }
-    
-    if (categoryFilter !== "All") {
-      filteredOrders = filteredOrders.filter((order) =>
-        order.products.some((p) => {
-          const product = productCatalog.find(prod => prod.name === p.name);
-          return product && product.category?._id === categoryFilter;
-        })
-      );
-    }
-    
-    if (productFilter !== "All") {
-      filteredOrders = filteredOrders.filter((order) =>
-        order.products.some((p) => p.name === productFilter)
-      );
-    }
-  
-    if (dateRange[0]) {
-      const startDate = dayjs(dateRange[0]).startOf("day");
-      const endDate = dateRange[1] ? dayjs(dateRange[1]).endOf("day") : dayjs(dateRange[0]).endOf("day");
-  
-      filteredOrders = filteredOrders.filter((order) => {
-        const createdDate = order.createdAt ? dayjs(order.createdAt) : null;
-        const deliveryDate = order.deliveryDateTime ? dayjs(order.deliveryDateTime) : null;
-  
-        if (dateFilterMode === "created") {
-          return (
-            createdDate &&
-            !createdDate.isBefore(startDate) &&
-            (!endDate || createdDate.isBefore(endDate))
-          );
-        }
-        if (dateFilterMode === "delivery") {
-          return (
-            deliveryDate &&
-            !deliveryDate.isBefore(startDate) &&
-            (!endDate || deliveryDate.isBefore(endDate))
-          );
-        }
-        if (dateFilterMode === "combined") {
-          const createdMatch =
-            createdDate &&
-            !createdDate.isBefore(startDate) &&
-            (!endDate || createdDate.isBefore(endDate));
-          const deliveryMatch =
-            deliveryDate &&
-            !deliveryDate.isBefore(startDate) &&
-            (!endDate || deliveryDate.isBefore(endDate));
-          return createdMatch || deliveryMatch;
-        }
-        return false;
-      });
-    }
-  
     if (filteredOrders.length === 0) {
       return { earliestCreated: null, latestDelivery: null, orderIds: "" };
     }
@@ -381,8 +324,8 @@ const OrderListPage = ({ branchId }) => {
   const handleEdit = async (record) => {
     const assignment = await fetchAssignment(record.branchId._id, record.createdAt);
     setSelectedOrder({ ...record, assignment });
+    setEditingOrderId(record._id);
     setIsEditMode(true);
-    setVisibleModal(true);
   };
 
   const handleView = async (record) => {
@@ -477,7 +420,9 @@ const OrderListPage = ({ branchId }) => {
         setSelectedOrder((prev) => (prev && prev._id === record._id ? { ...prev, status: "delivered" } : prev));
         message.success("Order marked as delivered");
       } else {
-        message.error("Failed to mark order as delivered");
+        const errorText = await response.text();
+        console.error('Server error:', response.status, errorText);
+        message.error(`Failed to mark as delivered: ${errorText}`);
       }
     } catch (error) {
       message.error("Error marking order as delivered");
@@ -509,80 +454,6 @@ const OrderListPage = ({ branchId }) => {
       }
     } catch (error) {
       message.error("Error marking order as received");
-      console.error(error);
-    }
-  };
-
-  const handleSaveSendingQty = async () => {
-    if (!selectedOrder) return;
-
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/orders/${selectedOrder._id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ products: selectedOrder.products }),
-      });
-
-      if (response.ok) {
-        setOrders((prev) =>
-          prev.map((o) => (o._id === selectedOrder._id ? { ...selectedOrder } : o))
-        );
-        setFilteredOrders((prev) =>
-          prev.map((o) => (o._id === selectedOrder._id ? { ...selectedOrder } : o))
-        );
-        message.success("Sending quantities updated successfully");
-        setVisibleModal(false);
-      } else {
-        message.error("Failed to update sending quantities");
-      }
-    } catch (error) {
-      message.error("Error updating sending quantities");
-      console.error(error);
-    }
-  };
-
-  const handleToggleConfirm = async () => {
-    if (!selectedOrder) return;
-  
-    const isConfirmedState = ["completed", "delivered", "received"].includes(selectedOrder.status);
-    const newStatus = isConfirmedState ? "pending" : "completed";
-  
-    if (newStatus === "completed") {
-      const unconfirmedCount = selectedOrder.products.filter(p => !p.confirmed).length;
-      if (unconfirmedCount > 0) {
-        message.error(`Cannot confirm Bill No: ${selectedOrder.billNo}. ${unconfirmedCount} product(s) are not confirmed.`);
-        return;
-      }
-    }
-  
-    // No restriction on reverting to "pending" from any status
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/orders/${selectedOrder._id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-  
-      if (response.ok) {
-        setSelectedOrder({ ...selectedOrder, status: newStatus });
-        setOrders((prev) =>
-          prev.map((o) => (o._id === selectedOrder._id ? { ...o, status: newStatus } : o))
-        );
-        setFilteredOrders((prev) =>
-          prev.map((o) => (o._id === selectedOrder._id ? { ...o, status: newStatus } : o))
-        );
-        message.success(`Order status updated to ${newStatus}`);
-      } else {
-        message.error("Failed to update order status");
-      }
-    } catch (error) {
-      message.error("Error updating order status");
       console.error(error);
     }
   };
@@ -675,7 +546,7 @@ const OrderListPage = ({ branchId }) => {
             h2 { text-align: center; font-size: 14px; font-weight: bold; margin: 0 0 5px 0; }
             p { margin: 2px 0; text-align: center; }
             table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-            th, td { padding: 2px; text-align: left; font-size: 10px; }
+            th, td { padding: 2px; text-align: left; font-size: 10px; border: 1px solid #d9d9d9; }
             th { font-weight: bold; }
             .divider { border-top: 1px dashed #000; margin: 5px 0; }
             @media print { @page { margin: 0; size: 80mm auto; } body { margin: 0; padding: 5px; } }
@@ -723,57 +594,14 @@ const OrderListPage = ({ branchId }) => {
   };
 
   const getCombinedProductData = () => {
-    let statusOrders = orders.filter((order) => order.status === statusFilter);
-    
-    if (branchFilter !== "All") {
-      statusOrders = statusOrders.filter((order) => order.branchId?._id === branchFilter);
-    }
-
-    if (dateRange[0]) {
-      const startDate = dayjs(dateRange[0]).startOf("day");
-      const endDate = dateRange[1] ? dayjs(dateRange[1]).endOf("day") : dayjs(dateRange[0]).endOf("day");
-
-      statusOrders = statusOrders.filter((order) => {
-        const createdDate = order.createdAt ? dayjs(order.createdAt) : null;
-        const deliveryDate = order.deliveryDateTime ? dayjs(order.deliveryDateTime) : null;
-
-        if (dateFilterMode === "created") {
-          return (
-            createdDate &&
-            !createdDate.isBefore(startDate) &&
-            (!endDate || createdDate.isBefore(endDate))
-          );
-        }
-        if (dateFilterMode === "delivery") {
-          return (
-            deliveryDate &&
-            !deliveryDate.isBefore(startDate) &&
-            (!endDate || deliveryDate.isBefore(endDate))
-          );
-        }
-        if (dateFilterMode === "combined") {
-          const createdMatch =
-            createdDate &&
-            !createdDate.isBefore(startDate) &&
-            (!endDate || createdDate.isBefore(endDate));
-          const deliveryMatch =
-            deliveryDate &&
-            !deliveryDate.isBefore(startDate) &&
-            (!endDate || deliveryDate.isBefore(endDate));
-          return createdMatch || deliveryMatch;
-        }
-        return false;
-      });
-    }
-
     const productMap = {};
 
-    statusOrders.forEach((order) => {
+    filteredOrders.forEach((order) => {
       const branchPrefix = order.branchId?.name?.slice(0, 3).toUpperCase() || "UNK";
       order.products
         .filter((product) => {
           const catalogProduct = productCatalog.find(p => p.name === product.name);
-          return !categoryFilter || categoryFilter === "All" || (catalogProduct && catalogProduct.category?._id === categoryFilter);
+          return categoryFilter === "All" || (catalogProduct && catalogProduct.category?._id === categoryFilter);
         })
         .filter((product) => productFilter === "All" || product.name === productFilter)
         .forEach((product) => {
@@ -800,76 +628,62 @@ const OrderListPage = ({ branchId }) => {
   const columns = [
     { title: "Serial No", render: (_, __, index) => index + 1, width: 80 },
     {
-      title: "Order ID",
+      title: "Bill No",
       dataIndex: "billNo",
       sorter: (a, b) => (a.billNo || "").localeCompare(b.billNo || ""),
       width: 150,
+      render: (billNo, record) => (
+        <div>
+          {billNo || "N/A"}
+          <br />
+          <Tag
+            color={
+              record.status === "completed"
+                ? "green"
+                : record.status === "pending"
+                ? "yellow"
+                : record.status === "neworder"
+                ? "blue"
+                : record.status === "delivered"
+                ? "purple"
+                : record.status === "received"
+                ? "cyan"
+                : "orange"
+            }
+          >
+            {record.status || "Unknown"}
+          </Tag>
+        </div>
+      ),
     },
     {
-      title: "Branch Name",
+      title: "Branch",
       dataIndex: "branchId",
       render: (branchId) => branchId?.name || "Unknown",
       width: 120,
     },
     { title: "Total Items", dataIndex: "totalItems", width: 100 },
     {
-      title: "Total Amount",
+      title: "Completed Items",
+      render: (record) => record.totalItems - record.products.filter(p => !p.confirmed).length,
+      width: 120,
+    },
+    {
+      title: "Pending Items",
+      render: (record) => record.products.filter(p => !p.confirmed).length,
+      width: 120,
+    },
+    {
+      title: "Ordered Amount",
       dataIndex: "totalWithGST",
       render: (value) => `₹${(value || 0).toFixed(2)}`,
       sorter: (a, b) => (a.totalWithGST || 0) - (b.totalWithGST || 0),
       width: 120,
     },
     {
-      title: "Status",
-      dataIndex: "status",
-      render: (value) => (
-        <Tag
-          color={
-            value === "completed"
-              ? "green"
-              : value === "pending"
-              ? "yellow"
-              : value === "neworder"
-              ? "blue"
-              : value === "delivered"
-              ? "purple"
-              : value === "received"
-              ? "cyan"
-              : "orange"
-          }
-        >
-          {value || "Unknown"}
-        </Tag>
-      ),
-      width: 100,
-    },
-    {
-      title: "Pending Products",
-      render: (record) => {
-        const pendingCount = record.products.filter(p => !p.confirmed).length;
-        return pendingCount;
-      },
+      title: "Sending Value",
+      render: (record) => `₹${record.products.reduce((sum, p) => sum + (p.sendingQty || 0) * (p.price || 0), 0).toFixed(2)}`,
       width: 120,
-    },
-    {
-      title: "Created & Delivery Date",
-      render: (record) => {
-        const createdDate = record.createdAt 
-          ? dayjs(record.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY") 
-          : "N/A";
-        const deliveryDate = record.deliveryDateTime 
-          ? dayjs(record.deliveryDateTime).tz("Asia/Kolkata").format("DD/MM/YYYY") 
-          : null;
-  
-        return (
-          <div style={{ lineHeight: '1.5' }}>
-            <div>Created: {createdDate}</div>
-            {deliveryDate && <div>Delivery: {deliveryDate}</div>}
-          </div>
-        );
-      },
-      sorter: (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
-      width: 200,
     },
     {
       title: "Actions",
@@ -878,28 +692,19 @@ const OrderListPage = ({ branchId }) => {
           <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} />
           <Button icon={<EyeOutlined />} onClick={() => handleView(record)} />
           <Button icon={<PrinterOutlined />} onClick={() => handlePrint(record)} />
-        </Space>
-      ),
-      width: 150,
-    },
-    {
-      title: "Confirm",
-      render: (record) => {
-        const isConfirmedState = ["completed", "delivered", "received"].includes(record.status);
-        return (
           <Button
             type="primary"
             icon={<CheckCircleFilled />}
-            danger={!isConfirmedState}
+            danger={!["completed", "delivered", "received"].includes(record.status)}
             style={{
-              backgroundColor: isConfirmedState ? "#52c41a" : "#ff4d4f",
-              borderColor: isConfirmedState ? "#52c41a" : "#ff4d4f",
+              backgroundColor: ["completed", "delivered", "received"].includes(record.status) ? "#52c41a" : "#ff4d4f",
+              borderColor: ["completed", "delivered", "received"].includes(record.status) ? "#52c41a" : "#ff4d4f",
             }}
             onClick={() => handleConfirm(record)}
           />
-        );
-      },
-      width: 100,
+        </Space>
+      ),
+      width: 200,
     },
   ];
 
@@ -935,7 +740,7 @@ const OrderListPage = ({ branchId }) => {
             h2 { text-align: center; font-size: 14px; font-weight: bold; margin: 0 0 5px 0; }
             p { margin: 2px 0; overflow: hidden; text-overflow: ellipsis; }
             table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-            th, td { padding: 2px; text-align: left; font-size: 10px; }
+            th, td { padding: 2px; text-align: left; font-size: 10px; border: 1px solid #d9d9d9; }
             th { font-weight: bold; }
             .divider { border-top: 1px dashed #000; margin: 5px 0; }
             .summary { margin-top: 5px; }
@@ -1012,7 +817,7 @@ const OrderListPage = ({ branchId }) => {
     printWindow.close();
   };
 
- // Keep editModalColumns as previously updated (without brackets)
+ // Updated editModalColumns to merge Confirm button with Sending Qty input
 const editModalColumns = [
   {
     title: "Product Name",
@@ -1025,25 +830,54 @@ const editModalColumns = [
     title: "Sending Qty",
     dataIndex: "sendingQty",
     render: (text, record, index) => (
-      <Space>
+      <Space.Compact style={{ width: '100%' }}>
         <InputNumber
           min={0}
           value={text}
           onChange={(value) => handleSendingQtyChange(index, value)}
+          style={{ 
+            width: '60px', 
+            borderTopRightRadius: 0, 
+            borderBottomRightRadius: 0,
+            borderRight: 'none',
+          }}
         />
-        {text !== undefined && record.quantity !== undefined && text !== record.quantity && (
-          text > record.quantity ? (
-            <span style={{ color: 'green' }}>
-              ↑ {text - record.quantity}
-            </span>
-          ) : (
-            <span style={{ color: 'red' }}>
-              ↓ {record.quantity - text}
-            </span>
-          )
-        )}
-      </Space>
+        <Button
+          type="primary"
+          icon={<CheckCircleFilled />}
+          danger={!record.confirmed}
+          disabled={["completed", "delivered", "received"].includes(selectedOrder.status)}
+          style={{
+            backgroundColor: record.confirmed ? "#52c41a" : "#ff4d4f",
+            borderColor: record.confirmed ? "#52c41a" : "#ff4d4f",
+            color: "#fff",
+            borderTopLeftRadius: 0,
+            borderBottomLeftRadius: 0,
+            padding: '4px 8px',
+            height: '32px',
+          }}
+          onClick={() => handleToggleProductConfirm(index)}
+        />
+      </Space.Compact>
     ),
+    width: 100, // Fixed width to prevent size increase
+  },
+  { 
+    title: "Difference",
+    render: (record) => (
+      record.sendingQty !== undefined && record.quantity !== undefined && record.sendingQty !== record.quantity ? (
+        record.sendingQty > record.quantity ? (
+          <span style={{ color: 'green' }}>
+            ↑ {record.sendingQty - record.quantity}
+          </span>
+        ) : (
+          <span style={{ color: 'red' }}>
+            ↓ {record.quantity - record.sendingQty}
+          </span>
+        )
+      ) : null
+    ),
+    width: 80,
   },
   { title: "Unit", dataIndex: "unit" },
   {
@@ -1054,26 +888,6 @@ const editModalColumns = [
   {
     title: "Total",
     render: (record) => `₹${((record.sendingQty || 0) * (record.price || 0)).toFixed(2)}`,
-  },
-  {
-    title: "Confirm",
-    render: (record, _, index) => {
-      const isOrderConfirmed = ["completed", "delivered", "received"].includes(selectedOrder.status);
-      return (
-        <Button
-          type="primary"
-          icon={<CheckCircleFilled />}
-          danger={!record.confirmed}
-          disabled={isOrderConfirmed}
-          style={{
-            backgroundColor: record.confirmed ? "#52c41a" : "#ff4d4f",
-            borderColor: record.confirmed ? "#52c41a" : "#ff4d4f",
-            color: "#fff",
-          }}
-          onClick={() => handleToggleProductConfirm(index)}
-        />
-      );
-    },
   },
 ];
 
@@ -1145,15 +959,70 @@ const viewModalColumns = [
     const totals = calculateTotals(products || []);
     return (
       <tr style={{ fontWeight: "bold" }}>
-        <td>Total</td>
-        <td>{totals.quantity}</td>
-        <td>{totals.bminstock}</td>
-        <td>{totals.sendingQty}</td>
-        <td>N/A</td>
-        <td>₹{totals.price.toFixed(2)}</td>
-        <td>₹{totals.total.toFixed(2)}</td>
-        <td></td>
+        <td style={{ border: "1px solid #d9d9d9" }}>Total</td>
+        <td style={{ border: "1px solid #d9d9d9" }}>{totals.quantity}</td>
+        <td style={{ border: "1px solid #d9d9d9" }}>{totals.bminstock}</td>
+        <td style={{ border: "1px solid #d9d9d9" }}>{totals.sendingQty}</td>
+        <td style={{ border: "1px solid #d9d9d9" }}>N/A</td>
+        <td style={{ border: "1px solid #d9d9d9" }}>₹{totals.price.toFixed(2)}</td>
+        <td style={{ border: "1px solid #d9d9d9" }}>₹{totals.total.toFixed(2)}</td>
       </tr>
+    );
+  };
+
+  const tableSummary = () => {
+    const totalItems = filteredOrders.reduce((sum, o) => sum + (o.totalItems || 0), 0);
+    const totalCompleted = filteredOrders.reduce((sum, o) => sum + (o.totalItems - o.products.filter(p => !p.confirmed).length), 0);
+    const totalPending = filteredOrders.reduce((sum, o) => sum + o.products.filter(p => !p.confirmed).length, 0);
+    const totalOrdered = filteredOrders.reduce((sum, o) => sum + (o.totalWithGST || 0), 0);
+    const totalSending = filteredOrders.reduce((sum, o) => sum + o.products.reduce((s, p) => s + (p.sendingQty || 0) * (p.price || 0), 0), 0);
+
+    return (
+      <Table.Summary.Row>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>Total</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }} />
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }} />
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totalItems}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totalCompleted}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totalPending}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totalOrdered.toFixed(2)}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totalSending.toFixed(2)}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }} />
+      </Table.Summary.Row>
+    );
+  };
+
+  const viewModalSummary = () => {
+    if (!selectedOrder || !selectedOrder.products) return null;
+    const totals = calculateTotals(selectedOrder.products);
+    return (
+      <Table.Summary.Row>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>Total</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.quantity}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.bminstock}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.sendingQty}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>N/A</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totals.price.toFixed(2)}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totals.total.toFixed(2)}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }} />
+      </Table.Summary.Row>
+    );
+  };
+
+  const editSummary = () => {
+    if (!selectedOrder || !selectedOrder.products) return null;
+    const totals = calculateTotals(selectedOrder.products);
+    return (
+      <Table.Summary.Row>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>Total</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.quantity}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.bminstock}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.sendingQty}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>N/A</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>N/A</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totals.price.toFixed(2)}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totals.total.toFixed(2)}</Table.Summary.Cell>
+      </Table.Summary.Row>
     );
   };
 
@@ -1301,151 +1170,238 @@ const viewModalColumns = [
           loading={loading}
           pagination={{ pageSize: 10 }}
           rowKey="_id"
-          scroll={{ x: 1400 }} // Increased to accommodate new columns
+          scroll={{ x: 1400 }}
+          summary={tableSummary}
+          bordered
         />
-      </Space>
-      <Modal
-      title={
-        selectedOrder ? (
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <span style={{ marginRight: 16 }}>
-              Order {selectedOrder.billNo || "N/A"} - {selectedOrder.branchId?.name || "Unknown"} (
-              {selectedOrder.status || "Unknown"})
-            </span>
-            {/* Status Buttons and Active Lines */}
+
+        {editingOrderId && selectedOrder && (
+          <div style={{ marginTop: 20, border: "1px solid #d9d9d9", padding: 16, position: "relative" }}>
             <Button
-              type="primary"
-              icon={<CheckCircleFilled />}
-              disabled={isEditMode ? !["pending", "neworder", "draft"].includes(selectedOrder.status) && !["completed", "delivered", "received"].includes(selectedOrder.status) : true}
-              danger={!["completed", "delivered", "received"].includes(selectedOrder.status)}
-              style={{
-                backgroundColor: ["completed", "delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : "#ff4d4f",
-                borderColor: ["completed", "delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : "#ff4d4f",
-                marginRight: 8,
-                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                color: "#fff", // Ensure white text/icon
-              }}
-              onClick={isEditMode ? () => handleConfirm(selectedOrder) : undefined}
-            >
-              Confirm
-            </Button>
-            <span
-              style={{
-                width: 20,
-                height: 2,
-                backgroundColor: ["delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : "#d9d9d9",
-                marginRight: 8,
-              }}
+              type="text"
+              icon={<CloseCircleFilled style={{ color: "red", fontSize: 24 }} />}
+              style={{ position: "absolute", top: 8, right: 8 }}
+              onClick={() => { setEditingOrderId(null); setSelectedOrder(null); }}
             />
-            <Button
-              type="primary"
-              icon={<TruckFilled />}
-              disabled={isEditMode ? selectedOrder.status !== "completed" && !["delivered", "received"].includes(selectedOrder.status) : true}
-              danger={!["delivered", "received"].includes(selectedOrder.status) && selectedOrder.status === "completed"}
-              style={{
-                backgroundColor: ["delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : (selectedOrder.status === "completed" ? "#ff4d4f" : undefined),
-                borderColor: ["delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : (selectedOrder.status === "completed" ? "#ff4d4f" : undefined),
-                marginRight: 8,
-                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                color: "#fff", // Ensure white text/icon
-              }}
-              onClick={isEditMode ? () => handleDelivery(selectedOrder) : undefined}
-            >
-              Delivery
-            </Button>
-            <span
-              style={{
-                width: 20,
-                height: 2,
-                backgroundColor: selectedOrder.status === "received" ? "#52c41a" : "#d9d9d9",
-                marginRight: 8,
-              }}
-            />
-            <Button
-              type="primary"
-              icon={<CheckSquareFilled />}
-              disabled={isEditMode ? selectedOrder.status !== "delivered" && selectedOrder.status !== "received" : true}
-              danger={selectedOrder.status === "delivered" && selectedOrder.status !== "received"}
-              style={{
-                backgroundColor: selectedOrder.status === "received" ? "#52c41a" : (selectedOrder.status === "delivered" ? "#ff4d4f" : undefined),
-                borderColor: selectedOrder.status === "received" ? "#52c41a" : (selectedOrder.status === "delivered" ? "#ff4d4f" : undefined),
-                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                color: "#fff", // Ensure white text/icon
-              }}
-              onClick={isEditMode ? () => handleReceived(selectedOrder) : undefined}
-            >
-              Received
-            </Button>
-          </div>
-        ) : null
-      }
-      visible={visibleModal}
-      onCancel={() => setVisibleModal(false)}
-      footer={
-        isEditMode
-          ? [
-              <Button key="cancel" onClick={() => setVisibleModal(false)}>
-                Cancel
-              </Button>,
-              <Button key="save" type="primary" onClick={handleSaveSendingQty}>
-                Save
-              </Button>,
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
+              <span style={{ marginRight: 16 }}>
+                Order {selectedOrder.billNo || "N/A"} - {selectedOrder.branchId?.name || "Unknown"} (
+                {selectedOrder.status || "Unknown"})
+              </span>
               <Button
-                key="toggleConfirm"
                 type="primary"
+                icon={<CheckCircleFilled />}
+                disabled={!["pending", "neworder", "draft"].includes(selectedOrder.status) && !["completed", "delivered", "received"].includes(selectedOrder.status)}
                 danger={!["completed", "delivered", "received"].includes(selectedOrder.status)}
                 style={{
                   backgroundColor: ["completed", "delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : "#ff4d4f",
                   borderColor: ["completed", "delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : "#ff4d4f",
-                  marginTop: 8,
+                  marginRight: 8,
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  color: "#fff",
                 }}
-                onClick={handleToggleConfirm}
+                onClick={() => handleConfirm(selectedOrder)}
               >
-                {["completed", "delivered", "received"].includes(selectedOrder.status) ? "Return" : "Confirm"}
-              </Button>,
-            ]
-          : [
-              <Button key="close" onClick={() => setVisibleModal(false)}>
-                Close
-              </Button>,
-            ]
-      }
-      width={1000}
-    >
-      {selectedOrder && (
-        <div>
-          <Space style={{ marginBottom: 8, fontSize: 14 }}>
-            <span>Items: {selectedOrder.totalItems || 0}</span>
-            <span>|</span>
-            <span>Amount: ₹{(selectedOrder.totalWithGST || 0).toFixed(2)}</span>
-            <span>|</span>
-            <span>
-              Payment: {selectedOrder.paymentMethod
-                ? selectedOrder.paymentMethod.charAt(0).toUpperCase() + selectedOrder.paymentMethod.slice(1)
-                : "N/A"}
-            </span>
-          </Space>
-          <div style={{ marginBottom: 8, fontSize: 14 }}>
-            Dates: {selectedOrder.createdAt ? dayjs(selectedOrder.createdAt).format("DD/MM/YYYY") : "N/A"}
-            {selectedOrder.deliveryDateTime && ` - ${dayjs(selectedOrder.deliveryDateTime).format("DD/MM/YYYY")}`}
+                Confirm
+              </Button>
+              <span
+                style={{
+                  width: 20,
+                  height: 2,
+                  backgroundColor: ["delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : "#d9d9d9",
+                  marginRight: 8,
+                }}
+              />
+              <Button
+                type="primary"
+                icon={<TruckFilled />}
+                disabled={selectedOrder.status !== "completed" && !["delivered", "received"].includes(selectedOrder.status)}
+                danger={!["delivered", "received"].includes(selectedOrder.status) && selectedOrder.status === "completed"}
+                style={{
+                  backgroundColor: ["delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : (selectedOrder.status === "completed" ? "#ff4d4f" : undefined),
+                  borderColor: ["delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : (selectedOrder.status === "completed" ? "#ff4d4f" : undefined),
+                  marginRight: 8,
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  color: "#fff",
+                }}
+                onClick={() => handleDelivery(selectedOrder)}
+              >
+                Delivery
+              </Button>
+              <span
+                style={{
+                  width: 20,
+                  height: 2,
+                  backgroundColor: selectedOrder.status === "received" ? "#52c41a" : "#d9d9d9",
+                  marginRight: 8,
+                }}
+              />
+              <Button
+                type="primary"
+                icon={<CheckSquareFilled />}
+                disabled={selectedOrder.status !== "delivered" && selectedOrder.status !== "received"}
+                danger={selectedOrder.status === "delivered" && selectedOrder.status !== "received"}
+                style={{
+                  backgroundColor: selectedOrder.status === "received" ? "#52c41a" : (selectedOrder.status === "delivered" ? "#ff4d4f" : undefined),
+                  borderColor: selectedOrder.status === "received" ? "#52c41a" : (selectedOrder.status === "delivered" ? "#ff4d4f" : undefined),
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  color: "#fff",
+                }}
+                onClick={() => handleReceived(selectedOrder)}
+              >
+                Received
+              </Button>
+            </div>
+            <Space style={{ marginBottom: 8, fontSize: 14 }}>
+              <span>Items: {selectedOrder.totalItems || 0}</span>
+              <span>|</span>
+              <span>Amount: ₹{(selectedOrder.totalWithGST || 0).toFixed(2)}</span>
+              <span>|</span>
+              <span>
+                Payment: {selectedOrder.paymentMethod
+                  ? selectedOrder.paymentMethod.charAt(0).toUpperCase() + selectedOrder.paymentMethod.slice(1)
+                  : "N/A"}
+              </span>
+            </Space>
+            <div style={{ marginBottom: 8, fontSize: 14 }}>
+              Dates: {selectedOrder.createdAt ? dayjs(selectedOrder.createdAt).format("DD/MM/YYYY") : "N/A"}
+              {selectedOrder.deliveryDateTime && ` - ${dayjs(selectedOrder.deliveryDateTime).format("DD/MM/YYYY")}`}
+            </div>
+            <Space style={{ marginBottom: 16, fontSize: 14 }}>
+              <span>Waiter: {selectedOrder.waiterId?.name || "N/A"}</span>
+              <span>|</span>
+              <span>Manager: {selectedOrder.assignment?.managerId?.name || "N/A"}</span>
+              <span>|</span>
+              <span>Cashier: {selectedOrder.assignment?.cashierId?.name || "N/A"}</span>
+            </Space>
+            <Table
+              columns={editModalColumns}
+              dataSource={selectedOrder.products || []}
+              pagination={false}
+              rowKey={(record, index) => index}
+              footer={() => modalFooter(selectedOrder.products)}
+              bordered
+              summary={editSummary}
+            />
           </div>
-          <Space style={{ marginBottom: 16, fontSize: 14 }}>
-            <span>Waiter: {selectedOrder.waiterId?.name || "N/A"}</span>
-            <span>|</span>
-            <span>Manager: {selectedOrder.assignment?.managerId?.name || "N/A"}</span>
-            <span>|</span>
-            <span>Cashier: {selectedOrder.assignment?.cashierId?.name || "N/A"}</span>
-          </Space>
-          <Table
-            columns={isEditMode ? editModalColumns : viewModalColumns}
-            dataSource={selectedOrder.products || []}
-            pagination={false}
-            rowKey={(record, index) => index}
-            footer={() => modalFooter(selectedOrder.products)}
-          />
-        </div>
-      )}
-     </Modal>
+        )}
+      </Space>
+      <Modal
+        title={
+          selectedOrder ? (
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <span style={{ marginRight: 16 }}>
+                Order {selectedOrder.billNo || "N/A"} - {selectedOrder.branchId?.name || "Unknown"} (
+                {selectedOrder.status || "Unknown"})
+              </span>
+              <Button
+                type="primary"
+                icon={<CheckCircleFilled />}
+                disabled={true}
+                danger={!["completed", "delivered", "received"].includes(selectedOrder.status)}
+                style={{
+                  backgroundColor: ["completed", "delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : "#ff4d4f",
+                  borderColor: ["completed", "delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : "#ff4d4f",
+                  marginRight: 8,
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  color: "#fff",
+                }}
+              >
+                Confirm
+              </Button>
+              <span
+                style={{
+                  width: 20,
+                  height: 2,
+                  backgroundColor: ["delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : "#d9d9d9",
+                  marginRight: 8,
+                }}
+              />
+              <Button
+                type="primary"
+                icon={<TruckFilled />}
+                disabled={true}
+                danger={!["delivered", "received"].includes(selectedOrder.status) && selectedOrder.status === "completed"}
+                style={{
+                  backgroundColor: ["delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : (selectedOrder.status === "completed" ? "#ff4d4f" : undefined),
+                  borderColor: ["delivered", "received"].includes(selectedOrder.status) ? "#52c41a" : (selectedOrder.status === "completed" ? "#ff4d4f" : undefined),
+                  marginRight: 8,
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  color: "#fff",
+                }}
+              >
+                Delivery
+              </Button>
+              <span
+                style={{
+                  width: 20,
+                  height: 2,
+                  backgroundColor: selectedOrder.status === "received" ? "#52c41a" : "#d9d9d9",
+                  marginRight: 8,
+                }}
+              />
+              <Button
+                type="primary"
+                icon={<CheckSquareFilled />}
+                disabled={true}
+                danger={selectedOrder.status === "delivered" && selectedOrder.status !== "received"}
+                style={{
+                  backgroundColor: selectedOrder.status === "received" ? "#52c41a" : (selectedOrder.status === "delivered" ? "#ff4d4f" : undefined),
+                  borderColor: selectedOrder.status === "received" ? "#52c41a" : (selectedOrder.status === "delivered" ? "#ff4d4f" : undefined),
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  color: "#fff",
+                }}
+              >
+                Received
+              </Button>
+            </div>
+          ) : null
+        }
+        visible={visibleModal}
+        onCancel={() => setVisibleModal(false)}
+        footer={[
+          <Button key="close" onClick={() => setVisibleModal(false)}>
+            Close
+          </Button>,
+        ]}
+        width={1000}
+      >
+        {selectedOrder && (
+          <div>
+            <Space style={{ marginBottom: 8, fontSize: 14 }}>
+              <span>Items: {selectedOrder.totalItems || 0}</span>
+              <span>|</span>
+              <span>Amount: ₹{(selectedOrder.totalWithGST || 0).toFixed(2)}</span>
+              <span>|</span>
+              <span>
+                Payment: {selectedOrder.paymentMethod
+                  ? selectedOrder.paymentMethod.charAt(0).toUpperCase() + selectedOrder.paymentMethod.slice(1)
+                  : "N/A"}
+              </span>
+            </Space>
+            <div style={{ marginBottom: 8, fontSize: 14 }}>
+              Dates: {selectedOrder.createdAt ? dayjs(selectedOrder.createdAt).format("DD/MM/YYYY") : "N/A"}
+              {selectedOrder.deliveryDateTime && ` - ${dayjs(selectedOrder.deliveryDateTime).format("DD/MM/YYYY")}`}
+            </div>
+            <Space style={{ marginBottom: 16, fontSize: 14 }}>
+              <span>Waiter: {selectedOrder.waiterId?.name || "N/A"}</span>
+              <span>|</span>
+              <span>Manager: {selectedOrder.assignment?.managerId?.name || "N/A"}</span>
+              <span>|</span>
+              <span>Cashier: {selectedOrder.assignment?.cashierId?.name || "N/A"}</span>
+            </Space>
+            <Table
+              columns={viewModalColumns}
+              dataSource={selectedOrder.products || []}
+              pagination={false}
+              rowKey={(record, index) => index}
+              footer={() => modalFooter(selectedOrder.products)}
+              bordered
+              summary={viewModalSummary}
+            />
+          </div>
+        )}
+      </Modal>
       <Modal
         title={`Combined Product Needs - ${branchFilter === "All" ? "All Branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter} (${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)})`}
         visible={previewModalVisible}
@@ -1509,6 +1465,7 @@ const viewModalColumns = [
           pagination={false}
           locale={{ emptyText: `No ${statusFilter} orders found for ${categoryFilter === "All" ? "all categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter} across ${branchFilter === "All" ? "all branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter}` }}
           rowKey="productName"
+          bordered
         />
       </Modal>
     </div>
