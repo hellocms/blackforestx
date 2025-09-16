@@ -1,4 +1,5 @@
 const Category = require('../models/Category');
+const Department = require('../models/Department'); // New: Import for validation
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -26,7 +27,7 @@ exports.createCategory = async (req, res) => {
     if (err) return res.status(500).json({ message: 'File upload error', error: err });
 
     try {
-      const { name, parent, isPastryProduct, isCake, isBiling } = req.body;
+      const { name, parent, department, isPastryProduct, isCake, isBiling } = req.body; // Updated: Include department
       console.log('Uploaded File:', req.file);
       const image = req.file ? path.join('uploads/categories', req.file.filename) : null;
 
@@ -38,9 +39,16 @@ exports.createCategory = async (req, res) => {
         if (!parentExists) return res.status(404).json({ message: 'Parent category not found' });
       }
 
+      // New: Validate department if provided
+      if (department && department !== 'null') {
+        const deptExists = await Department.findById(department);
+        if (!deptExists) return res.status(404).json({ message: 'Department not found' });
+      }
+
       const category = new Category({
         name,
         parent: parent || null,
+        department: department && department !== 'null' ? department : null, // New: Set department
         image,
         isPastryProduct: isPastryProduct === 'true' || isPastryProduct === true,
         isCake: isCake === 'true' || isCake === true,
@@ -59,7 +67,8 @@ exports.createCategory = async (req, res) => {
 // Get All Categories
 exports.getCategories = async (req, res) => {
   try {
-    const categories = await Category.find().populate('parent', 'name');
+    // Updated: Populate both parent and department
+    const categories = await Category.find().populate('parent', 'name').populate('department', 'name');
     res.status(200).json(categories);
   } catch (error) {
     console.error('❌ Error fetching categories:', error);
@@ -74,7 +83,7 @@ exports.updateCategory = async (req, res) => {
 
     try {
       const { id } = req.params;
-      const { name, parent, isPastryProduct, isCake, isBiling } = req.body;
+      const { name, parent, department, isPastryProduct, isCake, isBiling } = req.body; // Updated: Include department
       const image = req.file ? path.join('uploads/categories', req.file.filename) : null;
 
       const category = await Category.findById(id);
@@ -89,6 +98,12 @@ exports.updateCategory = async (req, res) => {
         if (parent === id) return res.status(400).json({ message: 'Category cannot be its own parent' });
       }
 
+      // New: Validate department if provided
+      if (department && department !== 'null') {
+        const deptExists = await Department.findById(department);
+        if (!deptExists) return res.status(404).json({ message: 'Department not found' });
+      }
+
       if (image && category.image) {
         const oldImagePath = path.join(__dirname, '..', category.image);
         fs.unlink(oldImagePath, (err) => {
@@ -98,6 +113,7 @@ exports.updateCategory = async (req, res) => {
 
       category.name = name || category.name;
       category.parent = parent && parent !== 'null' ? parent : null;
+      category.department = department && department !== 'null' ? department : null; // New: Update department
       category.image = image || category.image;
       category.isPastryProduct = isPastryProduct !== undefined ? (isPastryProduct === 'true' || isPastryProduct === true) : category.isPastryProduct;
       category.isCake = isCake !== undefined ? (isCake === 'true' || isCake === true) : category.isCake;

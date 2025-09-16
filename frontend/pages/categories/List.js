@@ -8,16 +8,18 @@ const { Option } = Select;
 const CategoryListPage = () => {
   const [categories, setCategories] = useState([]);
   const [filteredCategories, setFilteredCategories] = useState([]);
+  const [departments, setDepartments] = useState([]); // State for departments
   const [loading, setLoading] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [fileList, setFileList] = useState([]);
   const [previewImage, setPreviewImage] = useState(null);
   const [typeFilter, setTypeFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all'); // State for department filter
   const [form] = Form.useForm();
   const router = useRouter();
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -26,6 +28,7 @@ const CategoryListPage = () => {
       router.push('/login');
     } else {
       fetchCategories(token);
+      fetchDepartments(token);
     }
   }, [router]);
 
@@ -38,7 +41,7 @@ const CategoryListPage = () => {
       const data = await response.json();
       if (response.ok) {
         setCategories(data);
-        applyFilter(data, typeFilter);
+        applyFilter(data, departmentFilter, typeFilter);
       } else {
         message.error('Failed to fetch categories');
       }
@@ -48,21 +51,51 @@ const CategoryListPage = () => {
     setLoading(false);
   };
 
-  const applyFilter = (data, filter) => {
-    if (filter === 'pastry') {
-      setFilteredCategories(data.filter(category => category.isPastryProduct));
-    } else if (filter === 'cake') {
-      setFilteredCategories(data.filter(category => category.isCake));
-    } else if (filter === 'biling') {
-      setFilteredCategories(data.filter(category => category.isBiling));
-    } else {
-      setFilteredCategories(data);
+  // Fetch departments
+  const fetchDepartments = async (token) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/departments/list-departments`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setDepartments(data);
+      } else {
+        message.error('Failed to fetch departments');
+      }
+    } catch (error) {
+      message.error('Error fetching departments');
     }
+  };
+
+  const applyFilter = (data, deptFilter, typeFilterValue) => {
+    let filtered = data;
+
+    // Filter by department
+    if (deptFilter !== 'all') {
+      filtered = filtered.filter(category => category.department?._id === deptFilter);
+    }
+
+    // Filter by type
+    if (typeFilterValue === 'pastry') {
+      filtered = filtered.filter(category => category.isPastryProduct);
+    } else if (typeFilterValue === 'cake') {
+      filtered = filtered.filter(category => category.isCake);
+    } else if (typeFilterValue === 'biling') {
+      filtered = filtered.filter(category => category.isBiling);
+    }
+
+    setFilteredCategories(filtered);
+  };
+
+  const handleDepartmentFilterChange = (value) => {
+    setDepartmentFilter(value);
+    applyFilter(categories, value, typeFilter);
   };
 
   const handleTypeFilterChange = (value) => {
     setTypeFilter(value);
-    applyFilter(categories, value);
+    applyFilter(categories, departmentFilter, value);
   };
 
   const handleEdit = (category) => {
@@ -70,6 +103,7 @@ const CategoryListPage = () => {
     form.setFieldsValue({
       name: category.name,
       parent: category.parent?._id || null,
+      department: category.department?._id || null, // New: Pre-fill department
       isPastryProduct: category.isPastryProduct || false,
       isCake: category.isCake || false,
       isBiling: category.isBiling || false,
@@ -107,6 +141,7 @@ const CategoryListPage = () => {
     setLoading(true);
     const formData = new FormData();
     formData.append('name', values.name);
+    formData.append('department', values.department || 'null'); // New: Append department
     formData.append('parent', values.parent || 'null');
     formData.append('isPastryProduct', values.isPastryProduct || false);
     formData.append('isCake', values.isCake || false);
@@ -181,6 +216,12 @@ const CategoryListPage = () => {
         return types.length > 0 ? types.join(', ') : 'None';
       },
     },
+    { 
+      title: 'Department',
+      dataIndex: ['department', 'name'],
+      key: 'department',
+      render: (text) => text || 'None'
+    },
     {
       title: 'Image',
       dataIndex: 'image',
@@ -213,6 +254,17 @@ const CategoryListPage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
         <h2 style={{ margin: 0 }}>Category List</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Select
+            value={departmentFilter}
+            onChange={handleDepartmentFilterChange}
+            style={{ width: 150 }}
+            placeholder="Filter by Department"
+          >
+            <Option value="all">All</Option>
+            {departments.map(dept => (
+              <Option key={dept._id} value={dept._id}>{dept.name}</Option>
+            ))}
+          </Select>
           <Select
             value={typeFilter}
             onChange={handleTypeFilterChange}
@@ -249,6 +301,23 @@ const CategoryListPage = () => {
             rules={[{ required: true, message: 'Please enter a category name!' }]}
           >
             <Input placeholder="e.g., Pastries" />
+          </Form.Item>
+          {/* New: Department Dropdown in Edit Modal */}
+          <Form.Item
+            label="Department"
+            name="department"
+            rules={[{ required: false }]}
+          >
+            <Select placeholder="Select a department" allowClear>
+              <Option key="none" value={null}>None</Option>
+              {departments.length > 0 ? (
+                departments.map(dept => (
+                  <Option key={dept._id} value={dept._id}>{dept.name}</Option>
+                ))
+              ) : (
+                <Option disabled>No departments available</Option>
+              )}
+            </Select>
           </Form.Item>
           <Row gutter={16}>
             <Col span={8}>

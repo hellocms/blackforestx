@@ -1,8 +1,9 @@
-
 const Order = require('../models/Order');
 const BillCounter = require('../models/BillCounter');
 const Branch = require('../models/Branch');
 const Table = require('../models/Table');
+const Inventory = require('../models/Inventory');
+const { reduceStock } = require('./inventoryController');
 
 const createOrder = async (req, res) => {
   try {
@@ -112,6 +113,11 @@ const createOrder = async (req, res) => {
     });
 
     const savedOrder = await order.save();
+
+    // Reduce branch stock if status is "completed" (for billing)
+    if (status === 'completed') {
+      await reduceStock(branchId, products);
+    }
 
     if (tab === 'tableOrder' && table) {
       if (status === 'draft') {
@@ -265,7 +271,41 @@ const updateSendingQty = async (req, res) => {
       }
 
       if (status === 'delivered' && (order.tab === 'stock' || order.tab === 'liveOrder')) {
-        // Removed inventory check and update logic
+        for (const product of order.products) {
+          if (product.sendingQty > 0) {
+            let factoryInventory = await Inventory.findOne({ productId: product.productId, locationId: null });
+            if (!factoryInventory) {
+              return res.status(400).json({ message: `No factory stock found for product ${product.name}` });
+            }
+            if (factoryInventory.inStock < product.sendingQty) {
+              return res.status(400).json({ message: `Insufficient factory stock for ${product.name}` });
+            }
+            factoryInventory.inStock -= product.sendingQty;
+            factoryInventory.stockHistory.push({
+              date: new Date(),
+              change: -product.sendingQty,
+              reason: `Transferred to ${order.branchId.name} (${order.tab === 'stock' ? 'Stock' : 'Live'} Order)`,
+            });
+            await factoryInventory.save();
+
+            let branchInventory = await Inventory.findOne({ productId: product.productId, locationId: order.branchId });
+            if (!branchInventory) {
+              branchInventory = new Inventory({
+                productId: product.productId,
+                locationId: order.branchId,
+                inStock: 0,
+                lowStockThreshold: 5,
+              });
+            }
+            branchInventory.inStock += product.sendingQty;
+            branchInventory.stockHistory.push({
+              date: new Date(),
+              change: product.sendingQty,
+              reason: `Received from Factory (${order.tab === 'stock' ? 'Stock' : 'Live'} Order)`,
+            });
+            await branchInventory.save();
+          }
+        }
         order.deliveredAt = new Date();
       } else if (status === 'received') {
         order.receivedAt = new Date();

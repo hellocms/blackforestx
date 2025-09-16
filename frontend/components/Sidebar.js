@@ -29,6 +29,7 @@ const menuItems = [
   { key: "products", label: "Products", icon: <ShoppingOutlined />, path: "/products/List" },
   { key: "pastry", label: "Barcode", icon: <CoffeeOutlined />, path: "/barcode-print" },
   { key: "categories", label: "Categories", icon: <AppstoreOutlined />, path: "/categories/List" },
+  { key: "categories", label: "Departments", icon: <AppstoreOutlined />, path: "/categories/department" },
   { key: "album", label: "Album", icon: <PictureOutlined />, path: "/albums/add" },
 
 
