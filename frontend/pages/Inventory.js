@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Table, Input, Button, Space, Select, message, InputNumber, Tooltip, Card, Modal, Tag } from 'antd';
 import { SearchOutlined, PlusOutlined, MinusOutlined, WarningOutlined, HistoryOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/router';
-import { CSVLink } from 'react-csv';
 
 const { Option } = Select;
 
@@ -48,7 +47,6 @@ const InventoryPage = () => {
         headers: { 'Authorization': `Bearer ${token}`, 'Cache-Control': 'no-cache' },
       });
       const data = await response.json();
-      console.log('Products Response:', data);
       if (response.ok) {
         setProducts(data);
         filterProducts(searchText, selectedCategory, selectedStock, selectedVeg, selectedType, data);
@@ -68,7 +66,6 @@ const InventoryPage = () => {
         headers: { 'Authorization': `Bearer ${token}`, 'Cache-Control': 'no-cache' },
       });
       const data = await response.json();
-      console.log('Inventory Response:', data);
       if (response.ok) {
         setInventory(data);
       } else {
@@ -86,7 +83,6 @@ const InventoryPage = () => {
         headers: { 'Authorization': `Bearer ${token}`, 'Cache-Control': 'no-cache' },
       });
       const data = await response.json();
-      console.log('Branches Response:', data);
       if (response.ok) {
         setBranches(Array.isArray(data) ? data : []);
       } else {
@@ -104,7 +100,6 @@ const InventoryPage = () => {
         headers: { 'Authorization': `Bearer ${token}`, 'Cache-Control': 'no-cache' },
       });
       const data = await response.json();
-      console.log('Categories Response:', data);
       if (response.ok) {
         setCategories(Array.isArray(data) ? data : []);
       } else {
@@ -142,8 +137,6 @@ const InventoryPage = () => {
 
   const filterProducts = (search, category, stock, veg, type, updatedProducts = products) => {
     let filtered = [...updatedProducts];
-    console.log('Filtering Input:', filtered);
-
     if (search) {
       filtered = filtered.filter(product =>
         product.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -167,8 +160,6 @@ const InventoryPage = () => {
     if (type) {
       filtered = filtered.filter(product => product.productType === type);
     }
-
-    console.log('Filtered Output:', filtered);
     setFilteredProducts(filtered);
   };
 
@@ -211,32 +202,48 @@ const InventoryPage = () => {
     return factoryInv ? factoryInv.lowStockThreshold : 5;
   };
 
-  const getFactoryInventoryId = (productId) => {
-    const factoryInv = inventory.find(inv => inv.productId._id === productId && !inv.locationId);
-    return factoryInv ? factoryInv._id : null;
+  const getInventoryId = (productId, locationId) => {
+    const inv = inventory.find(inv => 
+      inv.productId._id === productId && 
+      (locationId === 'factory' ? !inv.locationId : inv.locationId === locationId)
+    );
+    return inv ? inv._id : null;
   };
 
-  const updateStock = async (productId, newStock, reason) => {
-    if (selectedLocation !== 'factory') {
-      message.warning('Stock can only be updated for Factory');
+  const updateStock = async (productId, newStock, reason, locationId = 'factory') => {
+    if (selectedLocation === 'all') {
+      message.warning('Please select a specific location to update stock');
       return;
     }
     try {
       const token = localStorage.getItem('token');
-      const inventoryId = getFactoryInventoryId(productId);
+      const inventoryId = getInventoryId(productId, locationId);
+      const factoryInventoryId = getInventoryId(productId, 'factory');
+
+      if (locationId !== 'factory' && newStock > getFactoryStock(productId)) {
+        message.warning('Insufficient stock in Factory to transfer');
+        return;
+      }
+
       if (!inventoryId) {
-        const response = await fetch(`${BACKEND_URL}/api/inventory/produce`, {
+        const response = await fetch(`${BACKEND_URL}/api/inventory/transfer`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({ productId, quantity: newStock, reason }),
+          body: JSON.stringify({ 
+            productId, 
+            quantity: newStock, 
+            reason, 
+            locationId: locationId === 'factory' ? null : locationId,
+            factoryInventoryId
+          }),
         });
         if (response.ok) {
-          message.success('✅ Stock created successfully');
+          message.success('✅ Stock updated successfully');
         } else {
-          message.error('❌ Failed to create stock');
+          message.error('❌ Failed to update stock');
           return;
         }
       } else {
@@ -246,7 +253,11 @@ const InventoryPage = () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({ inStock: newStock, reason }),
+          body: JSON.stringify({ 
+            inStock: newStock, 
+            reason,
+            factoryInventoryId: locationId !== 'factory' ? factoryInventoryId : undefined
+          }),
         });
         if (response.ok) {
           message.success('✅ Stock updated successfully');
@@ -270,7 +281,7 @@ const InventoryPage = () => {
     }
     try {
       const token = localStorage.getItem('token');
-      const inventoryId = getFactoryInventoryId(productId);
+      const inventoryId = getInventoryId(productId, 'factory');
       if (!inventoryId) {
         message.warning('No factory inventory exists to update threshold');
         return;
@@ -296,8 +307,8 @@ const InventoryPage = () => {
   };
 
   const bulkUpdateStock = async () => {
-    if (selectedLocation !== 'factory') {
-      message.warning('Bulk update is only available for Factory');
+    if (selectedLocation === 'all') {
+      message.warning('Please select a specific location for bulk update');
       return;
     }
     if (!bulkStockValue || selectedRowKeys.length === 0) {
@@ -308,9 +319,11 @@ const InventoryPage = () => {
       const token = localStorage.getItem('token');
       await Promise.all(
         selectedRowKeys.map(async (productId) => {
-          const currentStock = getFactoryStock(productId);
+          const currentStock = selectedLocation === 'factory' 
+            ? getFactoryStock(productId) 
+            : getBranchStock(productId, selectedLocation);
           const newStock = currentStock + Number(bulkStockValue);
-          await updateStock(productId, newStock, 'Bulk Update');
+          await updateStock(productId, newStock, 'Bulk Update', selectedLocation);
         })
       );
       message.success('✅ Bulk stock added successfully');
@@ -343,6 +356,22 @@ const InventoryPage = () => {
     'Last Updated': new Date(product.updatedAt).toLocaleString(),
   }));
 
+  const downloadCSV = () => {
+    if (!csvData || csvData.length === 0) {
+      message.warning('No data available to download');
+      return;
+    }
+    const filename = `inventory_${new Date().toISOString().slice(0, 10)}.csv`;
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const columns = [
     { title: 'ID', dataIndex: 'productId', key: 'productId', width: 80 },
     { 
@@ -361,12 +390,28 @@ const InventoryPage = () => {
       key: 'stock', 
       render: (_, record) => {
         const stock = getLocationStock(record._id);
-        if (selectedLocation === 'factory') {
+        if (selectedLocation !== 'all') {
           return (
             <Space>
-              <Button size="small" icon={<MinusOutlined />} onClick={() => updateStock(record._id, Math.max(0, stock - 1), 'Decremented')} disabled={stock <= 0} />
-              <InputNumber min={0} value={stock} onChange={(value) => updateStock(record._id, value || 0, 'Manual Edit')} style={{ width: '60px' }} controls={false} />
-              <Button size="small" icon={<PlusOutlined />} onClick={() => updateStock(record._id, stock + 1, 'Incremented')} />
+              <Button 
+                size="small" 
+                icon={<MinusOutlined />} 
+                onClick={() => updateStock(record._id, Math.max(0, stock - 1), 'Decremented', selectedLocation)} 
+                disabled={stock <= 0} 
+              />
+              <InputNumber 
+                min={0} 
+                value={stock} 
+                onChange={(value) => updateStock(record._id, value || 0, 'Manual Edit', selectedLocation)} 
+                style={{ width: '60px' }} 
+                controls={false} 
+              />
+              <Button 
+                size="small" 
+                icon={<PlusOutlined />} 
+                onClick={() => updateStock(record._id, stock + 1, 'Incremented', selectedLocation)} 
+                disabled={selectedLocation !== 'factory' && getFactoryStock(record._id) <= 0}
+              />
               {stock <= (getFactoryThreshold(record._id) || 5) && stock > 0 && (
                 <Tooltip title="Low Stock - Consider Restocking">
                   <Tag color="yellow" icon={<WarningOutlined />}>Low</Tag>
@@ -392,7 +437,13 @@ const InventoryPage = () => {
         if (selectedLocation === 'factory') {
           const threshold = getFactoryThreshold(record._id);
           return (
-            <InputNumber min={1} value={threshold} onChange={(value) => updateThreshold(record._id, value || 5)} style={{ width: '60px' }} controls={false} />
+            <InputNumber 
+              min={1} 
+              value={threshold} 
+              onChange={(value) => updateThreshold(record._id, value || 5)} 
+              style={{ width: '60px' }} 
+              controls={false} 
+            />
           );
         }
         return 'N/A';
@@ -403,13 +454,17 @@ const InventoryPage = () => {
       key: 'history', 
       width: 80, 
       render: (_, record) => (
-        <Button size="small" icon={<HistoryOutlined />} onClick={() => {
-          const inv = selectedLocation === 'factory' 
-            ? inventory.find(inv => inv.productId._id === record._id && !inv.locationId)
-            : inventory.find(inv => inv.productId._id === record._id && inv.locationId === selectedLocation);
-          setSelectedItem(inv || { productId: record, stockHistory: [] });
-          setHistoryVisible(true);
-        }} />
+        <Button 
+          size="small" 
+          icon={<HistoryOutlined />} 
+          onClick={() => {
+            const inv = selectedLocation === 'factory' 
+              ? inventory.find(inv => inv.productId._id === record._id && !inv.locationId)
+              : inventory.find(inv => inv.productId._id === record._id && inv.locationId === selectedLocation);
+            setSelectedItem(inv || { productId: record, stockHistory: [] });
+            setHistoryVisible(true);
+          }} 
+        />
       ),
     },
   ];
@@ -437,9 +492,9 @@ const InventoryPage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
         <h2>Inventory ({filteredProducts.length} of {products.length})</h2>
         <Space>
-          <CSVLink data={csvData} filename={`inventory_${new Date().toISOString().slice(0, 10)}.csv`} target="_blank">
-            <Button icon={<DownloadOutlined />}>Download Report</Button>
-          </CSVLink>
+          <Button icon={<DownloadOutlined />} onClick={downloadCSV}>
+            Download Report
+          </Button>
         </Space>
       </div>
 
@@ -506,13 +561,13 @@ const InventoryPage = () => {
           <Option value="non-cake">Non-Cake</Option>
         </Select>
         <Button onClick={clearFilters}>Clear Filters</Button>
-        {selectedRowKeys.length > 0 && selectedLocation === 'factory' && (
+        {selectedRowKeys.length > 0 && selectedLocation !== 'all' && (
           <Space>
             <InputNumber
               min={0}
               value={bulkStockValue}
               onChange={(value) => setBulkStockValue(value)}
-              placeholder="Add Factory Stock"
+              placeholder="Add Stock"
               style={{ width: '100px' }}
             />
             <Button type="primary" onClick={bulkUpdateStock}>Add to Selected</Button>

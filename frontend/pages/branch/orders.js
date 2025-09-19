@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { jwtDecode } from "jwt-decode";
 import { Button, Table, Input, Select, DatePicker, Modal, Space, Tag, message, InputNumber, Typography } from "antd";
-import { EditOutlined, EyeOutlined, PrinterOutlined, CheckCircleFilled, EyeFilled, PrinterFilled, CloseSquareFilled, TruckFilled, CheckSquareFilled, CloseCircleFilled } from "@ant-design/icons";
+import { EditOutlined, EyeOutlined, PrinterOutlined, CheckCircleFilled, EyeFilled, PrinterFilled, CloseSquareFilled, TruckFilled, CheckSquareFilled, CloseCircleFilled, CloseOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -23,12 +23,14 @@ const OrderListPage = ({ branchId }) => {
   const [products, setProducts] = useState([]);
   const [productCatalog, setProductCatalog] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [departments, setDepartments] = useState([]); // New: State for departments
   const [activeTab, setActiveTab] = useState("stock");
   const [searchQuery, setSearchQuery] = useState("");
   const [branchFilter, setBranchFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [productFilter, setProductFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [departmentFilter, setDepartmentFilter] = useState("All"); // New: State for department filter
   const [dateRange, setDateRange] = useState([null, null]);
   const [dateFilterMode, setDateFilterMode] = useState("created");
   const [loading, setLoading] = useState(false);
@@ -44,6 +46,7 @@ const OrderListPage = ({ branchId }) => {
     setStatusFilter("All");
     setProductFilter("All");
     setCategoryFilter("All");
+    setDepartmentFilter("All"); // New: Reset department filter
     setDateRange([null, null]);
     setDateFilterMode("created");
     message.success("Filters cleared");
@@ -80,7 +83,7 @@ const OrderListPage = ({ branchId }) => {
     if (!selectedOrder) return;
   
     const updatedProducts = [...selectedOrder.products];
-    updatedProducts[index].sendingQty = value !== null ? value : 0; // Handle null case from InputNumber
+    updatedProducts[index].sendingQty = value !== null ? value : 0;
   
     try {
       const response = await fetch(`${BACKEND_URL}/api/orders/${selectedOrder._id}`, {
@@ -138,6 +141,7 @@ const OrderListPage = ({ branchId }) => {
     fetchBranches(storedToken);
     fetchCategories(storedToken);
     fetchProducts(storedToken);
+    fetchDepartments(storedToken); // New: Fetch departments
   }, [router]);
 
   const fetchOrders = async (token) => {
@@ -218,6 +222,26 @@ const OrderListPage = ({ branchId }) => {
     }
   };
 
+  // New: Fetch departments
+  const fetchDepartments = async (token) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/departments/list-departments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setDepartments(Array.isArray(data) ? data : []);
+      } else {
+        message.error("Failed to fetch departments");
+        setDepartments([]);
+      }
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      message.error("Error fetching departments");
+      setDepartments([]);
+    }
+  };
+
   const fetchAssignment = async (branchId, date) => {
     try {
       const formattedDate = dayjs(date).format("YYYY-MM-DD");
@@ -239,7 +263,7 @@ const OrderListPage = ({ branchId }) => {
 
   useEffect(() => {
     applyFilters();
-  }, [activeTab, searchQuery, branchFilter, statusFilter, productFilter, categoryFilter, dateRange, dateFilterMode, orders]);
+  }, [activeTab, searchQuery, branchFilter, statusFilter, productFilter, categoryFilter, departmentFilter, dateRange, dateFilterMode, orders]);
 
   const applyFilters = () => {
     let filtered = [...orders];
@@ -276,6 +300,17 @@ const OrderListPage = ({ branchId }) => {
         order.products.some((p) => {
           const product = productCatalog.find(prod => prod.name === p.name);
           return product && product.category?._id === categoryFilter;
+        })
+      );
+    }
+
+    // New: Department filter
+    if (departmentFilter !== "All") {
+      filtered = filtered.filter((order) =>
+        order.products.some((p) => {
+          const product = productCatalog.find(prod => prod.name === p.name);
+          const category = categories.find(cat => cat._id === product?.category?._id);
+          return category && category.department?._id === departmentFilter;
         })
       );
     }
@@ -445,7 +480,7 @@ const OrderListPage = ({ branchId }) => {
           prev.map((o) => (o._id === record._id ? { ...o, status: "received" } : o))
         );
         setFilteredOrders((prev) =>
-          prev.map((o) => (o._id === record._id ? { ...o, status: "received" } : o))
+          prev.map((o) => (o._id === selectedOrder._id ? { ...o, status: "received" } : o))
         );
         setSelectedOrder((prev) => (prev && prev._id === record._id ? { ...prev, status: "received" } : prev));
         message.success("Order marked as received");
@@ -470,9 +505,15 @@ const OrderListPage = ({ branchId }) => {
     const updatedProducts = [...selectedOrder.products];
     const currentConfirmed = updatedProducts[productIndex].confirmed || false;
     updatedProducts[productIndex].confirmed = !currentConfirmed;
+    if (!currentConfirmed && (updatedProducts[productIndex].sendingQty === undefined || updatedProducts[productIndex].sendingQty === 0)) {
+      updatedProducts[productIndex].sendingQty = updatedProducts[productIndex].quantity || 0;
+    }
+  
+    const allConfirmed = updatedProducts.every(p => p.confirmed);
+    let updatedOrder = { ...selectedOrder, products: updatedProducts };
   
     try {
-      const response = await fetch(`${BACKEND_URL}/api/orders/${selectedOrder._id}`, {
+      let response = await fetch(`${BACKEND_URL}/api/orders/${selectedOrder._id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -481,18 +522,42 @@ const OrderListPage = ({ branchId }) => {
         body: JSON.stringify({ products: updatedProducts }),
       });
   
-      if (response.ok) {
-        setSelectedOrder({ ...selectedOrder, products: updatedProducts });
-        setOrders((prev) =>
-          prev.map((o) => (o._id === selectedOrder._id ? { ...o, products: updatedProducts } : o))
-        );
-        setFilteredOrders((prev) =>
-          prev.map((o) => (o._id === selectedOrder._id ? { ...o, products: updatedProducts } : o))
-        );
-        message.success(`Product ${currentConfirmed ? "unconfirmed" : "confirmed"} successfully`);
-      } else {
+      if (!response.ok) {
         message.error("Failed to update product confirmation");
+        return;
       }
+  
+      const updatedOrderData = await response.json();
+      updatedOrder = updatedOrderData.order;
+  
+      if (allConfirmed && !currentConfirmed) {
+        response = await fetch(`${BACKEND_URL}/api/orders/${selectedOrder._id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: "completed" }),
+        });
+  
+        if (response.ok) {
+          const statusUpdateData = await response.json();
+          updatedOrder = { ...updatedOrder, status: statusUpdateData.order.status };
+          message.success("All products confirmed, order status updated to completed");
+        } else {
+          message.error("Failed to update order status to completed");
+          return;
+        }
+      }
+  
+      setSelectedOrder(updatedOrder);
+      setOrders((prev) =>
+        prev.map((o) => (o._id === selectedOrder._id ? { ...o, ...updatedOrder } : o))
+      );
+      setFilteredOrders((prev) =>
+        prev.map((o) => (o._id === selectedOrder._id ? { ...o, ...updatedOrder } : o))
+      );
+      message.success(`Product ${currentConfirmed ? "unconfirmed" : "confirmed"} successfully`);
     } catch (error) {
       message.error("Error updating product confirmation");
       console.error(error);
@@ -503,9 +568,10 @@ const OrderListPage = ({ branchId }) => {
     const combinedData = getCombinedProductData();
     if (combinedData.length === 0) {
       const branchName = branchFilter === "All" ? "all branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter;
+      const departmentName = departmentFilter === "All" ? "all departments" : departments.find(d => d._id === departmentFilter)?.name || departmentFilter;
       const categoryName = categoryFilter === "All" ? "all categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter;
       const productName = productFilter === "All" ? "all products" : productFilter;
-      message.info(`No ${statusFilter} orders found for ${categoryName} and ${productName} in ${branchName}.`);
+      message.info(`No ${statusFilter} orders found for ${departmentName}, ${categoryName}, and ${productName} in ${branchName}.`);
       return;
     }
   
@@ -524,16 +590,18 @@ const OrderListPage = ({ branchId }) => {
     const combinedData = getCombinedProductData();
     if (combinedData.length === 0) {
       const branchName = branchFilter === "All" ? "all branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter;
+      const departmentName = departmentFilter === "All" ? "all departments" : departments.find(d => d._id === departmentFilter)?.name || departmentFilter;
       const categoryName = categoryFilter === "All" ? "all categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter;
       const productName = productFilter === "All" ? "all products" : productFilter;
-      message.info(`No ${statusFilter} orders found for ${categoryName} and ${productName} in ${branchName}.`);
+      message.info(`No ${statusFilter} orders found for ${departmentName}, ${categoryName}, and ${productName} in ${branchName}.`);
       return;
     }
   
     const { earliestCreated, latestDelivery, orderIds } = getDateRangeAndOrderIds();
     const printWindow = window.open("", "_blank");
     const currentDate = dayjs().format("DD/MM/YYYY");
-    const branchTitle = branchFilter === "All" ? "All Branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter;
+    const branchTitle = branchFilter === "All" ? "All Branches" : branches.find(b => b._id === branchFilter)?.name?.slice(0, 3).toUpperCase() || branchFilter;
+    const departmentTitle = departmentFilter === "All" ? "All Departments" : departments.find(d => d._id === departmentFilter)?.name || departmentFilter;
     const categoryTitle = categoryFilter === "All" ? "All Categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter;
     const productTitle = productFilter === "All" ? "All Products" : productFilter;
   
@@ -555,6 +623,7 @@ const OrderListPage = ({ branchId }) => {
         <body>
           <h2>Combined Product Needs - ${branchTitle} (${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)})</h2>
           <p>Order IDs: ${orderIds}</p>
+          <p>Department: ${departmentTitle}</p>
           <p>Category: ${categoryTitle}</p>
           <p>Product: ${productTitle}</p>
           <p>Created Date: ${earliestCreated}</p>
@@ -601,7 +670,11 @@ const OrderListPage = ({ branchId }) => {
       order.products
         .filter((product) => {
           const catalogProduct = productCatalog.find(p => p.name === product.name);
-          return categoryFilter === "All" || (catalogProduct && catalogProduct.category?._id === categoryFilter);
+          const category = categories.find(cat => cat._id === catalogProduct?.category?._id);
+          return (
+            (departmentFilter === "All" || (category && category.department?._id === departmentFilter)) &&
+            (categoryFilter === "All" || (catalogProduct && catalogProduct.category?._id === categoryFilter))
+          );
         })
         .filter((product) => productFilter === "All" || product.name === productFilter)
         .forEach((product) => {
@@ -631,36 +704,14 @@ const OrderListPage = ({ branchId }) => {
       title: "Bill No",
       dataIndex: "billNo",
       sorter: (a, b) => (a.billNo || "").localeCompare(b.billNo || ""),
-      width: 150,
-      render: (billNo, record) => (
-        <div>
-          {billNo || "N/A"}
-          <br />
-          <Tag
-            color={
-              record.status === "completed"
-                ? "green"
-                : record.status === "pending"
-                ? "yellow"
-                : record.status === "neworder"
-                ? "blue"
-                : record.status === "delivered"
-                ? "purple"
-                : record.status === "received"
-                ? "cyan"
-                : "orange"
-            }
-          >
-            {record.status || "Unknown"}
-          </Tag>
-        </div>
-      ),
+      width: 80,
+      render: (billNo) => billNo || "N/A",
     },
     {
       title: "Branch",
       dataIndex: "branchId",
-      render: (branchId) => branchId?.name || "Unknown",
-      width: 120,
+      render: (branchId) => branchId?.name?.split(' ').slice(0, 2).join(' ') || "Unknown Branch",
+      width: 150,
     },
     { title: "Total Items", dataIndex: "totalItems", width: 100 },
     {
@@ -686,25 +737,39 @@ const OrderListPage = ({ branchId }) => {
       width: 120,
     },
     {
+      title: "Status",
+      dataIndex: "status",
+      render: (value) => (
+        <Tag
+          color={
+            value === "completed"
+              ? "green"
+              : value === "pending"
+              ? "yellow"
+              : value === "neworder"
+              ? "blue"
+              : value === "delivered"
+              ? "purple"
+              : value === "received"
+              ? "cyan"
+              : "orange"
+          }
+        >
+          {value || "Unknown"}
+        </Tag>
+      ),
+      width: 100,
+    },
+    {
       title: "Actions",
       render: (record) => (
         <Space>
           <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} />
           <Button icon={<EyeOutlined />} onClick={() => handleView(record)} />
           <Button icon={<PrinterOutlined />} onClick={() => handlePrint(record)} />
-          <Button
-            type="primary"
-            icon={<CheckCircleFilled />}
-            danger={!["completed", "delivered", "received"].includes(record.status)}
-            style={{
-              backgroundColor: ["completed", "delivered", "received"].includes(record.status) ? "#52c41a" : "#ff4d4f",
-              borderColor: ["completed", "delivered", "received"].includes(record.status) ? "#52c41a" : "#ff4d4f",
-            }}
-            onClick={() => handleConfirm(record)}
-          />
         </Space>
       ),
-      width: 200,
+      width: 150,
     },
   ];
 
@@ -750,7 +815,7 @@ const OrderListPage = ({ branchId }) => {
           </style>
         </head>
         <body>
-          <h2>${branch?.name || order.branchId?.name || "Unknown Branch"}</h2>
+          <h2>${branch?.name?.slice(0, 3).toUpperCase() || order.branchId?.name?.slice(0, 3).toUpperCase() || "Unknown Branch"}</h2>
           <p style="text-align: center;">${branch?.address || "Address Not Available"}</p>
           <p style="text-align: center;">${branch?.phoneNo || "Phone Not Available"}</p>
           <p style="text-align: center;">Bill No: ${order.billNo || "N/A"}</p>
@@ -817,127 +882,160 @@ const OrderListPage = ({ branchId }) => {
     printWindow.close();
   };
 
- // Updated editModalColumns to merge Confirm button with Sending Qty input
-const editModalColumns = [
-  {
-    title: "Product Name",
-    dataIndex: "name",
-    render: (text) => <strong>{text}</strong>,
-  },
-  { title: "Required Qty", dataIndex: "quantity" },
-  { title: "Stock", dataIndex: "bminstock" },
-  {
-    title: "Sending Qty",
-    dataIndex: "sendingQty",
-    render: (text, record, index) => (
-      <Space.Compact style={{ width: '100%' }}>
-        <InputNumber
-          min={0}
-          value={text}
-          onChange={(value) => handleSendingQtyChange(index, value)}
-          style={{ 
-            width: '60px', 
-            borderTopRightRadius: 0, 
-            borderBottomRightRadius: 0,
-            borderRight: 'none',
-          }}
-        />
-        <Button
-          type="primary"
-          icon={<CheckCircleFilled />}
-          danger={!record.confirmed}
-          disabled={["completed", "delivered", "received"].includes(selectedOrder.status)}
-          style={{
-            backgroundColor: record.confirmed ? "#52c41a" : "#ff4d4f",
-            borderColor: record.confirmed ? "#52c41a" : "#ff4d4f",
-            color: "#fff",
-            borderTopLeftRadius: 0,
-            borderBottomLeftRadius: 0,
-            padding: '4px 8px',
-            height: '32px',
-          }}
-          onClick={() => handleToggleProductConfirm(index)}
-        />
-      </Space.Compact>
-    ),
-    width: 100, // Fixed width to prevent size increase
-  },
-  { 
-    title: "Difference",
-    render: (record) => (
-      record.sendingQty !== undefined && record.quantity !== undefined && record.sendingQty !== record.quantity ? (
-        record.sendingQty > record.quantity ? (
-          <span style={{ color: 'green' }}>
-            ↑ {record.sendingQty - record.quantity}
-          </span>
-        ) : (
-          <span style={{ color: 'red' }}>
-            ↓ {record.quantity - record.sendingQty}
-          </span>
-        )
-      ) : null
-    ),
-    width: 80,
-  },
-  { title: "Unit", dataIndex: "unit" },
-  {
-    title: "Price",
-    dataIndex: "price",
-    render: (text) => `₹${(text || 0).toFixed(2)}`,
-  },
-  {
-    title: "Total",
-    render: (record) => `₹${((record.sendingQty || 0) * (record.price || 0)).toFixed(2)}`,
-  },
-];
-
-// Updated viewModalColumns with brackets
-const viewModalColumns = [
-  { title: "Product", dataIndex: "name", render: (value) => value || "Unknown" },
-  { 
-    title: "Required Qty",
-    dataIndex: "quantity", 
-    render: (value) => value || 0 
-  },
-  { 
-    title: "BMinStock", 
-    dataIndex: "bminstock", 
-    render: (value) => value ?? "N/A" 
-  },
-  { 
-    title: "Sending Qty",
-    dataIndex: "sendingQty",
-    render: (value, record) => (
-      <Space>
-        <span>{value || 0}</span>
-        {value !== undefined && record.quantity !== undefined && value !== record.quantity && (
-          value > record.quantity ? (
+  const editModalColumns = [
+    {
+      title: "Product Name",
+      dataIndex: "name",
+      render: (text) => <strong>{text}</strong>,
+    },
+    { title: "Required Qty", dataIndex: "quantity" },
+    { title: "Stock", dataIndex: "bminstock" },
+    {
+      title: "Sending Qty",
+      dataIndex: "sendingQty",
+      render: (text, record, index) => (
+        <Space.Compact style={{ width: '100%' }}>
+          <InputNumber
+            min={0}
+            value={
+              !["completed", "delivered", "received"].includes(selectedOrder.status) && !record.confirmed
+                ? record.quantity
+                : text !== undefined ? text : 0
+            }
+            onChange={(value) => handleSendingQtyChange(index, value)}
+            style={{ 
+              width: '60px', 
+              borderTopRightRadius: 0, 
+              borderBottomRightRadius: 0,
+              borderRight: 'none',
+            }}
+          />
+          <Button
+            type="primary"
+            icon={<CheckCircleFilled />}
+            danger={!record.confirmed}
+            disabled={["completed", "delivered", "received"].includes(selectedOrder.status)}
+            style={{
+              backgroundColor: record.confirmed ? "#52c41a" : "#ff4d4f",
+              borderColor: record.confirmed ? "#52c41a" : "#ff4d4f",
+              color: "#fff",
+              borderTopLeftRadius: 0,
+              borderBottomLeftRadius: 0,
+              padding: '4px 8px',
+              height: '32px',
+            }}
+            onClick={() => handleToggleProductConfirm(index)}
+          />
+        </Space.Compact>
+      ),
+      width: 100,
+    },
+    { 
+      title: "Difference",
+      render: (record) => (
+        record.sendingQty !== undefined && record.quantity !== undefined && record.sendingQty !== record.quantity ? (
+          record.sendingQty > record.quantity ? (
             <span style={{ color: 'green' }}>
-              [↑ {value - record.quantity}]
+              ↑ {record.sendingQty - record.quantity}
             </span>
           ) : (
             <span style={{ color: 'red' }}>
-              [↓ {record.quantity - value}]
+              ↓ {record.quantity - record.sendingQty}
             </span>
           )
-        )}
-      </Space>
-    ),
-  },
-  { title: "Unit", dataIndex: "unit", render: (value) => value || "" },
-  { title: "Price", dataIndex: "price", render: (value) => `₹${(value || 0).toFixed(2)}` },
-  { 
-    title: "Total", 
-    render: (record) => `₹${((record.sendingQty || 0) * (record.price || 0)).toFixed(2)}`
-  },
-  {
-    title: "Confirm",
-    dataIndex: "confirmed",
-    render: (value) => (
-      <Tag color={value ? "green" : "red"}>{value ? "Confirmed" : "Pending"}</Tag>
-    ),
-  },
-];
+        ) : null
+      ),
+      width: 80,
+    },
+    { title: "Unit", dataIndex: "unit" },
+    {
+      title: "Price",
+      dataIndex: "price",
+      render: (text) => `₹${(text || 0).toFixed(2)}`,
+    },
+    {
+      title: "Total",
+      render: (record) => `₹${((record.sendingQty || 0) * (record.price || 0)).toFixed(2)}`,
+    },
+    {
+      title: "Order Date",
+      render: () => selectedOrder.createdAt ? (
+        <div style={{ lineHeight: '1.2', whiteSpace: 'pre-line' }}>
+          {dayjs(selectedOrder.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY")}
+          {`\n${dayjs(selectedOrder.createdAt).tz("Asia/Kolkata").format("hh:mm A")}`}
+        </div>
+      ) : "N/A",
+      width: 150,
+    },
+    {
+      title: "Delivery Date",
+      render: () => selectedOrder.deliveryDateTime ? (
+        <div style={{ lineHeight: '1.2', whiteSpace: 'pre-line' }}>
+          {dayjs(selectedOrder.deliveryDateTime).tz("Asia/Kolkata").format("DD/MM/YYYY")}
+          {`\n${dayjs(selectedOrder.deliveryDateTime).tz("Asia/Kolkata").format("hh:mm A")}`}
+        </div>
+      ) : "N/A",
+      width: 150,
+    },
+    {
+      title: "Last Updated",
+      dataIndex: "updatedAt",
+      render: (value) => value ? (
+        <div style={{ lineHeight: '1.2', whiteSpace: 'pre-line' }}>
+          {dayjs(value).tz("Asia/Kolkata").format("DD/MM/YYYY")}
+          {`\n${dayjs(value).tz("Asia/Kolkata").format("hh:mm A")}`}
+        </div>
+      ) : "N/A",
+      width: 150,
+    },
+  ];
+
+  const viewModalColumns = [
+    { title: "Product", dataIndex: "name", render: (value) => value || "Unknown" },
+    { 
+      title: "Required Qty",
+      dataIndex: "quantity", 
+      render: (value) => value || 0 
+    },
+    { 
+      title: "BMinStock", 
+      dataIndex: "bminstock", 
+      render: (value) => value ?? "N/A" 
+    },
+    { 
+      title: "Sending Qty",
+      dataIndex: "sendingQty",
+      render: (value, record) => (
+        <Space>
+          <span>{value || 0}</span>
+          {value !== undefined && record.quantity !== undefined && value !== record.quantity && (
+            value > record.quantity ? (
+              <span style={{ color: 'green' }}>
+                [↑ {value - record.quantity}]
+              </span>
+            ) : (
+              <span style={{ color: 'red' }}>
+                [↓ {record.quantity - value}]
+              </span>
+            )
+          )}
+        </Space>
+      ),
+    },
+    { title: "Unit", dataIndex: "unit", render: (value) => value || "" },
+    { title: "Price", dataIndex: "price", render: (value) => `₹${(value || 0).toFixed(2)}` },
+    { 
+      title: "Total", 
+      render: (record) => `₹${((record.sendingQty || 0) * (record.price || 0)).toFixed(2)}`
+    },
+    {
+      title: "Confirm",
+      dataIndex: "confirmed",
+      render: (value) => (
+        <Tag color={value ? "green" : "red"}>{value ? "Confirmed" : "Pending"}</Tag>
+      ),
+    },
+  ];
 
   const previewColumns = [
     { title: "Product Name", dataIndex: "productName", width: "30%" },
@@ -988,6 +1086,7 @@ const viewModalColumns = [
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totalOrdered.toFixed(2)}</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totalSending.toFixed(2)}</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }} />
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }} />
       </Table.Summary.Row>
     );
   };
@@ -1030,46 +1129,22 @@ const viewModalColumns = [
     <div style={{ padding: "20px" }}>
       <Space direction="vertical" style={{ width: "100%", marginBottom: "20px" }}>
         <Space wrap style={{ marginBottom: "10px" }}>
-          <Space>
-            <Button
-              type={activeTab === "stock" ? "primary" : "default"}
-              onClick={() => setActiveTab("stock")}
-            >
-              Stock Orders
-            </Button>
-            <Button
-              type={activeTab === "liveOrder" ? "primary" : "default"}
-              onClick={() => setActiveTab("liveOrder")}
-            >
-              Live Orders
-            </Button>
-          </Space>
-          <Space>
-            <Input
-              placeholder="Enter Bill No"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ width: 200 }}
-            />
-          </Space>
-        </Space>
-
-        <Space wrap style={{ marginBottom: "10px" }}>
           <Space direction="vertical">
-            <Text strong>Branch:</Text>
-            <Select
-              value={branchFilter}
-              onChange={setBranchFilter}
-              style={{ width: 200 }}
-              placeholder="Select Branch"
-            >
-              <Option value="All">All Branches</Option>
-              {branches.map((branch) => (
-                <Option key={branch._id} value={branch._id}>
-                  {branch.name}
-                </Option>
-              ))}
-            </Select>
+            <Text strong>Order Type:</Text>
+            <Space>
+              <Button
+                type={activeTab === "stock" ? "primary" : "default"}
+                onClick={() => setActiveTab("stock")}
+              >
+                Stock Orders
+              </Button>
+              <Button
+                type={activeTab === "liveOrder" ? "primary" : "default"}
+                onClick={() => setActiveTab("liveOrder")}
+              >
+                Live Orders
+              </Button>
+            </Space>
           </Space>
           <Space direction="vertical">
             <Text strong>Status:</Text>
@@ -1088,33 +1163,26 @@ const viewModalColumns = [
             </Select>
           </Space>
           <Space direction="vertical">
-            <Text strong>Product:</Text>
-            <Select
-              value={productFilter}
-              onChange={setProductFilter}
+            <Text strong>Search Bill No:</Text>
+            <Input
+              placeholder="Enter Bill No"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               style={{ width: 200 }}
-              placeholder="Select Product"
-            >
-              <Option value="All">All Products</Option>
-              {products.map((product) => (
-                <Option key={product} value={product}>
-                  {product}
-                </Option>
-              ))}
-            </Select>
+            />
           </Space>
           <Space direction="vertical">
-            <Text strong>Category:</Text>
+            <Text strong>Branch:</Text>
             <Select
-              value={categoryFilter}
-              onChange={setCategoryFilter}
+              value={branchFilter}
+              onChange={setBranchFilter}
               style={{ width: 200 }}
-              placeholder="Select Category"
+              placeholder="Select Branch"
             >
-              <Option value="All">All Categories</Option>
-              {categories.map((category) => (
-                <Option key={category._id} value={category._id}>
-                  {category.name}
+              <Option value="All">All Branches</Option>
+              {branches.map((branch) => (
+                <Option key={branch._id} value={branch._id}>
+                  {branch.name}
                 </Option>
               ))}
             </Select>
@@ -1137,6 +1205,56 @@ const viewModalColumns = [
               <Option value="created">Created Date</Option>
               <Option value="delivery">Delivery Date</Option>
               <Option value="combined">Combined</Option>
+            </Select>
+          </Space>
+        </Space>
+        <Space wrap style={{ marginBottom: "10px" }}>
+          <Space direction="vertical">
+            <Text strong>Category:</Text>
+            <Select
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              style={{ width: 200 }}
+              placeholder="Select Category"
+            >
+              <Option value="All">All Categories</Option>
+              {categories.map((category) => (
+                <Option key={category._id} value={category._id}>
+                  {category.name}
+                </Option>
+              ))}
+            </Select>
+          </Space>
+          <Space direction="vertical">
+            <Text strong>Product:</Text>
+            <Select
+              value={productFilter}
+              onChange={setProductFilter}
+              style={{ width: 200 }}
+              placeholder="Select Product"
+            >
+              <Option value="All">All Products</Option>
+              {products.map((product) => (
+                <Option key={product} value={product}>
+                  {product}
+                </Option>
+              ))}
+            </Select>
+          </Space>
+          <Space direction="vertical">
+            <Text strong>Department:</Text>
+            <Select
+              value={departmentFilter}
+              onChange={setDepartmentFilter}
+              style={{ width: 200 }}
+              placeholder="Select Department"
+            >
+              <Option value="All">All Departments</Option>
+              {departments.map((department) => (
+                <Option key={department._id} value={department._id}>
+                  {department.name}
+                </Option>
+              ))}
             </Select>
           </Space>
           <Space direction="vertical">
@@ -1173,6 +1291,7 @@ const viewModalColumns = [
           scroll={{ x: 1400 }}
           summary={tableSummary}
           bordered
+          size="small"
         />
 
         {editingOrderId && selectedOrder && (
@@ -1185,7 +1304,7 @@ const viewModalColumns = [
             />
             <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
               <span style={{ marginRight: 16 }}>
-                Order {selectedOrder.billNo || "N/A"} - {selectedOrder.branchId?.name || "Unknown"} (
+                Order {selectedOrder.billNo || "N/A"} - {selectedOrder.branchId?.name?.slice(0, 3).toUpperCase() || "UNK"} (
                 {selectedOrder.status || "Unknown"})
               </span>
               <Button
@@ -1202,7 +1321,7 @@ const viewModalColumns = [
                 }}
                 onClick={() => handleConfirm(selectedOrder)}
               >
-                Confirm
+                {selectedOrder.status === "completed" ? "Confirmed" : "Confirm"}
               </Button>
               <span
                 style={{
@@ -1264,8 +1383,9 @@ const viewModalColumns = [
               </span>
             </Space>
             <div style={{ marginBottom: 8, fontSize: 14 }}>
-              Dates: {selectedOrder.createdAt ? dayjs(selectedOrder.createdAt).format("DD/MM/YYYY") : "N/A"}
-              {selectedOrder.deliveryDateTime && ` - ${dayjs(selectedOrder.deliveryDateTime).format("DD/MM/YYYY")}`}
+              Order Date: {selectedOrder.createdAt ? dayjs(selectedOrder.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY, hh:mm A") : "N/A"}, 
+              Delivery Date: {selectedOrder.deliveryDateTime ? dayjs(selectedOrder.deliveryDateTime).tz("Asia/Kolkata").format("DD/MM/YYYY, hh:mm A") : "N/A"}, 
+              Last Updated: {selectedOrder.updatedAt ? dayjs(selectedOrder.updatedAt).tz("Asia/Kolkata").format("DD/MM/YYYY, hh:mm A") : "N/A"}
             </div>
             <Space style={{ marginBottom: 16, fontSize: 14 }}>
               <span>Waiter: {selectedOrder.waiterId?.name || "N/A"}</span>
@@ -1281,6 +1401,7 @@ const viewModalColumns = [
               rowKey={(record, index) => index}
               footer={() => modalFooter(selectedOrder.products)}
               bordered
+              size="small"
               summary={editSummary}
             />
           </div>
@@ -1291,7 +1412,7 @@ const viewModalColumns = [
           selectedOrder ? (
             <div style={{ display: "flex", alignItems: "center" }}>
               <span style={{ marginRight: 16 }}>
-                Order {selectedOrder.billNo || "N/A"} - {selectedOrder.branchId?.name || "Unknown"} (
+                Order {selectedOrder.billNo || "N/A"} - {selectedOrder.branchId?.name?.slice(0, 3).toUpperCase() || "UNK"} (
                 {selectedOrder.status || "Unknown"})
               </span>
               <Button
@@ -1307,7 +1428,7 @@ const viewModalColumns = [
                   color: "#fff",
                 }}
               >
-                Confirm
+                {selectedOrder.status === "completed" ? "Confirmed" : "Confirm"}
               </Button>
               <span
                 style={{
@@ -1380,8 +1501,9 @@ const viewModalColumns = [
               </span>
             </Space>
             <div style={{ marginBottom: 8, fontSize: 14 }}>
-              Dates: {selectedOrder.createdAt ? dayjs(selectedOrder.createdAt).format("DD/MM/YYYY") : "N/A"}
-              {selectedOrder.deliveryDateTime && ` - ${dayjs(selectedOrder.deliveryDateTime).format("DD/MM/YYYY")}`}
+              Order Date: {selectedOrder.createdAt ? dayjs(selectedOrder.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY, hh:mm A") : "N/A"}, 
+              Delivery Date: {selectedOrder.deliveryDateTime ? dayjs(selectedOrder.deliveryDateTime).tz("Asia/Kolkata").format("DD/MM/YYYY, hh:mm A") : "N/A"}, 
+              Last Updated: {selectedOrder.updatedAt ? dayjs(selectedOrder.updatedAt).tz("Asia/Kolkata").format("DD/MM/YYYY, hh:mm A") : "N/A"}
             </div>
             <Space style={{ marginBottom: 16, fontSize: 14 }}>
               <span>Waiter: {selectedOrder.waiterId?.name || "N/A"}</span>
@@ -1397,15 +1519,33 @@ const viewModalColumns = [
               rowKey={(record, index) => index}
               footer={() => modalFooter(selectedOrder.products)}
               bordered
+              size="small"
               summary={viewModalSummary}
             />
           </div>
         )}
       </Modal>
       <Modal
-        title={`Combined Product Needs - ${branchFilter === "All" ? "All Branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter} (${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)})`}
+        title={
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
+            <span>
+              Combined Product Needs - {branchFilter === "All" ? "All Branches" : branches.find(b => b._id === branchFilter)?.name?.split(' ').slice(0, 2).join(' ') || branchFilter} ({statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)})
+            </span>
+            <Button
+              type="primary"
+              icon={<PrinterFilled />}
+              onClick={handlePrintCombined}
+              style={{ width: 32, height: 32, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", marginLeft: 8 }}
+            />
+          </div>
+        }
         visible={previewModalVisible}
         onCancel={() => setPreviewModalVisible(false)}
+        closeIcon={
+          <div style={{ backgroundColor: "#ff4d4f", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <CloseOutlined style={{ color: "#fff", fontSize: 16 }} />
+          </div>
+        }
         footer={[
           <Button key="close" onClick={() => setPreviewModalVisible(false)}>
             Close
@@ -1415,7 +1555,9 @@ const viewModalColumns = [
       >
         <Space direction="vertical" style={{ width: "100%", marginBottom: 16 }}>
           <Text>
-            Category: {categoryFilter === "All" ? "All Categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter}, Product: {productFilter === "All" ? "All Products" : productFilter}
+            Department: {departmentFilter === "All" ? "All Departments" : departments.find(d => d._id === departmentFilter)?.name || departmentFilter}, 
+            Category: {categoryFilter === "All" ? "All Categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter}, 
+            Product: {productFilter === "All" ? "All Products" : productFilter}
           </Text>
           <Text>
             Dates: {getDateRangeAndOrderIds().earliestCreated} - {getDateRangeAndOrderIds().latestDelivery}
@@ -1435,7 +1577,7 @@ const viewModalColumns = [
             })()}
           </Text>
         </Space>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ marginBottom: 16 }}>
           <Text>
             Order IDs:{" "}
             {getDateRangeAndOrderIds().orderIds.split(", ").map((id, index) => {
@@ -1452,20 +1594,15 @@ const viewModalColumns = [
               return <span key={index}>{id}{index < getDateRangeAndOrderIds().orderIds.split(", ").length - 1 ? ", " : ""}</span>;
             })}
           </Text>
-          <Button
-            type="primary"
-            icon={<PrinterFilled />}
-            onClick={handlePrintCombined}
-            style={{ width: 32, height: 32, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
-          />
         </div>
         <Table
           columns={previewColumns}
           dataSource={getCombinedProductData()}
           pagination={false}
-          locale={{ emptyText: `No ${statusFilter} orders found for ${categoryFilter === "All" ? "all categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter} across ${branchFilter === "All" ? "all branches" : branches.find(b => b._id === branchFilter)?.name || branchFilter}` }}
+          locale={{ emptyText: `No ${statusFilter} orders found for ${departmentFilter === "All" ? "all departments" : departments.find(d => d._id === departmentFilter)?.name || departmentFilter}, ${categoryFilter === "All" ? "all categories" : categories.find(c => c._id === categoryFilter)?.name || categoryFilter} across ${branchFilter === "All" ? "all branches" : branches.find(b => b._id === branchFilter)?.name?.split(' ').slice(0, 2).join(' ') || branchFilter}` }}
           rowKey="productName"
           bordered
+          size="small"
         />
       </Modal>
     </div>

@@ -36,12 +36,13 @@ const menuItems = [
 
 
   { key: "report", label: "Report", isGroup: true },
-  { key: "billing", label: "StockOrders", icon: <FileTextOutlined  />, path: "/branch/orders" },
   { key: "billing", label: "Billing", icon: <FileTextOutlined  />, path: "/branch/BillingOrdersPage" },
   { key: "timing", label: "Timing", icon: <FileTextOutlined  />, path: "/branch/TimingReportPage" },
   { key: "waiter", label: "Waiter", icon: <FileTextOutlined  />, path: "/branch/WaiterBillsManagementPage" },
   { key: "Closingentry", label: "Closingentry", icon: <FileTextOutlined />, path: "/dealers/closing-entry/list" },
   { key: "Expense List", label: "Expense List", icon: <FileTextOutlined />, path: "/dealers/closing-entry/expenselist" },
+  { key: "billing", label: "StockOrders", icon: <FileTextOutlined  />, path: "/branch/orders" },
+  { key: "billing", label: "Inventory", icon: <FileTextOutlined  />, path: "/Inventory" },
   { key: "DealerBills", label: "DealerBills", icon: <FileTextOutlined />, path: "/dealers/bill-entry/list" },
   { key: "delivery", label: "Company", icon: <DeliveredProcedureOutlined />, path: "/dealers/companyForm" },
   { key: "dealer", label: "Dealer", icon: <DeliveredProcedureOutlined />, path: "/dealers/list" },

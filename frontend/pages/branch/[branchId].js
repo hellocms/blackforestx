@@ -53,6 +53,7 @@ const BillingPage = ({ branchId }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
+  
 
   const contentRef = useRef(null);
   const inputRefs = useRef({});
@@ -450,27 +451,50 @@ const BillingPage = ({ branchId }) => {
     }));
   };
 
+  const handleReceivedQtyEdit = (index, value) => {
+    if (!editingOrder) return;
+    const isKg = editingOrder.products[index].unit.toLowerCase().includes('kg');
+    let parsedValue = isKg ? parseFloat(value) : parseInt(value, 10);
+   
+    if (isNaN(parsedValue) || parsedValue < 0) {
+      parsedValue = 0;
+    } else if (!isKg && parsedValue !== Math.floor(parsedValue)) {
+      parsedValue = Math.floor(parsedValue);
+    }
+    setEditingOrder(prev => ({
+      ...prev,
+      products: prev.products.map((p, i) =>
+        i === index ? { ...p, receivedQty: parsedValue } : p
+      ),
+    }));
+  };
+
+  
+
   const handleSaveEdit = async () => {
     if (!editingOrder) return;
-
     const products = editingOrder.products.filter(p => p.quantity > 0).map(p => ({
       productId: p.productId,
       name: p.name,
       quantity: p.quantity,
+      sendingQty: p.sendingQty || 0,  // Include for completeness
+      receivedQty: p.receivedQty || 0,  // Fix: Now includes edited value
       price: p.price,
       unit: p.unit,
       gstRate: p.gstRate,
-      productTotal: p.quantity * p.price,
-      productGST: p.gstRate === "non-gst" ? 0 : (p.quantity * p.price * p.gstRate) / 100,
+      productTotal: p.quantity * p.price,  // Based on quantity (change to receivedQty if needed)
+      productGST: p.gstRate === "non-gst" ? 0 : (p.quantity * p.price * p.gstRate) / 100,  // Recalc
       bminstock: p.bminstock || 0,
       confirmed: p.confirmed || false,
     }));
-
     if (products.length === 0) {
       message.warning('At least one product must have a positive quantity');
       return;
     }
-
+  
+    // Debug: Log to confirm receivedQty is sent
+    console.log('PATCH body products[0]:', products[0]);  // Check receivedQty here
+  
     try {
       const response = await fetch(`${BACKEND_URL}/api/orders/${editingOrder._id}`, {
         method: 'PATCH',
@@ -480,7 +504,6 @@ const BillingPage = ({ branchId }) => {
         },
         body: JSON.stringify({ products }),
       });
-
       if (response.ok) {
         const updatedOrder = await response.json();
         setOrders(prev =>
@@ -495,6 +518,7 @@ const BillingPage = ({ branchId }) => {
       }
     } catch (error) {
       message.error('Error updating order');
+      console.error('Save error:', error);
     }
   };
 
@@ -1254,6 +1278,43 @@ const BillingPage = ({ branchId }) => {
           value={quantity}
           onChange={(value) => handleQuantityEdit(index, value)}
           step={record.unit.toLowerCase().includes('kg') ? 0.1 : 1}
+          style={{ width: 80 }}  // Fixed width to prevent overflow
+        />
+      ),
+    },
+    // Sending Qty (non-editable, as before)
+    {
+      title: 'Sending Qty',
+      dataIndex: 'sendingQty',
+      key: 'sendingQty',
+      render: (sendingQty, record) => (
+        <span
+          style={{
+            color: sendingQty > 0 ? '#52c41a' : '#d9d9d9',
+            fontWeight: sendingQty > 0 ? 'bold' : 'normal',
+            display: 'inline-block',
+            minWidth: '70px',
+            textAlign: 'center',
+          }}
+          title={sendingQty === undefined || sendingQty === 0 ? 'No sending qty assigned' : `Sending: ${sendingQty}${record.unit || ''}`}
+        >
+          {sendingQty || 0}{record.unit ? ` ${record.unit}` : ''}
+        </span>
+      ),
+    },
+    // Updated: Received Qty (now editable InputNumber)
+    {
+      title: 'Received Qty',
+      dataIndex: 'receivedQty',
+      key: 'receivedQty',
+      render: (receivedQty, record, index) => (
+        <InputNumber
+          min={0}
+          value={receivedQty}
+          onChange={(value) => handleReceivedQtyEdit(index, value)}
+          step={record.unit.toLowerCase().includes('kg') ? 0.1 : 1}
+          style={{ width: 80 }}  // Fixed width to prevent overflow
+          placeholder="0"
         />
       ),
     },
@@ -1277,7 +1338,64 @@ const BillingPage = ({ branchId }) => {
           dataSource={selectedOrder.products}
           columns={[
             { title: 'Item', dataIndex: 'name', key: 'name' },
-            { title: 'Quantity', dataIndex: 'quantity', key: 'quantity', render: (qty, record) => `${qty}${record.unit}` },
+            { 
+              title: 'Quantity', 
+              dataIndex: 'quantity', 
+              key: 'quantity', 
+              render: (qty, record) => `${qty}${record.unit}` 
+            },
+            // Sending Qty (existing, same as edit)
+            {
+              title: 'Sending Qty',
+              dataIndex: 'sendingQty',
+              key: 'sendingQty',
+              render: (sendingQty, record) => (
+                <span
+                  style={{
+                    color: sendingQty > 0 ? '#52c41a' : '#d9d9d9',
+                    fontWeight: sendingQty > 0 ? 'bold' : 'normal',
+                    display: 'inline-block',
+                    minWidth: '60px',
+                    textAlign: 'center',
+                  }}
+                  title={sendingQty === undefined || sendingQty === 0 ? 'No sending qty assigned' : `Sending: ${sendingQty}${record.unit || ''}`}
+                >
+                  {sendingQty || 0}{record.unit ? ` ${record.unit}` : ''}
+                </span>
+              ),
+            },
+            // New: Received Qty (same UI/logic as edit)
+
+            {
+              title: 'Received Qty',
+              dataIndex: 'receivedQty',
+              key: 'receivedQty',
+              render: (receivedQty, record) => {
+                const sendingQty = record.sendingQty || 0;
+                const statusColor = receivedQty === sendingQty ? '#52c41a'  // Full match: green
+                  : receivedQty > 0 ? '#faad14'  // Partial: orange
+                  : '#d9d9d9';  // None: gray
+                const statusText = receivedQty === sendingQty ? 'Fully received'
+                  : receivedQty > 0 ? `Partial: ${sendingQty - receivedQty} short`
+                  : 'Not received';
+                return (
+                  <span
+                    style={{
+                      color: statusColor,
+                      fontWeight: receivedQty > 0 ? 'bold' : 'normal',
+                      display: 'inline-block',
+                      minWidth: '70px',
+                      textAlign: 'center',
+                    }}
+                    title={statusText}
+                  >
+                    {receivedQty || 0}{record.unit ? ` ${record.unit}` : ''}
+                  </span>
+                );
+              },
+            },
+
+            { title: 'Unit', dataIndex: 'unit', key: 'unit', render: (unit) => unit || 'N/A' },
             { title: 'Price', dataIndex: 'price', key: 'price', render: (price) => `₹${price.toFixed(2)}` },
             { title: 'Total', dataIndex: 'productTotal', key: 'productTotal', render: (total) => `₹${total.toFixed(2)}` },
           ]}
@@ -1814,7 +1932,8 @@ const BillingPage = ({ branchId }) => {
             Save
           </Button>,
         ]}
-        width={600}
+        width={900}  // Increased width
+        scroll={{ x: 900 }}  // Horizontal scroll if overflow
       >
         {editingOrder && (
           <div>
@@ -1825,6 +1944,8 @@ const BillingPage = ({ branchId }) => {
               columns={editColumns}
               pagination={false}
               rowKey="_id"
+              bordered
+              scroll={{ x: 900 }}  // Prevents horizontal overflow
             />
           </div>
         )}
