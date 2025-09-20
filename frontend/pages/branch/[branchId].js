@@ -1,14 +1,13 @@
+
 import React, { useState, useEffect, useRef } from "react";
-import { Layout, Button, Space, Row, Col, message, Image, Radio, Badge, Tooltip, Select, Dropdown, Input, Modal, Table, DatePicker, InputNumber } from "antd";
-import { LogoutOutlined, AccountBookFilled, ShoppingCartOutlined, MenuOutlined, ArrowLeftOutlined, CheckCircleFilled, UserOutlined, EyeOutlined, PrinterOutlined, EditOutlined } from "@ant-design/icons";
+import { Layout, Button, Space, Row, Col, message, Image, Radio, Badge, Tooltip, Select, Dropdown, Input } from "antd";
+import { LogoutOutlined, AccountBookFilled, ShoppingCartOutlined, MenuOutlined, ArrowLeftOutlined, CheckCircleFilled, UserOutlined } from "@ant-design/icons";
 import { useRouter } from "next/router";
 import { jwtDecode as jwtDecodeLib } from "jwt-decode";
 import CartSider from '../../components/CartSider';
-import moment from 'moment';
 
 const { Header, Content, Sider } = Layout;
 const { Option } = Select;
-const { RangePicker } = DatePicker;
 
 const BillingPage = ({ branchId }) => {
   const router = useRouter();
@@ -43,17 +42,6 @@ const BillingPage = ({ branchId }) => {
   const [selectedWaiter, setSelectedWaiter] = useState(null);
   const [waiters, setWaiters] = useState([]);
   const [touchStartX, setTouchStartX] = useState(null);
-  const [activeTab, setActiveTab] = useState("billing");
-  const [isOrderModalVisible, setIsOrderModalVisible] = useState(false);
-  const [orderListTab, setOrderListTab] = useState("stock");
-  const [orders, setOrders] = useState([]);
-  const [orderLoading, setOrderLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState(null);
-  const [dateFilter, setDateFilter] = useState([]);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [editingOrder, setEditingOrder] = useState(null);
-  
 
   const contentRef = useRef(null);
   const inputRefs = useRef({});
@@ -178,34 +166,6 @@ const BillingPage = ({ branchId }) => {
       setFilteredProducts([]);
     }
     setProductsLoading(false);
-  };
-
-  const fetchOrders = async () => {
-    setOrderLoading(true);
-    try {
-      let url = `${BACKEND_URL}/api/orders?branchId=${branchId}&tab=${orderListTab}`;
-      if (statusFilter) {
-        url += `&status=${statusFilter}`;
-      }
-      if (dateFilter.length === 2) {
-        const [start, end] = dateFilter;
-        url += `&startDate=${start.format('YYYY-MM-DD')}&endDate=${end.format('YYYY-MM-DD')}`;
-      }
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setOrders(data);
-      } else {
-        message.error('Failed to fetch orders');
-        setOrders([]);
-      }
-    } catch (error) {
-      message.error('Error fetching orders');
-      setOrders([]);
-    }
-    setOrderLoading(false);
   };
 
   // Helper Functions
@@ -382,174 +342,6 @@ const BillingPage = ({ branchId }) => {
     }
   };
 
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    setSelectedCategory(null);
-    setProducts([]);
-    setFilteredProducts([]);
-    setSelectedProductType(null);
-    setSearchQuery("");
-    setSelectedProducts([]);
-    setLastBillNo(null);
-    setIsMobileMenuOpen(false);
-    message.info(`Switched to ${tab} mode`);
-  };
-
-  const handleOrderModalOpen = () => {
-    setIsOrderModalVisible(true);
-    setOrderListTab("stock");
-    setStatusFilter(null);
-    setDateFilter([]);
-    fetchOrders();
-  };
-
-  const handleOrderModalClose = () => {
-    setIsOrderModalVisible(false);
-    setOrders([]);
-    setSelectedOrder(null);
-  };
-
-  const handleOrderListTabChange = (e) => {
-    setOrderListTab(e.target.value);
-    setStatusFilter(null);
-    setDateFilter([]);
-  };
-
-  const handleStatusFilterChange = (value) => {
-    setStatusFilter(value);
-  };
-
-  const handleDateFilterChange = (dates) => {
-    setDateFilter(dates || []);
-  };
-
-  const handleViewOrder = (order) => {
-    setSelectedOrder(order);
-  };
-
-  const handleEditOrder = (order) => {
-    setEditingOrder({ ...order, products: order.products.map(p => ({ ...p })) });
-    setIsEditModalVisible(true);
-  };
-
-  const handleQuantityEdit = (index, value) => {
-    if (!editingOrder) return;
-    const isKg = editingOrder.products[index].unit.toLowerCase().includes('kg');
-    let parsedValue = isKg ? parseFloat(value) : parseInt(value, 10);
-    
-    if (isNaN(parsedValue) || parsedValue <= 0) {
-      parsedValue = 0;
-    } else if (!isKg && parsedValue !== Math.floor(parsedValue)) {
-      parsedValue = Math.floor(parsedValue);
-    }
-
-    setEditingOrder(prev => ({
-      ...prev,
-      products: prev.products.map((p, i) =>
-        i === index ? { ...p, quantity: parsedValue } : p
-      ),
-    }));
-  };
-
-  const handleReceivedQtyEdit = (index, value) => {
-    if (!editingOrder) return;
-    const isKg = editingOrder.products[index].unit.toLowerCase().includes('kg');
-    let parsedValue = isKg ? parseFloat(value) : parseInt(value, 10);
-   
-    if (isNaN(parsedValue) || parsedValue < 0) {
-      parsedValue = 0;
-    } else if (!isKg && parsedValue !== Math.floor(parsedValue)) {
-      parsedValue = Math.floor(parsedValue);
-    }
-    setEditingOrder(prev => ({
-      ...prev,
-      products: prev.products.map((p, i) =>
-        i === index ? { ...p, receivedQty: parsedValue } : p
-      ),
-    }));
-  };
-
-  
-
-  const handleSaveEdit = async () => {
-    if (!editingOrder) return;
-    const products = editingOrder.products.filter(p => p.quantity > 0).map(p => ({
-      productId: p.productId,
-      name: p.name,
-      quantity: p.quantity,
-      sendingQty: p.sendingQty || 0,  // Include for completeness
-      receivedQty: p.receivedQty || 0,  // Fix: Now includes edited value
-      price: p.price,
-      unit: p.unit,
-      gstRate: p.gstRate,
-      productTotal: p.quantity * p.price,  // Based on quantity (change to receivedQty if needed)
-      productGST: p.gstRate === "non-gst" ? 0 : (p.quantity * p.price * p.gstRate) / 100,  // Recalc
-      bminstock: p.bminstock || 0,
-      confirmed: p.confirmed || false,
-    }));
-    if (products.length === 0) {
-      message.warning('At least one product must have a positive quantity');
-      return;
-    }
-  
-    // Debug: Log to confirm receivedQty is sent
-    console.log('PATCH body products[0]:', products[0]);  // Check receivedQty here
-  
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/orders/${editingOrder._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ products }),
-      });
-      if (response.ok) {
-        const updatedOrder = await response.json();
-        setOrders(prev =>
-          prev.map(o => (o._id === editingOrder._id ? updatedOrder.order : o))
-        );
-        setIsEditModalVisible(false);
-        setEditingOrder(null);
-        message.success('Order updated successfully');
-      } else {
-        const data = await response.json();
-        message.error(data.message || 'Failed to update order');
-      }
-    } catch (error) {
-      message.error('Error updating order');
-      console.error('Save error:', error);
-    }
-  };
-
-  const handlePrintOrder = (order) => {
-    const totalQty = order.products.reduce((sum, product) => sum + product.quantity, 0);
-    const uniqueItems = order.products.length;
-    const subtotal = order.products.reduce((sum, product) => sum + product.productTotal, 0);
-    const totalGST = order.products.reduce((sum, product) => sum + (product.productGST || 0), 0);
-    const totalWithGST = subtotal + totalGST;
-    const totalWithGSTRounded = Math.round(totalWithGST);
-    const roundOff = totalWithGSTRounded - totalWithGST;
-    const tenderAmount = totalWithGSTRounded;
-    const balance = tenderAmount - totalWithGSTRounded;
-    const sgst = totalGST / 2;
-    const cgst = totalGST / 2;
-
-    printReceipt(order, todayAssignment, {
-      totalQty,
-      totalItems: uniqueItems,
-      subtotal,
-      sgst,
-      cgst,
-      totalWithGST,
-      totalWithGSTRounded,
-      roundOff,
-      paymentMethod: order.paymentMethod,
-      tenderAmount,
-      balance,
-    });
-  };
-
   const handleSave = async () => {
     if (selectedProducts.length === 0) {
       message.warning('Cart is empty!');
@@ -564,7 +356,7 @@ const BillingPage = ({ branchId }) => {
 
     const orderData = {
       branchId,
-      tab: activeTab,
+      tab: 'billing',
       products: selectedProducts.map(product => {
         const gstRate = product.priceDetails?.[product.selectedUnitIndex]?.gst || "non-gst";
         return {
@@ -600,7 +392,7 @@ const BillingPage = ({ branchId }) => {
 
       const data = await response.json();
       if (response.ok) {
-        message.success(data.message || `Cart saved as draft for ${activeTab}!`);
+        message.success(data.message || 'Cart saved as draft!');
         setLastBillNo(data.order.billNo);
         setSelectedProducts([]);
         setWaiterInput("");
@@ -636,7 +428,7 @@ const BillingPage = ({ branchId }) => {
 
     const orderData = {
       branchId,
-      tab: activeTab,
+      tab: 'billing',
       products: selectedProducts.map(product => {
         const gstRate = product.priceDetails?.[product.selectedUnitIndex]?.gst || "non-gst";
         return {
@@ -656,7 +448,7 @@ const BillingPage = ({ branchId }) => {
       totalGST,
       totalWithGST,
       totalItems: uniqueItems,
-      status: ['billing'].includes(activeTab) ? 'completed' : 'neworder',
+      status: 'completed',
       waiterId: selectedWaiter?._id || null,
     };
 
@@ -672,7 +464,7 @@ const BillingPage = ({ branchId }) => {
 
       const data = await response.json();
       if (response.ok) {
-        message.success(data.message || `Cart saved and ready to print for ${activeTab}!`);
+        message.success(data.message || 'Cart saved and ready to print!');
         setLastBillNo(data.order.billNo);
         printReceipt(data.order, todayAssignment, {
           totalQty,
@@ -1134,12 +926,6 @@ const BillingPage = ({ branchId }) => {
     }
   }, [router, branchId]);
 
-  useEffect(() => {
-    if (isOrderModalVisible) {
-      fetchOrders();
-    }
-  }, [isOrderModalVisible, orderListTab, statusFilter, dateFilter]);
-
   const userMenu = (
     <div style={{ padding: '10px', background: '#fff', borderRadius: '4px', width: '300px' }}>
       <div style={{ marginBottom: '15px' }}>
@@ -1199,215 +985,6 @@ const BillingPage = ({ branchId }) => {
       </Button>
     </div>
   );
-
-  // Order list table columns
-  const orderColumns = [
-    {
-      title: 'Bill No',
-      dataIndex: 'billNo',
-      key: 'billNo',
-      width: 100,
-    },
-    {
-      title: 'Date',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 150,
-      render: (date) => moment(date).format('DD-MM-YYYY HH:mm'),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status) => status.charAt(0).toUpperCase() + status.slice(1),
-    },
-    {
-      title: 'Total',
-      dataIndex: 'totalWithGST',
-      key: 'totalWithGST',
-      width: 100,
-      render: (total) => `₹${total.toFixed(2)}`,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 200,
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewOrder(record)}
-          >
-            View
-          </Button>
-          {['draft', 'neworder', 'pending'].includes(record.status) && (
-            <Button
-              type="link"
-              icon={<EditOutlined />}
-              onClick={() => handleEditOrder(record)}
-            >
-              Edit
-            </Button>
-          )}
-          {record.status === 'completed' && (
-            <Button
-              type="link"
-              icon={<PrinterOutlined />}
-              onClick={() => handlePrintOrder(record)}
-            >
-              Print
-            </Button>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
-  // Edit modal columns
-  const editColumns = [
-    { title: 'Item', dataIndex: 'name', key: 'name' },
-    {
-      title: 'Quantity',
-      dataIndex: 'quantity',
-      key: 'quantity',
-      render: (quantity, record, index) => (
-        <InputNumber
-          min={0}
-          value={quantity}
-          onChange={(value) => handleQuantityEdit(index, value)}
-          step={record.unit.toLowerCase().includes('kg') ? 0.1 : 1}
-          style={{ width: 80 }}  // Fixed width to prevent overflow
-        />
-      ),
-    },
-    // Sending Qty (non-editable, as before)
-    {
-      title: 'Sending Qty',
-      dataIndex: 'sendingQty',
-      key: 'sendingQty',
-      render: (sendingQty, record) => (
-        <span
-          style={{
-            color: sendingQty > 0 ? '#52c41a' : '#d9d9d9',
-            fontWeight: sendingQty > 0 ? 'bold' : 'normal',
-            display: 'inline-block',
-            minWidth: '70px',
-            textAlign: 'center',
-          }}
-          title={sendingQty === undefined || sendingQty === 0 ? 'No sending qty assigned' : `Sending: ${sendingQty}${record.unit || ''}`}
-        >
-          {sendingQty || 0}{record.unit ? ` ${record.unit}` : ''}
-        </span>
-      ),
-    },
-    // Updated: Received Qty (now editable InputNumber)
-    {
-      title: 'Received Qty',
-      dataIndex: 'receivedQty',
-      key: 'receivedQty',
-      render: (receivedQty, record, index) => (
-        <InputNumber
-          min={0}
-          value={receivedQty}
-          onChange={(value) => handleReceivedQtyEdit(index, value)}
-          step={record.unit.toLowerCase().includes('kg') ? 0.1 : 1}
-          style={{ width: 80 }}  // Fixed width to prevent overflow
-          placeholder="0"
-        />
-      ),
-    },
-    { title: 'Unit', dataIndex: 'unit', key: 'unit', render: (unit) => unit || 'N/A' },
-    { title: 'Price', dataIndex: 'price', key: 'price', render: (price) => `₹${price.toFixed(2)}` },
-    { title: 'Total', dataIndex: 'productTotal', key: 'productTotal', render: (_, record) => `₹${(record.quantity * record.price).toFixed(2)}` },
-  ];
-
-  // Order details modal content
-  const renderOrderDetails = () => {
-    if (!selectedOrder) return null;
-    return (
-      <div>
-        <p><strong>Bill No:</strong> {selectedOrder.billNo}</p>
-        <p><strong>Date:</strong> {moment(selectedOrder.createdAt).format('DD-MM-YYYY HH:mm')}</p>
-        <p><strong>Status:</strong> {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}</p>
-        <p><strong>Payment Method:</strong> {selectedOrder.paymentMethod || 'N/A'}</p>
-        <p><strong>Waiter:</strong> {selectedOrder.waiterId ? `${selectedOrder.waiterId.name} (${selectedOrder.waiterId.employeeId})` : 'Not Assigned'}</p>
-        <p><strong>Products:</strong></p>
-        <Table
-          dataSource={selectedOrder.products}
-          columns={[
-            { title: 'Item', dataIndex: 'name', key: 'name' },
-            { 
-              title: 'Quantity', 
-              dataIndex: 'quantity', 
-              key: 'quantity', 
-              render: (qty, record) => `${qty}${record.unit}` 
-            },
-            // Sending Qty (existing, same as edit)
-            {
-              title: 'Sending Qty',
-              dataIndex: 'sendingQty',
-              key: 'sendingQty',
-              render: (sendingQty, record) => (
-                <span
-                  style={{
-                    color: sendingQty > 0 ? '#52c41a' : '#d9d9d9',
-                    fontWeight: sendingQty > 0 ? 'bold' : 'normal',
-                    display: 'inline-block',
-                    minWidth: '60px',
-                    textAlign: 'center',
-                  }}
-                  title={sendingQty === undefined || sendingQty === 0 ? 'No sending qty assigned' : `Sending: ${sendingQty}${record.unit || ''}`}
-                >
-                  {sendingQty || 0}{record.unit ? ` ${record.unit}` : ''}
-                </span>
-              ),
-            },
-            // New: Received Qty (same UI/logic as edit)
-
-            {
-              title: 'Received Qty',
-              dataIndex: 'receivedQty',
-              key: 'receivedQty',
-              render: (receivedQty, record) => {
-                const sendingQty = record.sendingQty || 0;
-                const statusColor = receivedQty === sendingQty ? '#52c41a'  // Full match: green
-                  : receivedQty > 0 ? '#faad14'  // Partial: orange
-                  : '#d9d9d9';  // None: gray
-                const statusText = receivedQty === sendingQty ? 'Fully received'
-                  : receivedQty > 0 ? `Partial: ${sendingQty - receivedQty} short`
-                  : 'Not received';
-                return (
-                  <span
-                    style={{
-                      color: statusColor,
-                      fontWeight: receivedQty > 0 ? 'bold' : 'normal',
-                      display: 'inline-block',
-                      minWidth: '70px',
-                      textAlign: 'center',
-                    }}
-                    title={statusText}
-                  >
-                    {receivedQty || 0}{record.unit ? ` ${record.unit}` : ''}
-                  </span>
-                );
-              },
-            },
-
-            { title: 'Unit', dataIndex: 'unit', key: 'unit', render: (unit) => unit || 'N/A' },
-            { title: 'Price', dataIndex: 'price', key: 'price', render: (price) => `₹${price.toFixed(2)}` },
-            { title: 'Total', dataIndex: 'productTotal', key: 'productTotal', render: (total) => `₹${total.toFixed(2)}` },
-          ]}
-          pagination={false}
-          rowKey="_id"
-        />
-        <p><strong>Subtotal:</strong> ₹{selectedOrder.subtotal.toFixed(2)}</p>
-        <p><strong>Total GST:</strong> ₹{selectedOrder.totalGST.toFixed(2)}</p>
-        <p><strong>Grand Total:</strong> ₹{selectedOrder.totalWithGST.toFixed(2)}</p>
-      </div>
-    );
-  };
 
   const cardSize = getCardSize();
   const gutter = 16;
@@ -1477,46 +1054,13 @@ const BillingPage = ({ branchId }) => {
               >
                 {isPortrait || isMobile ? null : "Account"}
               </Button>
-              <Button
-                type={activeTab === "stock" ? "primary" : "text"}
-                onClick={() => handleTabChange("stock")}
-                style={{
-                  fontSize: "16px",
-                  color: "#FFFFFF",
-                  padding: "0 10px",
-                }}
-              >
-                {isPortrait || isMobile ? null : "Stock"}
-              </Button>
-              <Button
-                type={activeTab === "liveOrder" ? "primary" : "text"}
-                onClick={() => handleTabChange("liveOrder")}
-                style={{
-                  fontSize: "16px",
-                  color: "#FFFFFF",
-                  padding: "0 10px",
-                }}
-              >
-                {isPortrait || isMobile ? null : "Live Order"}
-              </Button>
-              <Button
-                type="text"
-                onClick={handleOrderModalOpen}
-                style={{
-                  fontSize: "16px",
-                  color: "#FFFFFF",
-                  padding: "0 10px",
-                }}
-              >
-                {isPortrait || isMobile ? null : "View Orders"}
-              </Button>
             </Space>
           </div>
         </div>
         <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
           {selectedCategory && !(isPortrait || isMobile) && (
             <Input
-              placeholder={`Search products for ${activeTab}`}
+              placeholder="Search products by name"
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               style={{
@@ -1615,46 +1159,6 @@ const BillingPage = ({ branchId }) => {
             }}
           >
             <Space direction="vertical" style={{ width: "100%" }}>
-              <Button
-                type={activeTab === "billing" ? "primary" : "text"}
-                onClick={() => {
-                  handleTabChange("billing");
-                  toggleMobileMenu();
-                }}
-                style={{ width: "100%", textAlign: "left", color: activeTab === "billing" ? "#FFFFFF" : "#000000" }}
-              >
-                Billing
-              </Button>
-              <Button
-                type={activeTab === "stock" ? "primary" : "text"}
-                onClick={() => {
-                  handleTabChange("stock");
-                  toggleMobileMenu();
-                }}
-                style={{ width: "100%", textAlign: "left", color: activeTab === "stock" ? "#FFFFFF" : "#000000" }}
-              >
-                Stock
-              </Button>
-              <Button
-                type={activeTab === "liveOrder" ? "primary" : "text"}
-                onClick={() => {
-                  handleTabChange("liveOrder");
-                  toggleMobileMenu();
-                }}
-                style={{ width: "100%", textAlign: "left", color: activeTab === "liveOrder" ? "#FFFFFF" : "#000000" }}
-              >
-                Live Order
-              </Button>
-              <Button
-                type="text"
-                onClick={() => {
-                  handleOrderModalOpen();
-                  toggleMobileMenu();
-                }}
-                style={{ width: "100%", textAlign: "left", color: "#000000" }}
-              >
-                View Orders
-              </Button>
               <Button
                 type={selectedProductType === null ? "primary" : "text"}
                 onClick={() => {
@@ -1757,9 +1261,7 @@ const BillingPage = ({ branchId }) => {
               </>
             ) : (
               <>
-                <h2 style={{ color: '#000000', marginBottom: '15px' }}>
-                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
-                </h2>
+                <h2 style={{ color: '#000000', marginBottom: '15px' }}>Billing</h2>
                 <Row gutter={[16, 24]} justify="center">
                   {loading ? (
                     <div>Loading categories...</div>
@@ -1859,98 +1361,6 @@ const BillingPage = ({ branchId }) => {
           />
         </Sider>
       </Layout>
-
-      {/* Order List Modal */}
-      <Modal
-        title="Order List"
-        visible={isOrderModalVisible}
-        onCancel={handleOrderModalClose}
-        footer={null}
-        width={800}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Radio.Group
-            value={orderListTab}
-            onChange={handleOrderListTabChange}
-            style={{ marginBottom: 16 }}
-          >
-            <Radio.Button value="stock">Stock Orders</Radio.Button>
-            <Radio.Button value="liveOrder">Live Orders</Radio.Button>
-          </Radio.Group>
-          <Space style={{ marginBottom: 16 }}>
-            <Select
-              value={statusFilter}
-              onChange={handleStatusFilterChange}
-              placeholder="Filter by Status"
-              allowClear
-              style={{ width: 200 }}
-            >
-              <Option value="draft">Draft</Option>
-              <Option value="completed">Completed</Option>
-              <Option value="pending">Pending</Option>
-              <Option value="delivered">Delivered</Option>
-              <Option value="received">Received</Option>
-              <Option value="neworder">New Order</Option>
-            </Select>
-            <RangePicker
-              value={dateFilter}
-              onChange={handleDateFilterChange}
-              format="DD-MM-YYYY"
-            />
-          </Space>
-          <Table
-            columns={orderColumns}
-            dataSource={orders}
-            loading={orderLoading}
-            rowKey="_id"
-            pagination={{ pageSize: 10 }}
-          />
-        </Space>
-      </Modal>
-
-      {/* Order Details Modal */}
-      <Modal
-        title="Order Details"
-        visible={!!selectedOrder}
-        onCancel={() => setSelectedOrder(null)}
-        footer={null}
-        width={600}
-      >
-        {renderOrderDetails()}
-      </Modal>
-
-      {/* Edit Order Modal */}
-      <Modal
-        title="Edit Order"
-        visible={isEditModalVisible}
-        onCancel={() => setIsEditModalVisible(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setIsEditModalVisible(false)}>
-            Cancel
-          </Button>,
-          <Button key="save" type="primary" onClick={handleSaveEdit}>
-            Save
-          </Button>,
-        ]}
-        width={900}  // Increased width
-        scroll={{ x: 900 }}  // Horizontal scroll if overflow
-      >
-        {editingOrder && (
-          <div>
-            <p><strong>Bill No:</strong> {editingOrder.billNo}</p>
-            <p><strong>Status:</strong> {editingOrder.status.charAt(0).toUpperCase() + editingOrder.status.slice(1)}</p>
-            <Table
-              dataSource={editingOrder.products}
-              columns={editColumns}
-              pagination={false}
-              rowKey="_id"
-              bordered
-              scroll={{ x: 900 }}  // Prevents horizontal overflow
-            />
-          </div>
-        )}
-      </Modal>
-
       <style jsx global>{`
         .no-arrows::-webkit-inner-spin-button,
         .no-arrows::-webkit-outer-spin-button {
