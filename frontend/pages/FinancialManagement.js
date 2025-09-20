@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Typography, Form, Select, InputNumber, Input, Button, Table, Space, DatePicker, message, Layout, Tabs } from 'antd';
+import { Card, Row, Col, Typography, Form, Select, InputNumber, Input, Button, Table, Space, DatePicker, message, Layout } from 'antd';
 import { BankOutlined, MoneyCollectOutlined, PrinterOutlined, ClearOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
@@ -18,52 +18,10 @@ const { RangePicker } = DatePicker;
 
 // Bank to Branch mapping
 const bankBranchMapping = {
-  'IDFC 1': [
-    '67e2e29328541a7b58d1ca11',
-    '67ed2c7b62b722c49a251e26',
-    '6841c13ab5a0fc5644db2f7e',
-    '67ea89f5524fad83e386415b'
-  ],
-  'IDFC 2': [
-    '67e1a4b22191787a139a749f',
-    '67e2e1f928541a7b58d1c9f8',
-    '67ed2be162b722c49a251dca',
-    '6841bef0b5a0fc5644db227d',
-    '6838102f710163091394b581',
-    '6841c13ab5a0fc5644db2f7e',
-    '67ea89f5524fad83e386415b'
-  ],
+  'IDFC 1': ['67e2e29328541a7b58d1ca11', '67ed2c7b62b722c49a251e26'],
+  'IDFC 2': ['67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca'],
   'IDFC 3': ['6841d8b5b5a0fc5644db5b10'],
   'IDFC 4': ['6841d9b7b5a0fc5644db5b18'],
-};
-
-// Group to Branch/Bank mapping
-const groupMapping = {
-  thoothukudiHotel: {
-    name: 'Thoothukudi Hotel',
-    banks: ['IDFC 4'],
-    branchIds: ['6841d9b7b5a0fc5644db5b18'],
-  },
-  thoothukudiMacroon: {
-    name: 'Thoothukudi Macroon',
-    banks: ['IDFC 3'],
-    branchIds: ['6841d8b5b5a0fc5644db5b10'],
-  },
-  blackforestCakes: {
-    name: 'Blackforest Cakes',
-    banks: ['IDFC 1', 'IDFC 2'],
-    branchIds: [
-      '67e2e29328541a7b58d1ca11',
-      '67ed2c7b62b722c49a251e26',
-      '67e1a4b22191787a139a749f',
-      '67e2e1f928541a7b58d1c9f8',
-      '67ed2be162b722c49a251dca',
-      '6841bef0b5a0fc5644db227d',
-      '6838102f710163091394b581',
-      '6841c13ab5a0fc5644db2f7e',
-      '67ea89f5524fad83e386415b'
-    ],
-  },
 };
 
 const FinancialManagement = () => {
@@ -73,12 +31,7 @@ const FinancialManagement = () => {
   const [idfc3Balance, setIdfc3Balance] = useState(0);
   const [idfc4Balance, setIdfc4Balance] = useState(0);
   const [branchBalances, setBranchBalances] = useState([]);
-  const [cashTotals, setCashTotals] = useState({
-    thoothukudiHotel: 0,
-    thoothukudiMacroon: 0,
-    blackforestCakes: 0,
-    total: 0,
-  });
+  const [totalCashBalance, setTotalCashBalance] = useState(0);
 
   // State for transactions and filters
   const [transactions, setTransactions] = useState([]);
@@ -88,7 +41,6 @@ const FinancialManagement = () => {
   const [selectedTypeFilter, setSelectedTypeFilter] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState(null);
   const [selectedBranchFilter, setSelectedBranchFilter] = useState(null);
-  const [selectedGroup, setSelectedGroup] = useState('total');
 
   // Form instances
   const [depositForm] = Form.useForm();
@@ -125,18 +77,18 @@ const FinancialManagement = () => {
     fetchBranches();
   }, [router]);
 
-  // Set default branch and date values in forms
+  // Set default branch values in forms
   useEffect(() => {
     if (branches.length > 0) {
-      depositForm.setFieldsValue({ branch: undefined, date: dayjs() });
-      expenseForm.setFieldsValue({ branch: undefined, date: dayjs() });
+      depositForm.setFieldsValue({ branch: undefined });
+      expenseForm.setFieldsValue({ branch: undefined });
     }
   }, [branches, depositForm, expenseForm]);
 
-  // Filter transactions when filters or group change
+  // Filter transactions when filters change
   useEffect(() => {
-    filterTransactions(selectedSourceFilter, selectedTypeFilter, selectedDateRange, selectedBranchFilter, selectedGroup);
-  }, [transactions, selectedSourceFilter, selectedTypeFilter, selectedDateRange, selectedBranchFilter, selectedGroup]);
+    filterTransactions(selectedSourceFilter, selectedTypeFilter, selectedDateRange, selectedBranchFilter);
+  }, [transactions, selectedSourceFilter, selectedTypeFilter, selectedDateRange, selectedBranchFilter]);
 
   // Fetch balances
   const fetchBalances = async () => {
@@ -146,16 +98,8 @@ const FinancialManagement = () => {
         headers: { 'Content-Type': 'application/json' },
       });
       const result = await response.json();
-      console.log('fetchBalances response:', result);
       if (response.ok) {
         setBranchBalances([]);
-        let newCashTotals = {
-          thoothukudiHotel: 0,
-          thoothukudiMacroon: 0,
-          blackforestCakes: 0,
-          total: 0,
-        };
-        let nonBlackforestSum = 0;
         result.forEach((balance) => {
           switch (balance.source) {
             case 'IDFC 1':
@@ -171,7 +115,7 @@ const FinancialManagement = () => {
               setIdfc4Balance(balance.balance);
               break;
             case 'TOTAL CASH IN HAND':
-              newCashTotals.total = balance.balance;
+              setTotalCashBalance(balance.balance);
               break;
             default:
               if (balance.source.startsWith('CASH IN HAND - ')) {
@@ -182,24 +126,10 @@ const FinancialManagement = () => {
                   }
                   return [...prev, { branchId: balance.branchId, source: balance.source, balance: balance.balance }];
                 });
-                // Update group-specific cash totals
-                if (groupMapping.thoothukudiHotel.branchIds.includes(balance.branchId)) {
-                  newCashTotals.thoothukudiHotel += balance.balance;
-                  nonBlackforestSum += balance.balance;
-                } else if (groupMapping.thoothukudiMacroon.branchIds.includes(balance.branchId)) {
-                  newCashTotals.thoothukudiMacroon += balance.balance;
-                  nonBlackforestSum += balance.balance;
-                } else if (groupMapping.blackforestCakes.branchIds.includes(balance.branchId)) {
-                  newCashTotals.blackforestCakes += balance.balance;
-                }
               }
               break;
           }
         });
-        // Adjust Blackforest total as total - nonBlackforestSum
-        newCashTotals.blackforestCakes = newCashTotals.total - nonBlackforestSum;
-        console.log('fetchBalances newCashTotals:', newCashTotals);
-        setCashTotals(newCashTotals);
       } else {
         message.error(result.message || 'Failed to fetch balances');
       }
@@ -273,7 +203,7 @@ const FinancialManagement = () => {
     return Promise.resolve();
   };
 
-  // Custom validator for expense amount against balance
+  // Custom validator for expense amount against branch balance
   const validateExpenseAmount = async (_, value, branchId, source) => {
     if (value === undefined || value === null) {
       return Promise.reject(new Error('Please enter an amount'));
@@ -285,16 +215,9 @@ const FinancialManagement = () => {
       return Promise.reject(new Error('Amount must be at least 1'));
     }
     if (source === 'CASH IN HAND' && branchId) {
-      if (selectedGroup === 'blackforestCakes') {
-        // Validate against Blackforest group cash total
-        if (value > cashTotals.blackforestCakes) {
-          return Promise.reject(new Error('Insufficient total cash balance for Blackforest group'));
-        }
-      } else {
-        const branchBalance = branchBalances.find(bb => bb.branchId === branchId)?.balance || 0;
-        if (value > branchBalance) {
-          return Promise.reject(new Error('Insufficient cash balance for this branch'));
-        }
+      const branchBalance = branchBalances.find(bb => bb.branchId === branchId)?.balance || 0;
+      if (value > branchBalance) {
+        return Promise.reject(new Error('Insufficient cash balance for this branch'));
       }
     } else {
       let bankBalance = 0;
@@ -334,15 +257,15 @@ const FinancialManagement = () => {
 
   // Handle deposit form submission
   const handleDeposit = async (values) => {
-    const { source, amount, branch, remarks, date } = values;
+    const { source, amount, branch, remarks } = values;
 
-    console.log('Deposit form values:', { source, amount, branch, remarks, date });
+    console.log('Deposit form values:', { source, amount, branch, remarks });
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/financial/deposit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source, amount, branch, remarks, date: date ? date.toISOString() : null }),
+        body: JSON.stringify({ source, amount, branch, remarks }),
       });
       const result = await response.json();
       if (response.ok) {
@@ -355,18 +278,7 @@ const FinancialManagement = () => {
             const branchName = branches.find(b => b._id === result.balance.branch)?.name || 'Unknown Branch';
             return [...prev, { branchId: result.balance.branch, source: `CASH IN HAND - ${branchName}`, balance: result.balance.balance }];
           });
-          setCashTotals((prev) => {
-            const newTotals = { ...prev };
-            if (groupMapping.thoothukudiHotel.branchIds.includes(branch)) {
-              newTotals.thoothukudiHotel += amount;
-            } else if (groupMapping.thoothukudiMacroon.branchIds.includes(branch)) {
-              newTotals.thoothukudiMacroon += amount;
-            } else if (groupMapping.blackforestCakes.branchIds.includes(branch)) {
-              newTotals.blackforestCakes += amount;
-            }
-            newTotals.total += amount;
-            return newTotals;
-          });
+          setTotalCashBalance(prev => prev + amount);
         } else {
           switch (source) {
             case 'IDFC 1':
@@ -402,7 +314,6 @@ const FinancialManagement = () => {
 
         message.success('Deposit recorded successfully');
         depositForm.resetFields();
-        depositForm.setFieldsValue({ date: dayjs() });
       } else {
         message.error(result.message || 'Failed to record deposit');
       }
@@ -417,56 +328,25 @@ const FinancialManagement = () => {
     const { source, category, amount, branch, remarks, date } = values;
 
     console.log('Expense form values:', { source, category, amount, branch, remarks, date });
-    console.log('Is Blackforest branch?', groupMapping.blackforestCakes.branchIds.includes(branch), 'Branch ID:', branch);
-    console.log('Blackforest branch IDs:', groupMapping.blackforestCakes.branchIds);
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/financial/expense`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source, category, amount, branch: branch.toString(), remarks, date: date ? date.toISOString() : null }),
+        body: JSON.stringify({ source, category, amount, branch, remarks, date: date ? date.toISOString() : null }),
       });
       const result = await response.json();
-      console.log('Backend response:', result);
-
       if (response.ok) {
         if (source === 'CASH IN HAND') {
-          const branchId = branch.toString();
-          if (groupMapping.blackforestCakes.branchIds.includes(branchId)) {
-            console.log('Updating Blackforest cash total. Previous cashTotals:', cashTotals);
-            console.log('New totalCashBalance from backend:', result.balance.balance);
-            setCashTotals((prev) => {
-              const newTotals = {
-                ...prev,
-                blackforestCakes: prev.blackforestCakes - amount,
-                total: prev.total - amount,
-              };
-              console.log('New cashTotals:', newTotals);
-              return newTotals;
-            });
-            await fetchBalances();
-            message.success(`Expense recorded. Blackforest Total: ₹${(cashTotals.blackforestCakes - amount).toFixed(2)}`);
-          } else {
-            setBranchBalances((prev) => {
-              const existing = prev.find(bb => bb.branchId === result.balance.branch);
-              if (existing) {
-                return prev.map(bb => bb.branchId === result.balance.branch ? { ...bb, balance: result.balance.balance } : bb);
-              }
-              const branchName = branches.find(b => b._id === result.balance.branch)?.name || 'Unknown Branch';
-              return [...prev, { branchId: result.balance.branch, source: `CASH IN HAND - ${branchName}`, balance: result.balance.balance }];
-            });
-            setCashTotals((prev) => {
-              const newTotals = { ...prev };
-              if (groupMapping.thoothukudiHotel.branchIds.includes(branchId)) {
-                newTotals.thoothukudiHotel -= amount;
-              } else if (groupMapping.thoothukudiMacroon.branchIds.includes(branchId)) {
-                newTotals.thoothukudiMacroon -= amount;
-              }
-              newTotals.total -= amount;
-              console.log('Non-Blackforest cashTotals update:', newTotals);
-              return newTotals;
-            });
-          }
+          setBranchBalances((prev) => {
+            const existing = prev.find(bb => bb.branchId === result.balance.branch);
+            if (existing) {
+              return prev.map(bb => bb.branchId === result.balance.branch ? { ...bb, balance: result.balance.balance } : bb);
+            }
+            const branchName = branches.find(b => b._id === result.balance.branch)?.name || 'Unknown Branch';
+            return [...prev, { branchId: result.balance.branch, source: `CASH IN HAND - ${branchName}`, balance: result.balance.balance }];
+          });
+          setTotalCashBalance(prev => prev - amount);
         } else {
           switch (source) {
             case 'IDFC 1':
@@ -502,7 +382,6 @@ const FinancialManagement = () => {
 
         message.success('Expense recorded successfully');
         expenseForm.resetFields();
-        expenseForm.setFieldsValue({ date: dayjs() });
       } else {
         message.error(result.message || 'Failed to record expense');
       }
@@ -512,47 +391,12 @@ const FinancialManagement = () => {
     }
   };
 
-  // Calculate total amount for filtered transactions
-  const calculateTransactionTotal = () => {
-    return filteredTransactions.reduce((total, t) => {
-      if (t.type === 'Credit - Deposit') {
-        return total + t.amount;
-      } else if (t.type === 'Debit - Expense') {
-        return total - t.amount;
-      }
-      return total;
-    }, 0);
-  };
-
-  // Calculate running balance for a transaction
-  const calculateRunningBalance = (index) => {
-    return filteredTransactions
-      .slice(0, index + 1)
-      .reduce((balance, t) => {
-        if (t.type === 'Credit - Deposit') {
-          return balance + t.amount;
-        } else if (t.type === 'Debit - Expense') {
-          return balance - t.amount;
-        }
-        return balance;
-      }, 0);
-  };
-
   // Filter transactions
-  const filterTransactions = (source, type, dateRange, branchFilter, group) => {
-    let filtered = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    if (group !== 'total') {
-      const groupConfig = groupMapping[group];
-      filtered = filtered.filter((t) => groupConfig.branchIds.includes(t.branchId));
-    }
+  const filterTransactions = (source, type, dateRange, branchFilter) => {
+    let filtered = [...transactions];
 
     if (branchFilter) {
-      if (branchFilter === 'blackforestGroup') {
-        filtered = filtered.filter((t) => groupMapping.blackforestCakes.branchIds.includes(t.branchId));
-      } else {
-        filtered = filtered.filter((t) => t.branchId === branchFilter);
-      }
+      filtered = filtered.filter((t) => t.branchId === branchFilter);
     }
 
     if (source) {
@@ -577,22 +421,22 @@ const FinancialManagement = () => {
 
   const handleSourceFilter = (value) => {
     setSelectedSourceFilter(value);
-    filterTransactions(value, selectedTypeFilter, selectedDateRange, selectedBranchFilter, selectedGroup);
+    filterTransactions(value, selectedTypeFilter, selectedDateRange, selectedBranchFilter);
   };
 
   const handleTypeFilter = (value) => {
     setSelectedTypeFilter(value);
-    filterTransactions(selectedSourceFilter, value, selectedDateRange, selectedBranchFilter, selectedGroup);
+    filterTransactions(selectedSourceFilter, value, selectedDateRange, selectedBranchFilter);
   };
 
   const handleDateFilter = (dates) => {
     setSelectedDateRange(dates);
-    filterTransactions(selectedSourceFilter, selectedTypeFilter, dates, selectedBranchFilter, selectedGroup);
+    filterTransactions(selectedSourceFilter, selectedTypeFilter, dates, selectedBranchFilter);
   };
 
   const handleBranchFilter = (value) => {
     setSelectedBranchFilter(value);
-    filterTransactions(selectedSourceFilter, selectedTypeFilter, selectedDateRange, value, selectedGroup);
+    filterTransactions(selectedSourceFilter, selectedTypeFilter, selectedDateRange, value);
   };
 
   const clearFilters = () => {
@@ -600,15 +444,14 @@ const FinancialManagement = () => {
     setSelectedTypeFilter(null);
     setSelectedDateRange(null);
     setSelectedBranchFilter(null);
-    filterTransactions(null, null, null, null, selectedGroup);
+    filterTransactions(null, null, null, null);
   };
 
   const handlePrint = () => {
-    const groupName = selectedGroup === 'total' ? 'Total' : groupMapping[selectedGroup].name;
     const printContent = `
       <html>
         <head>
-          <title>Transaction History - ${groupName}</title>
+          <title>Transaction History</title>
           <style>
             @media print {
               @page { size: A4; margin: 20mm; }
@@ -617,12 +460,11 @@ const FinancialManagement = () => {
               th, td { border: 1px solid #000; padding: 8px; text-align: left; }
               th { background-color: #f2f2f2; font-weight: bold; }
               .no-print { display: none; }
-              .total-row { font-weight: bold; }
             }
           </style>
         </head>
         <body>
-          <h1>Transaction History - ${groupName}</h1>
+          <h1>Transaction History</h1>
           <table>
             <thead>
               <tr>
@@ -632,7 +474,6 @@ const FinancialManagement = () => {
                 <th>Source</th>
                 <th>Branch</th>
                 <th>Amount (₹)</th>
-                <th>Current Balance (₹)</th>
                 <th>Expense Category</th>
                 <th>Remarks</th>
               </tr>
@@ -648,20 +489,12 @@ const FinancialManagement = () => {
                       <td>${t.source}</td>
                       <td>${t.branch}</td>
                       <td>₹${t.amount.toFixed(2)}</td>
-                      <td>₹${calculateRunningBalance(index).toFixed(2)}</td>
                       <td>${t.expenseCategory}</td>
                       <td>${t.remarks}</td>
                     </tr>
                   `
                 )
                 .join('')}
-              <tr class="total-row">
-                <td colspan="5">Total</td>
-                <td>₹${calculateTransactionTotal().toFixed(2)}</td>
-                <td></td>
-                <td></td>
-                <td></td>
-              </tr>
             </tbody>
           </table>
         </body>
@@ -708,11 +541,6 @@ const FinancialManagement = () => {
       render: (amount) => `₹${amount.toFixed(2)}`,
     },
     {
-      title: 'Current Balance (₹)',
-      key: 'currentBalance',
-      render: (_, __, index) => `₹${calculateRunningBalance(index).toFixed(2)}`,
-    },
-    {
       title: 'Expense Category',
       dataIndex: 'expenseCategory',
       key: 'expenseCategory',
@@ -723,57 +551,6 @@ const FinancialManagement = () => {
       key: 'remarks',
     },
   ];
-
-  // Filter balances by group
-  const getFilteredBalances = () => {
-    if (selectedGroup === 'total') {
-      return [
-        { source: 'IDFC 1', balance: idfc1Balance },
-        { source: 'IDFC 2', balance: idfc2Balance },
-        { source: 'IDFC 3', balance: idfc3Balance },
-        { source: 'IDFC 4', balance: idfc4Balance },
-        ...branchBalances,
-        { source: 'TOTAL CASH IN HAND', balance: cashTotals.total },
-      ];
-    }
-    const groupConfig = groupMapping[selectedGroup];
-    const filteredBanks = groupConfig.banks.map((bank) => ({
-      source: bank,
-      balance: bank === 'IDFC 1' ? idfc1Balance : bank === 'IDFC 2' ? idfc2Balance : bank === 'IDFC 3' ? idfc3Balance : idfc4Balance,
-    }));
-    const cashBalances = branchBalances.filter((bb) => groupConfig.branchIds.includes(bb.branchId));
-    if (selectedGroup === 'blackforestCakes') {
-      return [
-        ...filteredBanks,
-        { source: 'CASH IN HAND - Blackforest Cakes Total', balance: cashTotals.blackforestCakes },
-      ];
-    }
-    return [
-      ...filteredBanks,
-      ...cashBalances.map((bb) => ({
-        source: bb.source,
-        branchId: bb.branchId,
-        balance: bb.balance,
-      })),
-      { source: `CASH IN HAND - ${groupConfig.name} Total`, balance: cashTotals[selectedGroup] },
-    ];
-  };
-
-  // Get available sources for forms based on group
-  const getAvailableSources = () => {
-    if (selectedGroup === 'total') {
-      return ['IDFC 1', 'IDFC 2', 'IDFC 3', 'IDFC 4', 'CASH IN HAND'];
-    }
-    return [...groupMapping[selectedGroup].banks, 'CASH IN HAND'];
-  };
-
-  // Get available branches for forms based on group
-  const getAvailableBranches = () => {
-    if (selectedGroup === 'total') {
-      return branches;
-    }
-    return branches.filter((branch) => groupMapping[selectedGroup].branchIds.includes(branch._id));
-  };
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -792,33 +569,93 @@ const FinancialManagement = () => {
           <Title
             level={2}
             style={{
-              marginBottom: '20px',
+              marginBottom: '40px',
               color: '#1a3042',
               fontWeight: 'bold',
               textAlign: 'center',
             }}
           >
-            Financial Management {selectedGroup === 'total' ? '' : `- ${groupMapping[selectedGroup].name}`}
+            Financial Management
           </Title>
-
-          <Tabs
-            activeKey={selectedGroup}
-            onChange={setSelectedGroup}
-            items={[
-              { key: 'total', label: 'Total' },
-              { key: 'thoothukudiHotel', label: 'Thoothukudi Hotel' },
-              { key: 'thoothukudiMacroon', label: 'Thoothukudi Macroon' },
-              { key: 'blackforestCakes', label: 'Blackforest Cakes' },
-            ]}
-            style={{ marginBottom: '40px' }}
-          />
 
           <Title level={4} style={{ marginBottom: '20px', color: '#1a3042' }}>
             Current Balances
           </Title>
-          <Row gutter={[24, 24]} style={{ marginBottom: '40px' }} key={selectedGroup + cashTotals[selectedGroup]}>
-            {getFilteredBalances().map((balance) => (
-              <Col xs={24} sm={12} md={6} key={balance.source}>
+          <Row gutter={[24, 24]} style={{ marginBottom: '40px' }}>
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                  IDFC 1: ₹{idfc1Balance.toFixed(2)}
+                </Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                  IDFC 2: ₹{idfc2Balance.toFixed(2)}
+                </Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                  IDFC 3: ₹{idfc3Balance.toFixed(2)}
+                </Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                  IDFC 4: ₹{idfc4Balance.toFixed(2)}
+                </Text>
+              </Card>
+            </Col>
+            {branchBalances.map((bb) => (
+              <Col xs={24} sm={12} md={6} key={bb.branchId}>
                 <Card
                   style={{
                     borderRadius: '12px',
@@ -830,17 +667,31 @@ const FinancialManagement = () => {
                     justifyContent: 'center',
                   }}
                 >
-                  {balance.source.startsWith('CASH IN HAND') || balance.source.includes('Total') ? (
-                    <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                  ) : (
-                    <BankOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
-                  )}
+                  <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
                   <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
-                    {balance.source}: ₹{balance.balance.toFixed(2)}
+                    {bb.source}: ₹{bb.balance.toFixed(2)}
                   </Text>
                 </Card>
               </Col>
             ))}
+            <Col xs={24} sm={12} md={6}>
+              <Card
+                style={{
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
+                  height: '150px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
+                <MoneyCollectOutlined style={{ fontSize: '24px', color: '#1a3042' }} />
+                <Text strong style={{ fontSize: '18px', display: 'block', marginTop: '10px' }}>
+                  TOTAL CASH IN HAND: ₹{totalCashBalance.toFixed(2)}
+                </Text>
+              </Card>
+            </Col>
           </Row>
 
           <Title level={4} style={{ marginBottom: '20px', color: '#1a3042' }}>
@@ -872,11 +723,11 @@ const FinancialManagement = () => {
                         depositForm.setFieldsValue({ branch: undefined });
                       }}
                     >
-                      {getAvailableSources().map((source) => (
-                        <Option key={source} value={source}>
-                          {source}
-                        </Option>
-                      ))}
+                      <Option value="IDFC 1">IDFC 1</Option>
+                      <Option value="IDFC 2">IDFC 2</Option>
+                      <Option value="IDFC 3">IDFC 3</Option>
+                      <Option value="IDFC 4">IDFC 4</Option>
+                      <Option value="CASH IN HAND">CASH IN HAND</Option>
                     </Select>
                   </Form.Item>
                 </Col>
@@ -906,14 +757,14 @@ const FinancialManagement = () => {
                         >
                           <Select placeholder="Select Branch">
                             {source && bankBranchMapping[source] && source !== 'CASH IN HAND'
-                              ? getAvailableBranches()
+                              ? branches
                                   .filter((branch) => bankBranchMapping[source].includes(branch._id))
                                   .map((branch) => (
                                     <Option key={branch._id} value={branch._id}>
                                       {branch.name}
                                     </Option>
                                   ))
-                              : getAvailableBranches().map((branch) => (
+                              : branches.map((branch) => (
                                   <Option key={branch._id} value={branch._id}>
                                     {branch.name}
                                   </Option>
@@ -924,17 +775,6 @@ const FinancialManagement = () => {
                     }}
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="Date"
-                    name="date"
-                    rules={[{ required: true, message: 'Please select a date' }]}
-                  >
-                    <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" defaultValue={dayjs()} />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={16}>
                 <Col xs={24} sm={12}>
                   <Form.Item label="Remarks" name="remarks">
                     <Input placeholder="Optional remarks" />
@@ -978,11 +818,11 @@ const FinancialManagement = () => {
                         expenseForm.setFieldsValue({ branch: undefined });
                       }}
                     >
-                      {getAvailableSources().map((source) => (
-                        <Option key={source} value={source}>
-                          {source}
-                        </Option>
-                      ))}
+                      <Option value="IDFC 1">IDFC 1</Option>
+                      <Option value="IDFC 2">IDFC 2</Option>
+                      <Option value="IDFC 3">IDFC 3</Option>
+                      <Option value="IDFC 4">IDFC 4</Option>
+                      <Option value="CASH IN HAND">CASH IN HAND</Option>
                     </Select>
                   </Form.Item>
                 </Col>
@@ -993,7 +833,7 @@ const FinancialManagement = () => {
                     rules={[{ required: true, message: 'Please select an expense category' }]}
                   >
                     <Select placeholder="Select Category">
-                      <Option value="Rent">Rent</Option>
+                    <Option value="Rent">Rent</Option>
                       <Option value="EB">EB</Option>
                       <Option value="MAINTENANCE">Maintenance</Option>
                       <Option value="TRANSPORT">Transport</Option>
@@ -1047,14 +887,14 @@ const FinancialManagement = () => {
                         >
                           <Select placeholder="Select Branch">
                             {source && bankBranchMapping[source] && source !== 'CASH IN HAND'
-                              ? getAvailableBranches()
+                              ? branches
                                   .filter((branch) => bankBranchMapping[source].includes(branch._id))
                                   .map((branch) => (
                                     <Option key={branch._id} value={branch._id}>
                                       {branch.name}
                                     </Option>
                                   ))
-                              : getAvailableBranches().map((branch) => (
+                              : branches.map((branch) => (
                                   <Option key={branch._id} value={branch._id}>
                                     {branch.name}
                                   </Option>
@@ -1110,11 +950,11 @@ const FinancialManagement = () => {
                   allowClear
                   style={{ width: '200px' }}
                 >
-                  {getAvailableSources().map((source) => (
-                    <Option key={source} value={source}>
-                      {source}
-                    </Option>
-                  ))}
+                  <Option value="IDFC 1">IDFC 1</Option>
+                  <Option value="IDFC 2">IDFC 2</Option>
+                  <Option value="IDFC 3">IDFC 3</Option>
+                  <Option value="IDFC 4">IDFC 4</Option>
+                  <Option value="CASH IN HAND">CASH IN HAND</Option>
                 </Select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -1126,10 +966,7 @@ const FinancialManagement = () => {
                   allowClear
                   style={{ width: '200px' }}
                 >
-                  <Option key="blackforestGroup" value="blackforestGroup">
-                    Blackforest Group
-                  </Option>
-                  {getAvailableBranches().map((branch) => (
+                  {branches.map((branch) => (
                     <Option key={branch._id} value={branch._id}>
                       {branch.name}
                     </Option>
@@ -1172,15 +1009,6 @@ const FinancialManagement = () => {
               rowKey="id"
               pagination={{ pageSize: 10 }}
               bordered
-              summary={() => (
-                <Table.Summary.Row style={{ fontWeight: 'bold' }}>
-                  <Table.Summary.Cell colSpan={5}>Total</Table.Summary.Cell>
-                  <Table.Summary.Cell>₹{calculateTransactionTotal().toFixed(2)}</Table.Summary.Cell>
-                  <Table.Summary.Cell />
-                  <Table.Summary.Cell />
-                  <Table.Summary.Cell />
-                </Table.Summary.Row>
-              )}
             />
           </Card>
         </div>

@@ -2,6 +2,7 @@ const Inventory = require('../models/Inventory');
 const Product = require('../models/Products');
 const Branch = require('../models/Branch');
 
+// Existing functions...
 exports.produceStock = async (req, res) => {
   try {
     const { productId, quantity, reason } = req.body;
@@ -43,7 +44,7 @@ exports.getInventory = async (req, res) => {
 exports.updateStock = async (req, res) => {
   try {
     const { id } = req.params;
-    const { inStock, reason, factoryInventoryId } = req.body;
+    const { inStock, reason } = req.body;
 
     const inventory = await Inventory.findById(id);
     if (!inventory) return res.status(404).json({ message: 'Inventory record not found' });
@@ -62,23 +63,6 @@ exports.updateStock = async (req, res) => {
 
     inventory.inStock = newStock;
     await inventory.save();
-
-    if (factoryInventoryId && stockChange > 0) {
-      const factoryInventory = await Inventory.findById(factoryInventoryId);
-      if (!factoryInventory) return res.status(404).json({ message: 'Factory inventory not found' });
-
-      if (factoryInventory.inStock < stockChange) {
-        return res.status(400).json({ message: 'Insufficient stock in Factory' });
-      }
-
-      factoryInventory.inStock -= stockChange;
-      factoryInventory.stockHistory.push({
-        date: new Date(),
-        change: -stockChange,
-        reason: `Transferred to Branch`,
-      });
-      await factoryInventory.save();
-    }
 
     res.status(200).json({ message: 'Stock updated successfully', inventory });
   } catch (error) {
@@ -115,6 +99,7 @@ exports.getBranches = async (req, res) => {
   }
 };
 
+// Add reduceStock function
 exports.reduceStock = async (branchId, products) => {
   try {
     for (const product of products) {
@@ -161,6 +146,7 @@ exports.reduceStock = async (branchId, products) => {
   }
 };
 
+// Add reduceStockEndpoint
 exports.reduceStockEndpoint = async (req, res) => {
   const { branchId, products } = req.body;
 
@@ -177,62 +163,12 @@ exports.reduceStockEndpoint = async (req, res) => {
   }
 };
 
-exports.transferStock = async (req, res) => {
-  try {
-    const { productId, quantity, reason, locationId, factoryInventoryId } = req.body;
-    if (!productId || !quantity || !factoryInventoryId) {
-      return res.status(400).json({ message: 'Product ID, quantity, and factory inventory ID required' });
-    }
-
-    const factoryInventory = await Inventory.findById(factoryInventoryId);
-    if (!factoryInventory) {
-      return res.status(404).json({ message: 'Factory inventory not found' });
-    }
-    if (factoryInventory.inStock < quantity) {
-      return res.status(400).json({ message: 'Insufficient stock in Factory' });
-    }
-
-    let branchInventory = await Inventory.findOne({ productId, locationId });
-    if (!branchInventory) {
-      branchInventory = new Inventory({ 
-        productId, 
-        locationId, 
-        inStock: 0, 
-        lowStockThreshold: 5,
-        stockHistory: []
-      });
-    }
-
-    branchInventory.inStock += Number(quantity);
-    branchInventory.stockHistory.push({
-      change: Number(quantity),
-      reason: reason || 'Received from Factory',
-      date: new Date(),
-    });
-    await branchInventory.save();
-
-    factoryInventory.inStock -= Number(quantity);
-    factoryInventory.stockHistory.push({
-      change: -Number(quantity),
-      reason: `Transferred to Branch`,
-      date: new Date(),
-    });
-    await factoryInventory.save();
-
-    res.status(200).json({ message: 'Stock transferred successfully', inventory: branchInventory });
-  } catch (error) {
-    console.error('❌ Error transferring stock:', error);
-    res.status(500).json({ message: 'Error transferring stock', error: error.message });
-  }
-};
-
 module.exports = {
   produceStock: exports.produceStock,
   getInventory: exports.getInventory,
   updateStock: exports.updateStock,
   updateThreshold: exports.updateThreshold,
   getBranches: exports.getBranches,
-  reduceStock: exports.reduceStock,
+  reduceStock: exports.reduceStock,        // Ensure this is exported
   reduceStockEndpoint: exports.reduceStockEndpoint,
-  transferStock: exports.transferStock,
 };

@@ -3,21 +3,8 @@ const Financial = require('../models/Financial');
 
 // Bank to branch mapping including UPI and Credit Card
 const bankBranchMapping = {
-  'IDFC 1': [
-    '67e2e29328541a7b58d1ca11',
-    '67ed2c7b62b722c49a251e26',
-    '6841c13ab5a0fc5644db2f7e', // New branch
-    '67ea89f5524fad83e386415b'  // New branch
-  ],
-  'IDFC 2': [
-    '67e1a4b22191787a139a749f',
-    '67e2e1f928541a7b58d1c9f8',
-    '67ed2be162b722c49a251dca',
-    '6841bef0b5a0fc5644db227d',
-    '6838102f710163091394b581',
-    '6841c13ab5a0fc5644db2f7e', // New branch
-    '67ea89f5524fad83e386415b'  // New branch
-  ],
+  'IDFC 1': ['67e2e29328541a7b58d1ca11', '67ed2c7b62b722c49a251e26'],
+  'IDFC 2': ['67e1a4b22191787a139a749f', '67e2e1f928541a7b58d1c9f8', '67ed2be162b722c49a251dca'],
   'IDFC 3': ['6841d8b5b5a0fc5644db5b10'],
   'IDFC 4': ['6841d9b7b5a0fc5644db5b18'],
   'UPI': {
@@ -26,12 +13,8 @@ const bankBranchMapping = {
     '67e1a4b22191787a139a749f': 'IDFC 2',
     '67e2e1f928541a7b58d1c9f8': 'IDFC 2',
     '67ed2be162b722c49a251dca': 'IDFC 2',
-    '6841bef0b5a0fc5644db227d': 'IDFC 2',
-    '6838102f710163091394b581': 'IDFC 2',
     '6841d8b5b5a0fc5644db5b10': 'IDFC 3',
     '6841d9b7b5a0fc5644db5b18': 'IDFC 4',
-    '6841c13ab5a0fc5644db2f7e': 'IDFC 1', // New branch, default to IDFC 1 for UPI
-    '67ea89f5524fad83e386415b': 'IDFC 1'  // New branch, default to IDFC 1 for UPI
   },
   'Credit Card': {
     '67e2e29328541a7b58d1ca11': 'IDFC 1',
@@ -39,27 +22,10 @@ const bankBranchMapping = {
     '67e1a4b22191787a139a749f': 'IDFC 2',
     '67e2e1f928541a7b58d1c9f8': 'IDFC 2',
     '67ed2be162b722c49a251dca': 'IDFC 2',
-    '6841bef0b5a0fc5644db227d': 'IDFC 2',
-    '6838102f710163091394b581': 'IDFC 2',
     '6841d8b5b5a0fc5644db5b10': 'IDFC 3',
     '6841d9b7b5a0fc5644db5b18': 'IDFC 4',
-    '6841c13ab5a0fc5644db2f7e': 'IDFC 1', // New branch, default to IDFC 1 for Credit Card
-    '67ea89f5524fad83e386415b': 'IDFC 1'  // New branch, default to IDFC 1 for Credit Card
   },
 };
-
-// Blackforest branch IDs for pooled cash logic
-const blackforestBranchIds = [
-  '67e2e29328541a7b58d1ca11',
-  '67ed2c7b62b722c49a251e26',
-  '67e1a4b22191787a139a749f',
-  '67e2e1f928541a7b58d1c9f8',
-  '67ed2be162b722c49a251dca',
-  '6841bef0b5a0fc5644db227d',
-  '6838102f710163091394b581',
-  '6841c13ab5a0fc5644db2f7e', // New branch
-  '67ea89f5524fad83e386415b'  // New branch
-];
 
 // Initialize the financial document
 const initializeFinancial = async () => {
@@ -126,9 +92,9 @@ const getTransactions = async (req, res) => {
 
 // Record a deposit
 const recordDeposit = async (req, res) => {
-  const { source, amount, branch, remarks, date } = req.body;
+  const { source, amount, branch, remarks } = req.body;
 
-  console.log('Deposit request body:', { source, amount, branch, remarks, date });
+  console.log('Deposit request body:', { source, amount, branch, remarks });
 
   if (source === undefined || source === null || amount === undefined || amount === null || branch === undefined || branch === null) {
     return res.status(400).json({ message: 'Source, amount, and branch are required' });
@@ -198,7 +164,7 @@ const recordDeposit = async (req, res) => {
       amount,
       expenseCategory: 'N/A',
       remarks: remarks || 'N/A',
-      date: date ? new Date(date) : new Date(),
+      date: new Date(), // Default to current date if not provided
     };
 
     financial.transactions.push(transaction);
@@ -254,29 +220,15 @@ const recordExpense = async (req, res) => {
 
     let updatedBalance;
     if (source === 'CASH IN HAND') {
-      if (blackforestBranchIds.includes(branch)) {
-        // Deduct only from totalCashBalance for Blackforest branches and update it
-        if (amount > financial.totalCashBalance) {
-          return res.status(400).json({ message: 'Insufficient total cash balance for Blackforest group' });
-        }
-        financial.totalCashBalance -= amount;
-        updatedBalance = financial.totalCashBalance; // Return updated totalCashBalance
-      } else {
-        // Standard per-branch logic for non-Blackforest branches
-        const branchId = new mongoose.Types.ObjectId(branch);
-        let branchBalanceIndex = financial.branchBalances.findIndex(bb => bb.branch.toString() === branch);
-        if (branchBalanceIndex === -1) {
-          financial.branchBalances.push({ branch: branchId, cashBalance: 0 });
-          branchBalanceIndex = financial.branchBalances.length - 1;
-        }
-        if (financial.branchBalances[branchBalanceIndex].cashBalance < amount) {
-          return res.status(400).json({ message: `Insufficient balance in CASH IN HAND for branch ${branch}` });
-        }
-        financial.branchBalances[branchBalanceIndex].cashBalance -= amount;
-        financial.markModified('branchBalances');
-        financial.totalCashBalance -= amount;
-        updatedBalance = financial.branchBalances[branchBalanceIndex].cashBalance;
+      const branchId = new mongoose.Types.ObjectId(branch);
+      const branchBalanceIndex = financial.branchBalances.findIndex(bb => bb.branch.toString() === branch);
+      if (branchBalanceIndex === -1 || financial.branchBalances[branchBalanceIndex].cashBalance < amount) {
+        return res.status(400).json({ message: `Insufficient balance in CASH IN HAND for branch ${branch}` });
       }
+      financial.branchBalances[branchBalanceIndex].cashBalance -= amount;
+      financial.markModified('branchBalances');
+      financial.totalCashBalance -= amount;
+      updatedBalance = financial.branchBalances[branchBalanceIndex].cashBalance;
     } else {
       const bank = transactionSource;
       switch (bank) {
