@@ -4,7 +4,7 @@ const { createOrder, getAllOrders, updateSendingQty } = require('../controllers/
 const auth = require('../middleware/auth');
 
 router.post('/', auth(['branch']), createOrder);
-router.get('/', auth(['admin', 'superadmin','branch']), getAllOrders);
-router.patch('/:id', auth(['admin', 'superadmin','branch']), updateSendingQty);
+router.get('/', auth(['admin', 'superadmin']), getAllOrders);
+router.patch('/:id', auth(['admin', 'superadmin','brnach']), updateSendingQty);
 
 module.exports = router;

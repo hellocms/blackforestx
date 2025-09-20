@@ -16,12 +16,10 @@ const orderSchema = new mongoose.Schema({
       name: { type: String, required: true },
       quantity: { type: Number, required: true },
       sendingQty: { type: Number, default: 0 },
-      receivedQty: { type: Number, default: 0 },
-      billedQty: { type: Number, default: 0 },
       price: { type: Number, required: true },
       unit: { type: String, required: true },
       gstRate: { 
-        type: mongoose.Schema.Types.Mixed,
+        type: mongoose.Schema.Types.Mixed, // Allows Number (e.g., 5, 12) or String ("non-gst")
         required: true,
         validate: {
           validator: function(v) {
@@ -34,10 +32,12 @@ const orderSchema = new mongoose.Schema({
       productGST: { 
         type: Number, 
         required: true,
+        default: function() {
+          return this.gstRate === 'non-gst' ? 0 : null; // 0 for Non-GST, calculated otherwise
+        },
       },
       bminstock: { type: Number, default: 0 },
       confirmed: { type: Boolean, default: false },
-      updatedAt: { type: Date }, // New: Tracks when product is confirmed
     },
   ],
   paymentMethod: {
@@ -65,6 +65,10 @@ const orderSchema = new mongoose.Schema({
     enum: ['draft', 'completed', 'neworder', 'pending', 'delivered', 'received'],
     default: 'draft',
   },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
   orderId: {
     type: String,
     unique: true,
@@ -88,42 +92,6 @@ const orderSchema = new mongoose.Schema({
     ref: 'Table',
     default: null,
   },
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true },
-});
-
-// Indexes for performance
-orderSchema.index({ branchId: 1, tab: 1 });
-orderSchema.index({ branchId: 1, status: 1, createdAt: -1 });
-orderSchema.index({ deliveryDateTime: 1 });
-orderSchema.index({ billNo: 1 }, { unique: true, sparse: true });
-
-// Pre-save hook to ensure totals are calculated
-orderSchema.pre('save', function(next) {
-  if (this.isNew || this.isModified('products') || this.isModified('status')) {
-    this.products.forEach(product => {
-      const billedQty = Math.max(product.quantity, product.sendingQty || 0);
-      product.billedQty = billedQty;
-      product.productTotal = billedQty * product.price;
-      if (product.gstRate === 'non-gst') {
-        product.productGST = 0;
-      } else if (typeof product.gstRate === 'number') {
-        product.productGST = product.productTotal * (product.gstRate / 100);
-      }
-
-      // Auto-set receivedQty on 'received' status if not set
-      if (this.status === 'received' && (product.receivedQty === undefined || product.receivedQty === 0)) {
-        product.receivedQty = product.sendingQty || 0;
-      }
-    });
-    this.subtotal = this.products.reduce((sum, p) => sum + p.productTotal, 0);
-    this.totalGST = this.products.reduce((sum, p) => sum + p.productGST, 0);
-    this.totalWithGST = this.subtotal + this.totalGST;
-    this.totalItems = this.products.filter(p => p.billedQty > 0).length;
-  }
-  next();
 });
 
 module.exports = mongoose.model('Order', orderSchema);
