@@ -1,5 +1,4 @@
 const express = require('express');
-const compression = require('compression');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
@@ -33,21 +32,20 @@ const kotOrderRoutes = require('./routes/kotOrderRoutes');
 const app = express();
 
 // Ensure the uploads/products directory exists
-const uploadDir = path.join(__dirname, 'Uploads/products');
+const uploadDir = path.join(__dirname, 'uploads/products');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
   console.log('Upload directory created:', uploadDir);
 }
 
 // Middleware
-app.use(compression()); // Enable GZIP compression
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // Serve static files from the uploads directory
-app.use('/Uploads', express.static(path.join(__dirname, 'Uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API Routes
 app.use('/api/financial', (req, res, next) => {
