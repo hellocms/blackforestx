@@ -1,9 +1,10 @@
-
 import React, { useState, useEffect, useRef } from "react";
-import { Layout, Button, Space, Row, Col, message, Image, Radio, Badge, Tooltip, Select, Dropdown, Input } from "antd";
+import { Layout, Button, Space, Row, Col, message, Image as AntImage, Radio, Badge, Tooltip, Select, Dropdown, Input } from "antd";
 import { LogoutOutlined, AccountBookFilled, ShoppingCartOutlined, MenuOutlined, ArrowLeftOutlined, CheckCircleFilled, UserOutlined } from "@ant-design/icons";
 import { useRouter } from "next/router";
 import { jwtDecode as jwtDecodeLib } from "jwt-decode";
+import Image from "next/image"; // Added for optimized image loading
+import { useInView } from "react-intersection-observer"; // Added for infinite scroll
 import CartSider from '../../components/CartSider';
 
 const { Header, Content, Sider } = Layout;
@@ -42,6 +43,9 @@ const BillingPage = ({ branchId }) => {
   const [selectedWaiter, setSelectedWaiter] = useState(null);
   const [waiters, setWaiters] = useState([]);
   const [touchStartX, setTouchStartX] = useState(null);
+  const [page, setPage] = useState(1); // Added for pagination
+  const [hasMore, setHasMore] = useState(true); // Added for pagination
+  const { ref: loadMoreRef, inView } = useInView({ threshold: 0 }); // Added for infinite scroll
 
   const contentRef = useRef(null);
   const inputRefs = useRef({});
@@ -143,27 +147,33 @@ const BillingPage = ({ branchId }) => {
     }
   };
 
-  const fetchProducts = async (categoryId) => {
+  const fetchProducts = async (categoryId, pageToFetch = 1, append = false) => {
     setProductsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${BACKEND_URL}/api/products`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const response = await fetch(
+        `${BACKEND_URL}/api/products?category=${categoryId}&page=${pageToFetch}&limit=10`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }
+      );
       const data = await response.json();
       if (response.ok) {
-        const filteredProducts = data.filter(product => product.category?._id === categoryId);
-        setProducts(filteredProducts);
-        applyFilters(filteredProducts);
+        setProducts(prev => append ? [...prev, ...data.products] : data.products);
+        setFilteredProducts(prev => append ? [...prev, ...data.products] : data.products);
+        setHasMore(data.pagination.page < data.pagination.pages);
+        setPage(pageToFetch);
       } else {
         message.error('Failed to fetch products');
         setProducts([]);
         setFilteredProducts([]);
+        setHasMore(false);
       }
     } catch (error) {
       message.error('Error fetching products');
       setProducts([]);
       setFilteredProducts([]);
+      setHasMore(false);
     }
     setProductsLoading(false);
   };
@@ -200,7 +210,9 @@ const BillingPage = ({ branchId }) => {
     setSelectedCategory(category);
     setSelectedProductType(null);
     setSearchQuery("");
-    fetchProducts(category._id);
+    setPage(1);
+    setHasMore(true);
+    fetchProducts(category._id, 1, false);
   };
 
   const stopPropagation = (e) => {
@@ -285,6 +297,8 @@ const BillingPage = ({ branchId }) => {
     setFilteredProducts([]);
     setSelectedProductType(null);
     setSearchQuery("");
+    setPage(1);
+    setHasMore(true);
     setLastBillNo(null);
   };
 
@@ -860,6 +874,13 @@ const BillingPage = ({ branchId }) => {
     }
   };
 
+  // Infinite scroll effect
+  useEffect(() => {
+    if (inView && hasMore && selectedCategory && !productsLoading) {
+      fetchProducts(selectedCategory._id, page + 1, true);
+    }
+  }, [inView, hasMore, selectedCategory, productsLoading]);
+
   // useEffect
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1239,24 +1260,31 @@ const BillingPage = ({ branchId }) => {
                     zIndex: 1,
                   }}
                 />
-                {productsLoading ? (
+                {productsLoading && products.length === 0 ? (
                   <div>Loading products...</div>
                 ) : (
-                  <Row gutter={[16, 24]} justify="center">
-                    {filteredProducts.length > 0 ? (
-                      filteredProducts.map(product => (
-                        <Col
-                          key={product._id}
-                          span={24 / columns}
-                          style={{ display: 'flex', justifyContent: 'center' }}
-                        >
-                          {renderProductCard(product)}
-                        </Col>
-                      ))
-                    ) : (
-                      <div>No products found for this category.</div>
+                  <>
+                    <Row gutter={[16, 24]} justify="center">
+                      {filteredProducts.length > 0 ? (
+                        filteredProducts.map(product => (
+                          <Col
+                            key={product._id}
+                            span={24 / columns}
+                            style={{ display: 'flex', justifyContent: 'center' }}
+                          >
+                            {renderProductCard(product)}
+                          </Col>
+                        ))
+                      ) : (
+                        <div>No products found for this category.</div>
+                      )}
+                    </Row>
+                    {hasMore && (
+                      <div ref={loadMoreRef} style={{ height: '20px', textAlign: 'center' }}>
+                        {productsLoading && <div>Loading more products...</div>}
+                      </div>
                     )}
-                  </Row>
+                  </>
                 )}
               </>
             ) : (
@@ -1290,10 +1318,14 @@ const BillingPage = ({ branchId }) => {
                           <div style={{ width: '100%', height: '100%', overflow: 'hidden', padding: 0, margin: 0 }}>
                             {category.image ? (
                               <Image
-                                src={`${BACKEND_URL}/${category.image}`}
+                                src={`${BACKEND_URL}/Uploads/${category.image}`}
                                 alt={category.name}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', padding: 0, margin: 0 }}
-                                preview={false}
+                                width={cardSize}
+                                height={cardSize}
+                                layout="responsive"
+                                objectFit="cover"
+                                placeholder="blur"
+                                blurDataURL="/placeholder.jpg"
                               />
                             ) : (
                               <div style={{ width: '100%', height: '100%', background: '#E9E9E9', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 0, margin: 0 }}>No Image</div>
@@ -1413,8 +1445,12 @@ const BillingPage = ({ branchId }) => {
               <Image
                 src={`${BACKEND_URL}/Uploads/${product.images[0]}`}
                 alt={product.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', padding: 0, margin: 0 }}
-                preview={false}
+                width={cardSize}
+                height={cardSize}
+                layout="responsive"
+                objectFit="cover"
+                placeholder="blur"
+                blurDataURL="/placeholder.jpg"
               />
               {count > 0 && (
                 <Input

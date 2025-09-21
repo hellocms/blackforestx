@@ -44,19 +44,23 @@ const ProductList = () => {
   const fetchProducts = async (token) => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/products`, {
+      const response = await fetch(`${BACKEND_URL}/api/products?page=1&limit=1000`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
       if (response.ok) {
-        setProducts(data);
-        setFilteredProducts(data);
+        setProducts(data.products || []);
+        setFilteredProducts(data.products || []);
       } else {
         message.error('Failed to fetch products');
+        setProducts([]);
+        setFilteredProducts([]);
       }
     } catch (error) {
       console.error('❌ Error fetching products:', error);
       message.error('Error fetching products');
+      setProducts([]);
+      setFilteredProducts([]);
     }
     setLoading(false);
   };
@@ -221,7 +225,7 @@ const ProductList = () => {
 
   // Handle Image Preview
   const handleImagePreview = (images) => {
-    setPreviewImages(images.map(img => `${BACKEND_URL}/uploads/${img}`));
+    setPreviewImages(images.map(img => `${BACKEND_URL}/Uploads/${img}`));
     setPreviewVisible(true);
   };
 

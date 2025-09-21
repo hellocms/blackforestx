@@ -3,6 +3,9 @@ import withPWA from 'next-pwa';
 
 const nextConfig = {
   reactStrictMode: true,
+  images: {
+    domains: ['localhost', 'apib.theblackforestcakes.com'],
+  },
   transpilePackages: [
     // Core Ant Design packages
     'antd',
@@ -21,10 +24,10 @@ const nextConfig = {
     'rc-menu',
     'rc-notification',
     // Scoped @rc-component/* packages
-    '@rc-component/util',    // Current error
-    '@rc-component/portal',  // Common in Ant Design for modals/popovers
-    '@rc-component/context', // Context utilities
-    '@rc-component/tour',    // For tours/tooltips
+    '@rc-component/util',
+    '@rc-component/portal',
+    '@rc-component/context',
+    '@rc-component/tour',
   ],
   webpack: (config) => {
     config.resolve.fallback = { fs: false, path: false };

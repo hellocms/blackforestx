@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
+  destination: (req, file, cb) => cb(null, 'Uploads/'),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
 const upload = multer({ storage }).array('images', 5);
@@ -66,7 +66,7 @@ exports.createProduct = async (req, res) => {
       const checkDigit = calculateEAN13CheckDigit(eanWithoutCheckDigit);
       const generatedUPC = eanWithoutCheckDigit + checkDigit;
 
-      const barcodePath = `uploads/barcodes/${nextProductId}.png`;
+      const barcodePath = `Uploads/barcodes/${nextProductId}.png`;
       await generateBarcode(generatedUPC, barcodePath);
 
       const newProduct = new Product({
@@ -148,7 +148,6 @@ exports.updateProduct = async (req, res) => {
         }));
       }
 
-      // Handle image updates
       let updatedImages = product.images;
       if (removedImages) {
         let imagesToRemove;
@@ -157,11 +156,9 @@ exports.updateProduct = async (req, res) => {
           if (!Array.isArray(imagesToRemove)) {
             return res.status(400).json({ message: 'Invalid removedImages format' });
           }
-          // Remove specified images from product.images
           updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img));
-          // Delete removed images from file system
           imagesToRemove.forEach(image => {
-            const imagePath = path.join(__dirname, '../uploads', image);
+            const imagePath = path.join(__dirname, '../Uploads', image);
             fs.unlink(imagePath, (err) => {
               if (err) console.error('Error deleting image:', err);
             });
@@ -171,7 +168,6 @@ exports.updateProduct = async (req, res) => {
         }
       }
 
-      // Append new images
       if (req.files && req.files.length > 0) {
         updatedImages = [...updatedImages, ...req.files.map(file => file.filename)];
       }
@@ -207,12 +203,37 @@ exports.updateProduct = async (req, res) => {
 
 exports.getProducts = async (req, res) => {
   try {
-    const products = await Product.find()
+    const { category, page = 1, limit = 50 } = req.query;
+    let query = {};
+
+    // Filter by category if provided
+    if (category) {
+      if (!mongoose.Types.ObjectId.isValid(category)) {
+        return res.status(400).json({ message: 'Invalid category ID' });
+      }
+      query.category = category;
+    }
+
+    // Fetch products with pagination
+    const products = await Product.find(query)
       .populate('category', 'name')
-      .populate('dealers', 'dealer_name')
-      .populate('company', 'name')
-      .populate('album', 'name');
-    res.status(200).json(products);
+      .select('productId name category images priceDetails isVeg isPastry available')
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit))
+      .sort({ name: 1 });
+
+    // Get total count for pagination
+    const total = await Product.countDocuments(query);
+
+    res.status(200).json({
+      products,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('❌ Error fetching products:', error);
     res.status(500).json({ message: 'Error fetching products', error: error.message });
@@ -241,7 +262,7 @@ exports.deleteProduct = async (req, res) => {
 
     if (product.images.length > 0) {
       product.images.forEach(image => {
-        const imagePath = path.join(__dirname, '../uploads', image);
+        const imagePath = path.join(__dirname, '../Uploads', image);
         fs.unlink(imagePath, (err) => {
           if (err) console.error('Error deleting image:', err);
         });
