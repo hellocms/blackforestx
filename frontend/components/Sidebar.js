@@ -1,6 +1,6 @@
 import React from "react";
-import { Layout, Menu, Button, Drawer, Typography, } from "antd";
-import Link from "next/link";
+import { Layout, Menu, Button, Drawer, Typography } from "antd";
+import { useRouter } from "next/router";
 import {
   CloseOutlined,
   DashboardOutlined,
@@ -29,31 +29,44 @@ const menuItems = [
   { key: "products", label: "Products", icon: <ShoppingOutlined />, path: "/products/List" },
   { key: "pastry", label: "Barcode", icon: <CoffeeOutlined />, path: "/barcode-print" },
   { key: "categories", label: "Categories", icon: <AppstoreOutlined />, path: "/categories/List" },
+  { key: "categories", label: "Departments", icon: <AppstoreOutlined />, path: "/categories/department" },
   { key: "album", label: "Album", icon: <PictureOutlined />, path: "/albums/add" },
 
 
 
 
   { key: "report", label: "Report", isGroup: true },
-  { key: "addons", label: "Billing", icon: <FileTextOutlined  />, path: "/branch/BillingOrdersPage" },
-  { key: "addons", label: "Timing", icon: <FileTextOutlined  />, path: "/branch/TimingReportPage" },
-  { key: "addons", label: "Waiter", icon: <FileTextOutlined  />, path: "/branch/WaiterBillsManagementPage" },
+  { key: "billing", label: "Billing", icon: <FileTextOutlined  />, path: "/branch/BillingOrdersPage" },
+  { key: "timing", label: "Timing", icon: <FileTextOutlined  />, path: "/branch/TimingReportPage" },
+  { key: "waiter", label: "Waiter", icon: <FileTextOutlined  />, path: "/branch/WaiterBillsManagementPage" },
   { key: "Closingentry", label: "Closingentry", icon: <FileTextOutlined />, path: "/dealers/closing-entry/list" },
   { key: "Expense List", label: "Expense List", icon: <FileTextOutlined />, path: "/dealers/closing-entry/expenselist" },
+  { key: "billing", label: "StockOrders", icon: <FileTextOutlined  />, path: "/branch/orders" },
+  { key: "billing", label: "Inventory", icon: <FileTextOutlined  />, path: "/Inventory" },
   { key: "DealerBills", label: "DealerBills", icon: <FileTextOutlined />, path: "/dealers/bill-entry/list" },
   { key: "delivery", label: "Company", icon: <DeliveredProcedureOutlined />, path: "/dealers/companyForm" },
-  { key: "delivery", label: "Dealer", icon: <DeliveredProcedureOutlined />, path: "/dealers/list" },
+  { key: "dealer", label: "Dealer", icon: <DeliveredProcedureOutlined />, path: "/dealers/list" },
   { key: "payments", label: "FinancialManagement", icon: <CreditCardOutlined />, path: "/FinancialManagement"},
 
 
   { key: "others_2", label: "Account Creations", isGroup: true },
-  { key: "addons", label: "Branches", icon: <PlusCircleOutlined />, path: "/branch/list" },
+  { key: "branches", label: "Branches", icon: <PlusCircleOutlined />, path: "/branch/list" },
   { key: "stores", label: "registeration", icon: <ShopOutlined />, path: "/register", newTab: true },
   { key: "units", label: "User List", icon: <CalculatorOutlined />, path: "/user/List" },
-  { key: "units", label: "Employees", icon: <CalculatorOutlined />, path: "/employees/List" },
+  { key: "employees", label: "Employees", icon: <CalculatorOutlined />, path: "/employees/List" },
 ];
 
 const Sidebar = ({ collapsed, toggleSidebar, isMobile, mobileVisible, closeMobileSidebar }) => {
+  const router = useRouter();
+
+  const handleClick = (e, path) => {
+    e.preventDefault();
+    router.push(path);
+  };
+
+  // Find the current selected key based on pathname
+  const selectedKey = menuItems.find(item => !item.isGroup && item.path === router.pathname)?.key;
+
   return (
     <>
       {/* Desktop Sidebar */}
@@ -74,7 +87,7 @@ const Sidebar = ({ collapsed, toggleSidebar, isMobile, mobileVisible, closeMobil
             borderRight: "1px solid #ddd"
           }}
         >
-          <Menu mode="inline" style={{ borderRight: 0, background: "#fff" }}>
+          <Menu mode="inline" style={{ borderRight: 0, background: "#fff" }} selectedKeys={[selectedKey]}>
             {menuItems.map((item) =>
               item.isGroup ? (
                 <Menu.ItemGroup
@@ -104,9 +117,9 @@ const Sidebar = ({ collapsed, toggleSidebar, isMobile, mobileVisible, closeMobil
                       {item.label}
                     </a>
                   ) : (
-                    <Link href={item.path} style={{ color: "#333", textDecoration: "none" }}>
+                    <a href={item.path} onClick={(e) => handleClick(e, item.path)} style={{ color: "#333", textDecoration: "none" }}>
                       {item.label}
-                    </Link>
+                    </a>
                   )}
                 </Menu.Item>
               )
@@ -150,7 +163,7 @@ const Sidebar = ({ collapsed, toggleSidebar, isMobile, mobileVisible, closeMobil
         </div>
 
         {/* Menu Items */}
-        <Menu theme="light" mode="inline">
+        <Menu theme="light" mode="inline" selectedKeys={[selectedKey]}>
           {menuItems.map((item) =>
             item.isGroup ? (
               <Menu.ItemGroup key={item.key} title={<span style={{ fontSize: "12px", color: "#aaa", fontWeight: "bold" }}>{item.label}</span>} />
@@ -161,9 +174,9 @@ const Sidebar = ({ collapsed, toggleSidebar, isMobile, mobileVisible, closeMobil
                     {item.label}
                   </a>
                 ) : (
-                  <Link href={item.path} style={{ color: "#333", textDecoration: "none" }}>
+                  <a href={item.path} onClick={(e) => handleClick(e, item.path)} style={{ color: "#333", textDecoration: "none" }}>
                     {item.label}
-                  </Link>
+                  </a>
                 )}
               </Menu.Item>
             )
