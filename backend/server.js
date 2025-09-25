@@ -28,7 +28,6 @@ const closingEntryRoutes = require('./routes/closingEntries');
 const financialRoutes = require('./routes/financialRoutes');
 const companyRoutes = require('./routes/companyRoutes');
 const kotOrderRoutes = require('./routes/kotOrderRoutes');
-const inventoryRoutes = require('./routes/inventory');
 const departmentRoutes = require('./routes/departmentRoutes');
 
 const app = express();
@@ -73,7 +72,6 @@ app.use('/api', employeeRoutes);
 app.use('/api', userRoutes);
 app.use('/api/kot-orders', kotOrderRoutes);
 app.use('/api/companies', companyRoutes); 
-app.use('/api/inventory', inventoryRoutes);
 app.use('/api', departmentRoutes)
 
 // Global Error Handling Middleware
