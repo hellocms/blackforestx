@@ -8,6 +8,7 @@ const { Option } = Select;
 const AddCategoryPage = () => {
   const [form] = Form.useForm();
   const [categories, setCategories] = useState([]);
+  const [departments, setDepartments] = useState([]); // New: Departments state
   const [fileList, setFileList] = useState([]);
   const [previewImage, setPreviewImage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,7 @@ const AddCategoryPage = () => {
       router.push('/login');
     } else {
       fetchCategories(token);
+      fetchDepartments(token); // New: Fetch departments
     }
   }, [router]);
 
@@ -40,6 +42,23 @@ const AddCategoryPage = () => {
       else message.error('Failed to fetch categories');
     } catch (error) {
       message.error('Error fetching categories');
+    }
+  };
+
+  // New: Fetch departments
+  const fetchDepartments = async (token) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/departments/list-departments`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setDepartments(data);
+      } else {
+        message.error('Failed to fetch departments');
+      }
+    } catch (error) {
+      message.error('Error fetching departments');
     }
   };
 
@@ -69,6 +88,7 @@ const AddCategoryPage = () => {
     setLoading(true);
     const formData = new FormData();
     formData.append('name', values.name);
+    if (values.department) formData.append('department', values.department); // New: Append department ID
     if (values.parent) formData.append('parent', values.parent);
     formData.append('isPastryProduct', values.isPastryProduct || false);
     formData.append('isCake', values.isCake || false);
@@ -131,6 +151,23 @@ const AddCategoryPage = () => {
           rules={[{ required: true, message: 'Please enter a category name!' }]}
         >
           <Input placeholder="e.g., Pastries" />
+        </Form.Item>
+        {/* New: Department Dropdown */}
+        <Form.Item
+          label="Department"
+          name="department"
+          rules={[{ required: false }]} // Optional; make required: true if needed
+        >
+          <Select placeholder="Select a department" allowClear>
+            <Option key="none" value={null}>None</Option>
+            {departments.length > 0 ? (
+              departments.map(dept => (
+                <Option key={dept._id} value={dept._id}>{dept.name}</Option>
+              ))
+            ) : (
+              <Option disabled>No departments available</Option>
+            )}
+          </Select>
         </Form.Item>
         <Row gutter={16}>
           <Col span={8}>
