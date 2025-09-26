@@ -37,7 +37,7 @@ const ViewOrder = ({ branchId }) => {
   const [todayAssignment, setTodayAssignment] = useState({});
   const [effectiveBranchId, setEffectiveBranchId] = useState(branchId);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
 
   // Fetch branch details
   const fetchBranchDetails = async (token, branchId) => {
