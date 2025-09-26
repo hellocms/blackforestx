@@ -1499,17 +1499,6 @@ const BillingPage = ({ branchId }) => {
               >
                 {isPortrait || isMobile ? null : "Live Order"}
               </Button>
-              <Button
-                type="text"
-                onClick={handleOrderModalOpen}
-                style={{
-                  fontSize: "16px",
-                  color: "#FFFFFF",
-                  padding: "0 10px",
-                }}
-              >
-                {isPortrait || isMobile ? null : "View Orders"}
-              </Button>
             </Space>
           </div>
         </div>
@@ -1644,16 +1633,6 @@ const BillingPage = ({ branchId }) => {
                 style={{ width: "100%", textAlign: "left", color: activeTab === "liveOrder" ? "#FFFFFF" : "#000000" }}
               >
                 Live Order
-              </Button>
-              <Button
-                type="text"
-                onClick={() => {
-                  handleOrderModalOpen();
-                  toggleMobileMenu();
-                }}
-                style={{ width: "100%", textAlign: "left", color: "#000000" }}
-              >
-                View Orders
               </Button>
               <Button
                 type={selectedProductType === null ? "primary" : "text"}

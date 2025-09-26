@@ -10,14 +10,14 @@ const { Text } = Typography;
 const BranchHeader = () => {
   const [branchName, setBranchName] = useState('');
   const router = useRouter();
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://apib.theblackforestcakes.com';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
 
   const menuItems = [
     { key: '/branch/[branchId]', label: 'Billing', link: `/branch/${branchName ? branchName.replace(/\s+/g, '-').toLowerCase() : 'unknown'}`, icon: <ShopOutlined /> },
     { key: '/dealers/bill-entry/create', label: 'Stock Entry', link: '/dealers/bill-entry/create', icon: <FileTextOutlined /> },
     { key: '/dealers/closing-entry/closingentry', label: 'Closing Entry', link: '/dealers/closing-entry/closingentry', icon: <FileDoneOutlined /> },
     { key: '/dealers/expense/ExpenseEntry', label: 'Expense Entry', link: '/dealers/closing-entry/ExpenseSheet', icon: <DollarOutlined /> },
-    { key: '/FinancialManagement', label: 'Financial Management', link: '/FinancialManagement', icon: <BankOutlined /> },
+    { key: '/branch/ViewOrder', label: 'ViewOrders', link: '/branch/ViewOrder', icon: <FileDoneOutlined />  },
   ];
 
   const fetchBranchDetails = async (token, branchId) => {
