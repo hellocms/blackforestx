@@ -513,6 +513,7 @@ const OrderListPage = ({ branchId }) => {
     let updatedOrder = { ...selectedOrder, products: updatedProducts };
   
     try {
+      // Update products
       let response = await fetch(`${BACKEND_URL}/api/orders/${selectedOrder._id}`, {
         method: "PATCH",
         headers: {
@@ -527,9 +528,11 @@ const OrderListPage = ({ branchId }) => {
         return;
       }
   
+      // Fetch the updated order to ensure all fields are synced, but preserve original updatedAt
       const updatedOrderData = await response.json();
-      updatedOrder = updatedOrderData.order;
+      updatedOrder = { ...updatedOrderData.order, updatedAt: selectedOrder.updatedAt };
   
+      // If all products are confirmed, update order status to completed
       if (allConfirmed && !currentConfirmed) {
         response = await fetch(`${BACKEND_URL}/api/orders/${selectedOrder._id}`, {
           method: "PATCH",
@@ -542,7 +545,7 @@ const OrderListPage = ({ branchId }) => {
   
         if (response.ok) {
           const statusUpdateData = await response.json();
-          updatedOrder = { ...updatedOrder, status: statusUpdateData.order.status };
+          updatedOrder = { ...updatedOrder, status: statusUpdateData.order.status, updatedAt: selectedOrder.updatedAt };
           message.success("All products confirmed, order status updated to completed");
         } else {
           message.error("Failed to update order status to completed");
