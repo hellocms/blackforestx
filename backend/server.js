@@ -57,7 +57,7 @@ redis.on('error', (err) => console.error('❌ Redis Connection Error:', err));
 app.set('redis', redis);
 
 // Ensure the uploads/products directory exists
-const uploadDir = path.join(__dirname, 'Uploads/products');
+const uploadDir = path.join(__dirname, 'uploads/products');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
   console.log('Upload directory created:', uploadDir);
@@ -70,7 +70,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // Serve static files from the uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API Routes
 app.use('/api/financial', (req, res, next) => {
