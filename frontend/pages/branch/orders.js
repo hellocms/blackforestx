@@ -28,6 +28,7 @@ const OrderListPage = ({ branchId }) => {
   const [productFilter, setProductFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [departmentFilter, setDepartmentFilter] = useState("All"); // New: State for department filter
+  const [kotFilterType, setKotFilterType] = useState("Department"); // New: KOT filter type
   const [dateRange, setDateRange] = useState([null, null]);
   const [dateFilterMode, setDateFilterMode] = useState("created");
   const [loading, setLoading] = useState(false);
@@ -46,6 +47,7 @@ const OrderListPage = ({ branchId }) => {
     setDepartmentFilter("All"); // New: Reset department filter
     setDateRange([null, null]);
     setDateFilterMode("created");
+    setKotFilterType("Department");
     message.success("Filters cleared");
   };
   const getDateRangeAndOrderIds = () => {
@@ -534,68 +536,124 @@ const OrderListPage = ({ branchId }) => {
   };
   const getKOTData = () => {
     const isAllBranches = branchFilter === "All";
-    const categoryMap = {};
-    filteredOrders.forEach((order) => {
-      const branchPrefix = order.branchId?.name?.slice(0, 3).toUpperCase() || "UNK";
-      const branchFullName = order.branchId?.name || "Unknown";
-      order.products
-        .filter((product) => {
-          const catalogProduct = productCatalog.find((p) => p.name === product.name);
-          if (!catalogProduct) return false;
-          const categoryId = catalogProduct.category?._id;
-          if (!categoryId) return false;
-          const category = categories.find((cat) => cat._id === categoryId);
-          if (!category) return false;
-          if (departmentFilter !== "All" && category.department?._id !== departmentFilter) return false;
-          if (categoryFilter !== "All" && categoryId !== categoryFilter) return false;
-          if (productFilter !== "All" && product.name !== productFilter) return false;
-          return true;
-        })
-        .forEach((product) => {
-          const catalogProduct = productCatalog.find((p) => p.name === product.name);
-          const categoryId = catalogProduct.category?._id;
-          const categoryName = categories.find((c) => c._id === categoryId)?.name || "Unknown";
-          if (!categoryMap[categoryId]) {
-            categoryMap[categoryId] = {
-              name: categoryName,
-              branches: isAllBranches ? {} : null,
-              products: !isAllBranches ? {} : null,
-            };
-          }
-          const cat = categoryMap[categoryId];
-          const prodQty = product.quantity || 0;
-          const unitPrice = product.price || 0;
-          const prodTotalPrice = prodQty * unitPrice;
-          const productKey = product.name;
-          if (isAllBranches) {
-            if (!cat.branches[branchPrefix]) {
-              cat.branches[branchPrefix] = {
-                name: branchFullName,
+    if (kotFilterType === "Branch") {
+      const categoryMap = {};
+      filteredOrders.forEach((order) => {
+        const branchPrefix = order.branchId?.name?.slice(0, 3).toUpperCase() || "UNK";
+        const branchFullName = order.branchId?.name || "Unknown";
+        order.products
+          .filter((product) => {
+            const catalogProduct = productCatalog.find((p) => p.name === product.name);
+            if (!catalogProduct) return false;
+            const categoryId = catalogProduct.category?._id;
+            if (!categoryId) return false;
+            const category = categories.find((cat) => cat._id === categoryId);
+            if (!category) return false;
+            if (departmentFilter !== "All" && category.department?._id !== departmentFilter) return false;
+            if (categoryFilter !== "All" && categoryId !== categoryFilter) return false;
+            if (productFilter !== "All" && product.name !== productFilter) return false;
+            return true;
+          })
+          .forEach((product) => {
+            const catalogProduct = productCatalog.find((p) => p.name === product.name);
+            const categoryId = catalogProduct.category?._id;
+            const categoryName = categories.find((c) => c._id === categoryId)?.name || "Unknown";
+            if (!categoryMap[categoryId]) {
+              categoryMap[categoryId] = {
+                name: categoryName,
+                branches: isAllBranches ? {} : null,
+                products: !isAllBranches ? {} : null,
+              };
+            }
+            const cat = categoryMap[categoryId];
+            const prodQty = product.quantity || 0;
+            const unitPrice = product.price || 0;
+            const prodTotalPrice = prodQty * unitPrice;
+            const productKey = product.name;
+            if (isAllBranches) {
+              if (!cat.branches[branchPrefix]) {
+                cat.branches[branchPrefix] = {
+                  name: branchFullName,
+                  products: {},
+                };
+              }
+              const br = cat.branches[branchPrefix];
+              if (!br.products[productKey]) {
+                br.products[productKey] = { qty: 0, totalPrice: 0, unit: product.unit || "", unitPrice };
+              }
+              br.products[productKey].qty += prodQty;
+              br.products[productKey].totalPrice += prodTotalPrice;
+            } else {
+              if (!cat.products[productKey]) {
+                cat.products[productKey] = { qty: 0, totalPrice: 0, unit: product.unit || "", unitPrice };
+              }
+              cat.products[productKey].qty += prodQty;
+              cat.products[productKey].totalPrice += prodTotalPrice;
+            }
+          });
+      });
+      const categoriesData = Object.values(categoryMap).sort((a, b) => a.name.localeCompare(b.name));
+      const hasData = categoriesData.some((cat) =>
+        isAllBranches
+          ? Object.values(cat.branches || {}).some((br) => Object.keys(br.products || {}).length > 0)
+          : Object.keys(cat.products || {}).length > 0
+      );
+      return { type: "Branch", categories: categoriesData, isAllBranches, hasData };
+    } else { // "Department"
+      const deptMap = {};
+      filteredOrders.forEach((order) => {
+        order.products
+          .filter((product) => {
+            const catalogProduct = productCatalog.find((p) => p.name === product.name);
+            if (!catalogProduct) return false;
+            const categoryId = catalogProduct.category?._id;
+            if (!categoryId) return false;
+            const category = categories.find((cat) => cat._id === categoryId);
+            if (!category) return false;
+            const deptId = category.department?._id;
+            if (departmentFilter !== "All" && deptId !== departmentFilter) return false;
+            if (categoryFilter !== "All" && categoryId !== categoryFilter) return false;
+            if (productFilter !== "All" && product.name !== productFilter) return false;
+            return true;
+          })
+          .forEach((product) => {
+            const catalogProduct = productCatalog.find((p) => p.name === product.name);
+            const categoryId = catalogProduct.category?._id;
+            const category = categories.find((cat) => cat._id === categoryId);
+            const deptId = category?.department?._id;
+            const deptName = departments.find((d) => d._id === deptId)?.name || "Unknown";
+            const categoryName = category?.name || "Unknown";
+            if (!deptMap[deptId]) {
+              deptMap[deptId] = {
+                name: deptName,
+                categories: {},
+              };
+            }
+            const dept = deptMap[deptId];
+            if (!dept.categories[categoryId]) {
+              dept.categories[categoryId] = {
+                name: categoryName,
                 products: {},
               };
             }
-            const br = cat.branches[branchPrefix];
-            if (!br.products[productKey]) {
-              br.products[productKey] = { qty: 0, totalPrice: 0, unit: product.unit || "" };
+            const cat = dept.categories[categoryId];
+            const prodKey = product.name;
+            const prodQty = product.quantity || 0;
+            const unitPrice = product.price || 0;
+            const prodTotalPrice = prodQty * unitPrice;
+            if (!cat.products[prodKey]) {
+              cat.products[prodKey] = { qty: 0, totalPrice: 0, unit: product.unit || "", unitPrice };
             }
-            br.products[productKey].qty += prodQty;
-            br.products[productKey].totalPrice += prodTotalPrice;
-          } else {
-            if (!cat.products[productKey]) {
-              cat.products[productKey] = { qty: 0, totalPrice: 0, unit: product.unit || "" };
-            }
-            cat.products[productKey].qty += prodQty;
-            cat.products[productKey].totalPrice += prodTotalPrice;
-          }
-        });
-    });
-    const categoriesData = Object.values(categoryMap).sort((a, b) => a.name.localeCompare(b.name));
-    const hasData = categoriesData.some((cat) =>
-      isAllBranches
-        ? Object.values(cat.branches || {}).some((br) => Object.keys(br.products || {}).length > 0)
-        : Object.keys(cat.products || {}).length > 0
-    );
-    return { categories: categoriesData, isAllBranches, hasData };
+            cat.products[prodKey].qty += prodQty;
+            cat.products[prodKey].totalPrice += prodTotalPrice;
+          });
+      });
+      const departmentsData = Object.values(deptMap).sort((a, b) => a.name.localeCompare(b.name));
+      const hasData = departmentsData.some((dept) =>
+        Object.values(dept.categories || {}).some((cat) => Object.keys(cat.products || {}).length > 0)
+      );
+      return { type: "Department", departments: departmentsData, hasData };
+    }
   };
   const handlePreview = async () => {
     const kotResult = getKOTData();
@@ -634,87 +692,190 @@ const OrderListPage = ({ branchId }) => {
     const departmentTitle = departmentFilter === "All" ? "All Departments" : departments.find((d) => d._id === departmentFilter)?.name || departmentFilter;
     const categoryTitle = categoryFilter === "All" ? "All Categories" : categories.find((c) => c._id === categoryFilter)?.name || categoryFilter;
     const productTitle = productFilter === "All" ? "All Products" : productFilter;
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>KOT Report</title>
-          <style>
-            body { font-family: 'Courier New', monospace; width: 302px; margin: 0; padding: 5px; font-size: 10px; line-height: 1.2; }
-            h2 { text-align: center; font-size: 14px; font-weight: bold; margin: 0 0 5px 0; }
-            h3 { text-align: center; font-size: 12px; font-weight: bold; margin: 5px 0 3px 0; }
-            h4 { text-align: center; font-size: 11px; font-weight: bold; margin: 3px 0 2px 0; }
-            p { margin: 2px 0; text-align: center; }
-            table { width: 100%; border-collapse: collapse; margin: 2px 0; }
-            th, td { padding: 2px; text-align: left; font-size: 10px; border: 1px solid #d9d9d9; }
-            th { font-weight: bold; }
-            .divider { border-top: 1px dashed #000; margin: 5px 0; }
-            @media print { @page { margin: 0; size: 80mm auto; } body { margin: 0; padding: 5px; } }
-          </style>
-        </head>
-        <body>
-          <h2>KOT Report - ${branchTitle} (${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)})</h2>
-          <p>Order IDs: ${orderIds}</p>
-          <p>Department: ${departmentTitle}</p>
-          <p>Category: ${categoryTitle}</p>
-          <p>Product: ${productTitle}</p>
-          <p>Created Date: ${earliestCreated}</p>
-          <p>Delivery Date: ${latestDelivery}</p>
-          <p>Date: ${currentDate}</p>
-          <div class="divider"></div>
-          ${kotResult.categories
-            .map(
-              (cat) => `
-                <h3>${cat.name}</h3>
-                ${
-                  kotResult.isAllBranches
-                    ? Object.entries(cat.branches)
-                        .sort(([a, brA], [b, brB]) => brA.name.localeCompare(brB.name))
-                        .map(
-                          ([bPrefix, br]) => `
-                            <h4>${br.name}</h4>
-                            <table>
-                              <thead>
-                                <tr>
-                                  <th style="width: 60%;">Product Name</th>
-                                  <th style="width: 20%; text-align: right;">Qty</th>
-                                  <th style="width: 20%; text-align: right;">Total ₹</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                ${Object.entries(br.products)
-                                  .sort(([a], [b]) => a.localeCompare(b))
-                                  .map(
-                                    ([pName, pData]) => `
-                                      <tr>
-                                        <td>${pName} ${pData.unit ? `(${pData.qty}${pData.unit})` : pData.qty}</td>
-                                        <td style="text-align: right;">${pData.qty}</td>
-                                        <td style="text-align: right;">${pData.totalPrice.toFixed(2)}</td>
-                                      </tr>
-                                    `
-                                  )
-                                  .join("")}
-                                <tr style="font-weight: bold; background-color: #f0f0f0;">
-                                  <td>Branch Subtotal</td>
-                                  <td style="text-align: right;">${Object.values(br.products).reduce(
-                                    (s, p) => s + p.qty,
-                                    0
-                                  )}</td>
-                                  <td style="text-align: right;">${Object.values(br.products).reduce(
-                                    (s, p) => s + p.totalPrice,
-                                    0
-                                  ).toFixed(2)}</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          `
-                        )
-                        .join("")
-                    : `
+    const reportTitle = kotFilterType === "Branch" ? "KOT Report" : "KOT Report by Department";
+    if (kotResult.type === "Branch") {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>KOT Report</title>
+            <style>
+              body { font-family: 'Courier New', monospace; width: 302px; margin: 0; padding: 5px; font-size: 10px; line-height: 1.2; }
+              h2 { text-align: center; font-size: 14px; font-weight: bold; margin: 0 0 5px 0; }
+              h3 { text-align: center; font-size: 12px; font-weight: bold; margin: 5px 0 3px 0; }
+              h4 { text-align: center; font-size: 11px; font-weight: bold; margin: 3px 0 2px 0; }
+              p { margin: 2px 0; text-align: center; }
+              table { width: 100%; border-collapse: collapse; margin: 2px 0; }
+              th, td { padding: 2px; text-align: left; font-size: 10px; border: 1px solid #d9d9d9; }
+              th { font-weight: bold; }
+              .divider { border-top: 1px dashed #000; margin: 5px 0; }
+              @media print { @page { margin: 0; size: 80mm auto; } body { margin: 0; padding: 5px; } }
+            </style>
+          </head>
+          <body>
+            <h2>${reportTitle} - ${branchTitle} (${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)})</h2>
+            <p>Order IDs: ${orderIds}</p>
+            <p>Department: ${departmentTitle}</p>
+            <p>Category: ${categoryTitle}</p>
+            <p>Product: ${productTitle}</p>
+            <p>Created Date: ${earliestCreated}</p>
+            <p>Delivery Date: ${latestDelivery}</p>
+            <p>Date: ${currentDate}</p>
+            <div class="divider"></div>
+            ${kotResult.categories
+              .map(
+                (cat) => `
+                  <h3>${cat.name}</h3>
+                  ${
+                    kotResult.isAllBranches
+                      ? Object.entries(cat.branches)
+                          .sort(([a, brA], [b, brB]) => brA.name.localeCompare(brB.name))
+                          .map(
+                            ([bPrefix, br]) => `
+                              <h4>${br.name}</h4>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th style="width: 50%;">Product Name</th>
+                                    <th style="width: 15%; text-align: right;">Qty</th>
+                                    <th style="width: 15%; text-align: right;">Rate</th>
+                                    <th style="width: 20%; text-align: right;">Total ₹</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  ${Object.entries(br.products)
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(
+                                      ([pName, pData]) => `
+                                        <tr>
+                                          <td><strong>${pName}${pData.unit ? ` ${pData.unit}` : ''}</strong></td>
+                                          <td style="text-align: right;">${pData.qty}</td>
+                                          <td style="text-align: right;">₹${(pData.unitPrice || 0).toFixed(2)}</td>
+                                          <td style="text-align: right;">${pData.totalPrice.toFixed(2)}</td>
+                                        </tr>
+                                      `
+                                    )
+                                    .join("")}
+                                  <tr style="font-weight: bold; background-color: #f0f0f0;">
+                                    <td>Branch Subtotal</td>
+                                    <td style="text-align: right;">${Object.values(br.products).reduce(
+                                      (s, p) => s + p.qty,
+                                      0
+                                    )}</td>
+                                    <td></td>
+                                    <td style="text-align: right;">${Object.values(br.products).reduce(
+                                      (s, p) => s + p.totalPrice,
+                                      0
+                                    ).toFixed(2)}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            `
+                          )
+                          .join("")
+                      : `
+                          <table>
+                            <thead>
+                              <tr>
+                                <th style="width: 50%;">Product Name</th>
+                                <th style="width: 15%; text-align: right;">Qty</th>
+                                <th style="width: 15%; text-align: right;">Rate</th>
+                                <th style="width: 20%; text-align: right;">Total ₹</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              ${Object.entries(cat.products)
+                                .sort(([a], [b]) => a.localeCompare(b))
+                                .map(
+                                  ([pName, pData]) => `
+                                    <tr>
+                                      <td><strong>${pName}${pData.unit ? ` ${pData.unit}` : ''}</strong></td>
+                                      <td style="text-align: right;">${pData.qty}</td>
+                                      <td style="text-align: right;">₹${(pData.unitPrice || 0).toFixed(2)}</td>
+                                      <td style="text-align: right;">${pData.totalPrice.toFixed(2)}</td>
+                                    </tr>
+                                  `
+                                )
+                                .join("")}
+                              <tr style="font-weight: bold; background-color: #f0f0f0;">
+                                <td>Category Total</td>
+                                <td style="text-align: right;">${Object.values(cat.products).reduce(
+                                  (s, p) => s + p.qty,
+                                  0
+                                )}</td>
+                                <td></td>
+                                <td style="text-align: right;">${Object.values(cat.products).reduce(
+                                  (s, p) => s + p.totalPrice,
+                                  0
+                                ).toFixed(2)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        `
+                  }
+                  ${
+                    kotResult.isAllBranches
+                      ? `
+                          <div style="border-top: 1px dashed #000; margin: 5px 0;">
+                            <p style="text-align: right; font-weight: bold;">Category Grand Total: ₹${Object.values(
+                              cat.branches
+                            )
+                              .reduce((sumBr, br) => sumBr + Object.values(br.products).reduce((sumP, p) => sumP + p.totalPrice, 0), 0)
+                              .toFixed(2)}</p>
+                          </div>
+                        `
+                      : ""
+                  }
+                `
+              )
+              .join("")}
+            <div class="divider"></div>
+            <p>Generated by [App Name] on ${currentDate}</p>
+          </body>
+        </html>
+      `);
+    } else { // Department
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>KOT Report</title>
+            <style>
+              body { font-family: 'Courier New', monospace; width: 302px; margin: 0; padding: 5px; font-size: 10px; line-height: 1.2; }
+              h2 { text-align: center; font-size: 14px; font-weight: bold; margin: 0 0 5px 0; }
+              h3 { text-align: center; font-size: 12px; font-weight: bold; margin: 5px 0 3px 0; }
+              h4 { text-align: center; font-size: 11px; font-weight: bold; margin: 3px 0 2px 0; }
+              p { margin: 2px 0; text-align: center; }
+              table { width: 100%; border-collapse: collapse; margin: 2px 0; }
+              th, td { padding: 2px; text-align: left; font-size: 10px; border: 1px solid #d9d9d9; }
+              th { font-weight: bold; }
+              .divider { border-top: 1px dashed #000; margin: 5px 0; }
+              @media print { @page { margin: 0; size: 80mm auto; } body { margin: 0; padding: 5px; } }
+            </style>
+          </head>
+          <body>
+            <h2>${reportTitle} - ${branchTitle} (${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)})</h2>
+            <p>Order IDs: ${orderIds}</p>
+            <p>Department: ${departmentTitle}</p>
+            <p>Category: ${categoryTitle}</p>
+            <p>Product: ${productTitle}</p>
+            <p>Created Date: ${earliestCreated}</p>
+            <p>Delivery Date: ${latestDelivery}</p>
+            <p>Date: ${currentDate}</p>
+            <div class="divider"></div>
+            ${kotResult.departments
+              .map(
+                (dept) => `
+                  <h3>${dept.name}</h3>
+                  ${Object.entries(dept.categories)
+                    .sort(([_, catA], [__, catB]) => catA.name.localeCompare(catB.name))
+                    .map(
+                      ([catId, cat]) => `
+                        <h4>${cat.name}</h4>
                         <table>
                           <thead>
                             <tr>
-                              <th style="width: 60%;">Product Name</th>
-                              <th style="width: 20%; text-align: right;">Qty</th>
+                              <th style="width: 50%;">Product Name</th>
+                              <th style="width: 15%; text-align: right;">Qty</th>
+                              <th style="width: 15%; text-align: right;">Rate</th>
                               <th style="width: 20%; text-align: right;">Total ₹</th>
                             </tr>
                           </thead>
@@ -724,8 +885,9 @@ const OrderListPage = ({ branchId }) => {
                               .map(
                                 ([pName, pData]) => `
                                   <tr>
-                                    <td>${pName} ${pData.unit ? `(${pData.qty}${pData.unit})` : pData.qty}</td>
+                                    <td><strong>${pName}${pData.unit ? ` ${pData.unit}` : ''}</strong></td>
                                     <td style="text-align: right;">${pData.qty}</td>
+                                    <td style="text-align: right;">₹${(pData.unitPrice || 0).toFixed(2)}</td>
                                     <td style="text-align: right;">${pData.totalPrice.toFixed(2)}</td>
                                   </tr>
                                 `
@@ -737,6 +899,7 @@ const OrderListPage = ({ branchId }) => {
                                 (s, p) => s + p.qty,
                                 0
                               )}</td>
+                              <td></td>
                               <td style="text-align: right;">${Object.values(cat.products).reduce(
                                 (s, p) => s + p.totalPrice,
                                 0
@@ -745,28 +908,22 @@ const OrderListPage = ({ branchId }) => {
                           </tbody>
                         </table>
                       `
-                }
-                ${
-                  kotResult.isAllBranches
-                    ? `
-                        <div style="border-top: 1px dashed #000; margin: 5px 0;">
-                          <p style="text-align: right; font-weight: bold;">Category Grand Total: ₹${Object.values(
-                            cat.branches
-                          )
-                            .reduce((sumBr, br) => sumBr + Object.values(br.products).reduce((sumP, p) => sumP + p.totalPrice, 0), 0)
-                            .toFixed(2)}</p>
-                        </div>
-                      `
-                    : ""
-                }
-              `
-            )
-            .join("")}
-          <div class="divider"></div>
-          <p>Generated by [App Name] on ${currentDate}</p>
-        </body>
-      </html>
-    `);
+                    )
+                    .join("")}
+                  <div style="border-top: 1px dashed #000; margin: 5px 0;">
+                    <p style="text-align: right; font-weight: bold;">Department Total: ₹${Object.values(dept.categories)
+                      .reduce((sumCat, cat) => sumCat + Object.values(cat.products).reduce((sumP, p) => sumP + p.totalPrice, 0), 0)
+                      .toFixed(2)}</p>
+                  </div>
+                `
+              )
+              .join("")}
+            <div class="divider"></div>
+            <p>Generated by [App Name] on ${currentDate}</p>
+          </body>
+        </html>
+      `);
+    }
     printWindow.document.close();
     printWindow.print();
     printWindow.close();
@@ -1185,11 +1342,17 @@ const OrderListPage = ({ branchId }) => {
     {
       title: "Product Name",
       dataIndex: "name",
-      render: (_, record) => `${record.name} ${record.unit ? `(${record.qty}${record.unit})` : record.qty}`,
+      render: (_, record) => <strong>{`${record.name}${record.unit ? ` ${record.unit}` : ''}`}</strong>,
     },
     {
       title: "Qty",
       dataIndex: "qty",
+      align: "right",
+    },
+    {
+      title: "Rate",
+      dataIndex: "unitPrice",
+      render: (value) => `₹${(value || 0).toFixed(2)}`,
       align: "right",
     },
     {
@@ -1332,8 +1495,12 @@ const OrderListPage = ({ branchId }) => {
             </Select>
           </Space>
           <Space direction="vertical">
-            <Text strong>For KOT</Text>
+            <Text strong>KOT Type:</Text>
             <Space>
+              <Select value={kotFilterType} onChange={setKotFilterType} style={{ width: 120 }}>
+                <Option value="Branch">By Branch</Option>
+                <Option value="Department">By Department</Option>
+              </Select>
               <Button
                 type="primary"
                 icon={<EyeFilled />}
@@ -1601,7 +1768,7 @@ const OrderListPage = ({ branchId }) => {
         title={
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
             <span>
-              KOT Report - {branchFilter === "All" ? "All Branches" : branches.find((b) => b._id === branchFilter)?.name?.split(" ").slice(0, 2).join(" ") || branchFilter} ({statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)})
+              {kotFilterType === "Branch" ? "KOT Report" : "KOT Report by Department"} - {branchFilter === "All" ? "All Branches" : branches.find((b) => b._id === branchFilter)?.name?.split(" ").slice(0, 2).join(" ") || branchFilter} ({statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)})
             </span>
             <Button
               type="primary"
@@ -1669,35 +1836,109 @@ const OrderListPage = ({ branchId }) => {
         </div>
         {kotData && (
           <div>
-            {kotData.categories.map((cat) => (
-              <div key={cat.name} style={{ marginBottom: 20 }}>
-                <Text strong style={{ fontSize: 14, display: "block", marginBottom: 8 }}>
-                  {cat.name}
-                </Text>
-                {kotData.isAllBranches ? (
-                  Object.entries(cat.branches)
-                    .sort(([_, brA], [__, brB]) => brA.name.localeCompare(brB.name))
-                    .map(([bPrefix, br]) => (
-                      <div key={bPrefix} style={{ marginBottom: 12 }}>
+            {kotData.type === "Branch" ? (
+              kotData.categories.map((cat) => (
+                <div key={cat.name} style={{ marginBottom: 20 }}>
+                  <Text strong style={{ fontSize: 14, display: "block", marginBottom: 8 }}>
+                    {cat.name}
+                  </Text>
+                  {kotData.isAllBranches ? (
+                    Object.entries(cat.branches)
+                      .sort(([_, brA], [__, brB]) => brA.name.localeCompare(brB.name))
+                      .map(([bPrefix, br]) => (
+                        <div key={bPrefix} style={{ marginBottom: 12 }}>
+                          <Text strong style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
+                            {br.name}
+                          </Text>
+                          <Table
+                            columns={kotProductColumns}
+                            dataSource={Object.entries(br.products)
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .map(([name, p]) => ({ ...p, name }))}
+                            pagination={false}
+                            size="small"
+                            bordered
+                            summary={() => {
+                              const totalQty = Object.values(br.products).reduce((s, p) => s + p.qty, 0);
+                              const totalPrice = Object.values(br.products).reduce((s, p) => s + p.totalPrice, 0);
+                              return (
+                                <Table.Summary>
+                                  <Table.Summary.Row>
+                                    <Table.Summary.Cell>Branch Total</Table.Summary.Cell>
+                                    <Table.Summary.Cell>{totalQty}</Table.Summary.Cell>
+                                    <Table.Summary.Cell></Table.Summary.Cell>
+                                    <Table.Summary.Cell>₹{totalPrice.toFixed(2)}</Table.Summary.Cell>
+                                  </Table.Summary.Row>
+                                </Table.Summary>
+                              );
+                            }}
+                          />
+                        </div>
+                      ))
+                  ) : (
+                    <Table
+                      columns={kotProductColumns}
+                      dataSource={Object.entries(cat.products)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([name, p]) => ({ ...p, name }))}
+                      pagination={false}
+                      size="small"
+                      bordered
+                      summary={() => {
+                        const totalQty = Object.values(cat.products).reduce((s, p) => s + p.qty, 0);
+                        const totalPrice = Object.values(cat.products).reduce((s, p) => s + p.totalPrice, 0);
+                        return (
+                          <Table.Summary>
+                            <Table.Summary.Row>
+                              <Table.Summary.Cell>Category Total</Table.Summary.Cell>
+                              <Table.Summary.Cell>{totalQty}</Table.Summary.Cell>
+                              <Table.Summary.Cell></Table.Summary.Cell>
+                              <Table.Summary.Cell>₹{totalPrice.toFixed(2)}</Table.Summary.Cell>
+                            </Table.Summary.Row>
+                          </Table.Summary>
+                        );
+                      }}
+                    />
+                  )}
+                  {kotData.isAllBranches && (
+                    <Text strong style={{ fontSize: 12, display: "block", marginTop: 4 }}>
+                      Category Total (All Branches): Qty: {Object.values(cat.branches).reduce((sumBr, br) => sumBr + Object.values(br.products).reduce((sumP, p) => sumP + p.qty, 0), 0)}, Total: ₹{Object.values(cat.branches)
+                        .reduce((sumBr, br) => sumBr + Object.values(br.products).reduce((sumP, p) => sumP + p.totalPrice, 0), 0)
+                        .toFixed(2)}
+                    </Text>
+                  )}
+                </div>
+              ))
+            ) : (
+              kotData.departments.map((dept) => (
+                <div key={dept.name} style={{ marginBottom: 20 }}>
+                  <Text strong style={{ fontSize: 14, display: "block", marginBottom: 8 }}>
+                    {dept.name}
+                  </Text>
+                  {Object.entries(dept.categories)
+                    .sort(([_, catA], [__, catB]) => catA.name.localeCompare(catB.name))
+                    .map(([catId, cat]) => (
+                      <div key={catId} style={{ marginBottom: 12, marginLeft: 20 }}>
                         <Text strong style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
-                          {br.name}
+                          {cat.name}
                         </Text>
                         <Table
                           columns={kotProductColumns}
-                          dataSource={Object.entries(br.products)
+                          dataSource={Object.entries(cat.products)
                             .sort(([a], [b]) => a.localeCompare(b))
                             .map(([name, p]) => ({ ...p, name }))}
                           pagination={false}
                           size="small"
                           bordered
                           summary={() => {
-                            const totalQty = Object.values(br.products).reduce((s, p) => s + p.qty, 0);
-                            const totalPrice = Object.values(br.products).reduce((s, p) => s + p.totalPrice, 0);
+                            const totalQty = Object.values(cat.products).reduce((s, p) => s + p.qty, 0);
+                            const totalPrice = Object.values(cat.products).reduce((s, p) => s + p.totalPrice, 0);
                             return (
                               <Table.Summary>
                                 <Table.Summary.Row>
-                                  <Table.Summary.Cell>Branch Total</Table.Summary.Cell>
+                                  <Table.Summary.Cell>Category Total</Table.Summary.Cell>
                                   <Table.Summary.Cell>{totalQty}</Table.Summary.Cell>
+                                  <Table.Summary.Cell></Table.Summary.Cell>
                                   <Table.Summary.Cell>₹{totalPrice.toFixed(2)}</Table.Summary.Cell>
                                 </Table.Summary.Row>
                               </Table.Summary>
@@ -1705,40 +1946,15 @@ const OrderListPage = ({ branchId }) => {
                           }}
                         />
                       </div>
-                    ))
-                ) : (
-                  <Table
-                    columns={kotProductColumns}
-                    dataSource={Object.entries(cat.products)
-                      .sort(([a], [b]) => a.localeCompare(b))
-                      .map(([name, p]) => ({ ...p, name }))}
-                    pagination={false}
-                    size="small"
-                    bordered
-                    summary={() => {
-                      const totalQty = Object.values(cat.products).reduce((s, p) => s + p.qty, 0);
-                      const totalPrice = Object.values(cat.products).reduce((s, p) => s + p.totalPrice, 0);
-                      return (
-                        <Table.Summary>
-                          <Table.Summary.Row>
-                            <Table.Summary.Cell>Category Total</Table.Summary.Cell>
-                            <Table.Summary.Cell>{totalQty}</Table.Summary.Cell>
-                            <Table.Summary.Cell>₹{totalPrice.toFixed(2)}</Table.Summary.Cell>
-                          </Table.Summary.Row>
-                        </Table.Summary>
-                      );
-                    }}
-                  />
-                )}
-                {kotData.isAllBranches && (
-                  <Text style={{ fontSize: 12, display: "block", marginTop: 4 }}>
-                    <strong>Category Total (All Branches):</strong> Qty: {Object.values(cat.branches).reduce((sumBr, br) => sumBr + Object.values(br.products).reduce((sumP, p) => sumP + p.qty, 0), 0)}, Total: ₹{Object.values(cat.branches)
-                      .reduce((sumBr, br) => sumBr + Object.values(br.products).reduce((sumP, p) => sumP + p.totalPrice, 0), 0)
+                    ))}
+                  <Text strong style={{ fontSize: 12, display: "block", marginTop: 4, marginLeft: 20 }}>
+                    Department Total: Qty: {Object.values(dept.categories).reduce((sumCat, cat) => sumCat + Object.values(cat.products).reduce((sumP, p) => sumP + p.qty, 0), 0)}, Total: ₹{Object.values(dept.categories)
+                      .reduce((sumCat, cat) => sumCat + Object.values(cat.products).reduce((sumP, p) => sumP + p.totalPrice, 0), 0)
                       .toFixed(2)}
                   </Text>
-                )}
-              </div>
-            ))}
+                </div>
+              ))
+            )}
           </div>
         )}
       </Modal>
