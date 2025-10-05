@@ -42,10 +42,11 @@ exports.createCategory = async (req, res) => {
       let departmentIds = [];
       if (departments && departments !== 'null') {
         try {
-          departmentIds = JSON.parse(departments);
+          departmentIds = JSON.parse(departments); // Parse JSON string to array
           if (!Array.isArray(departmentIds)) {
             return res.status(400).json({ message: 'Departments must be an array' });
           }
+          // Validate each department ID
           for (const deptId of departmentIds) {
             const deptExists = await Department.findById(deptId);
             if (!deptExists) return res.status(404).json({ message: `Department ${deptId} not found` });
@@ -67,6 +68,19 @@ exports.createCategory = async (req, res) => {
 
       await category.save();
 
+      // Invalidate Redis cache
+      const redis = req.app.get('redis');
+      await redis.del('categories:all');
+      if (isPastryProduct) await redis.del('categories:type:pastry');
+      if (isCake) await redis.del('categories:type:cake');
+      if (isBiling) await redis.del('categories:type:biling');
+      if (parent) await redis.del(`categories:parent:${parent}`);
+      if (departmentIds.length > 0) {
+        for (const deptId of departmentIds) {
+          await redis.del(`categories:department:${deptId}`);
+        }
+      }
+
       res.status(201).json({ message: '✅ Category created successfully', category });
     } catch (error) {
       console.error('❌ Error creating category:', error);
@@ -78,9 +92,23 @@ exports.createCategory = async (req, res) => {
 // Get All Categories
 exports.getCategories = async (req, res) => {
   try {
+    const redis = req.app.get('redis');
     const typeFilter = req.query.type;
     const departmentId = req.query.departmentId;
 
+    // Define cache key based on filters
+    let cacheKey = 'categories:all';
+    if (typeFilter) cacheKey = `categories:type:${typeFilter}`;
+    if (departmentId) cacheKey = `categories:department:${departmentId}`;
+
+    // Check Redis cache
+    const cachedCategories = await redis.get(cacheKey);
+    if (cachedCategories) {
+      console.log(`✅ Serving categories from Redis cache: ${cacheKey}`);
+      return res.status(200).json(JSON.parse(cachedCategories));
+    }
+
+    // Cache miss: Fetch from MongoDB
     let query = Category.find();
     if (typeFilter === 'pastry') {
       query = query.where('isPastryProduct').equals(true);
@@ -90,10 +118,14 @@ exports.getCategories = async (req, res) => {
       query = query.where('isBiling').equals(true);
     }
     if (departmentId) {
-      query = query.where('departments').in([departmentId]);
+      query = query.where('departments').in([departmentId]); // Updated to use 'in' for array field
     }
 
     const categories = await query.populate('parent', 'name').populate('departments', 'name').lean();
+
+    // Cache the result for 1 week (604800 seconds)
+    await redis.set(cacheKey, JSON.stringify(categories), 'EX', 604800);
+    console.log(`✅ Cached categories in Redis: ${cacheKey}`);
 
     res.status(200).json(categories);
   } catch (error) {
@@ -147,6 +179,12 @@ exports.updateCategory = async (req, res) => {
         });
       }
 
+      const oldParent = category.parent?.toString();
+      const oldDepartments = category.departments.map(id => id.toString());
+      const oldIsPastryProduct = category.isPastryProduct;
+      const oldIsCake = category.isCake;
+      const oldIsBiling = category.isBiling;
+
       category.name = name || category.name;
       category.parent = parent && parent !== 'null' ? parent : null;
       category.departments = departmentIds.length > 0 ? departmentIds : [];
@@ -156,6 +194,21 @@ exports.updateCategory = async (req, res) => {
       category.isBiling = isBiling !== undefined ? (isBiling === 'true' || isBiling === true) : category.isBiling;
 
       await category.save();
+
+      // Invalidate Redis cache
+      const redis = req.app.get('redis');
+      await redis.del('categories:all');
+      if (oldIsPastryProduct || category.isPastryProduct) await redis.del('categories:type:pastry');
+      if (oldIsCake || category.isCake) await redis.del('categories:type:cake');
+      if (oldIsBiling || category.isBiling) await redis.del('categories:type:biling');
+      if (oldParent) await redis.del(`categories:parent:${oldParent}`);
+      if (parent && parent !== 'null') await redis.del(`categories:parent:${parent}`);
+      for (const deptId of oldDepartments) {
+        await redis.del(`categories:department:${deptId}`);
+      }
+      for (const deptId of departmentIds) {
+        await redis.del(`categories:department:${deptId}`);
+      }
 
       res.status(200).json({ message: '✅ Category updated successfully', category });
     } catch (error) {
@@ -172,11 +225,13 @@ exports.deleteCategory = async (req, res) => {
     const category = await Category.findById(id);
     if (!category) return res.status(404).json({ message: 'Category not found' });
 
+    // Check if category is a parent to others (optional restriction)
     const childCategories = await Category.find({ parent: id });
     if (childCategories.length > 0) {
       return res.status(400).json({ message: 'Cannot delete category with subcategories' });
     }
 
+    // Delete image if exists
     if (category.image) {
       const imagePath = path.join(__dirname, '..', category.image);
       fs.unlink(imagePath, (err) => {
@@ -185,6 +240,17 @@ exports.deleteCategory = async (req, res) => {
     }
 
     await Category.findByIdAndDelete(id);
+
+    // Invalidate Redis cache
+    const redis = req.app.get('redis');
+    await redis.del('categories:all');
+    if (category.isPastryProduct) await redis.del('categories:type:pastry');
+    if (category.isCake) await redis.del('categories:type:cake');
+    if (category.isBiling) await redis.del('categories:type:biling');
+    if (category.parent) await redis.del(`categories:parent:${category.parent}`);
+    for (const deptId of category.departments) {
+      await redis.del(`categories:department:${deptId}`);
+    }
 
     res.status(200).json({ message: '✅ Category deleted successfully' });
   } catch (error) {
