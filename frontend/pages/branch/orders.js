@@ -517,6 +517,30 @@ const OrderListPage = ({ branchId: propBranchId }) => {
     }
   };
 
+  const handleDelete = async (record) => {
+    if (!window.confirm(`Are you sure you want to delete order ${record.billNo || 'N/A'}?`)) {
+      return;
+    }
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/orders/${record._id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        setOrders((prev) => prev.filter((o) => o._id !== record._id));
+        setFilteredOrders((prev) => prev.filter((o) => o._id !== record._id));
+        message.success("Order deleted successfully");
+      } else {
+        message.error("Failed to delete order");
+      }
+    } catch (error) {
+      message.error("Error deleting order");
+      console.error(error);
+    }
+  };
+
   const handleToggleProductConfirm = async (productIndex) => {
     if (!selectedOrder) return;
     const isOrderConfirmed = ["completed", "delivered", "received"].includes(selectedOrder.status);
@@ -1045,9 +1069,14 @@ const OrderListPage = ({ branchId: propBranchId }) => {
           <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} />
           <Button icon={<EyeOutlined />} onClick={() => handleView(record)} />
           <Button icon={<PrinterOutlined />} onClick={() => handlePrint(record)} />
+          <Button 
+            icon={<CloseCircleFilled style={{ color: 'red' }} />} 
+            onClick={() => handleDelete(record)} 
+            danger
+          />
         </Space>
       ),
-      width: 150,
+      width: 180, // Increased width to accommodate new button
     },
   ];
 
