@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { jwtDecode } from "jwt-decode";
-import { Button, Table, Select, DatePicker, Space, message, Typography, Switch, Modal } from "antd";
+import { Button, Table, Select, DatePicker, Space, message, Typography, Modal } from "antd";
 import { CloseSquareFilled, PrinterFilled } from "@ant-design/icons";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -24,12 +24,11 @@ const BranchBillsManagementPage = ({ branchId: propBranchId }) => {
   const [dateFilter, setDateFilter] = useState("Today");
   const [customDateRange, setCustomDateRange] = useState([dayjs().startOf("day"), dayjs().endOf("day")]);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState("summary");
   const [branchModalVisible, setBranchModalVisible] = useState(false);
   const [billModalVisible, setBillModalVisible] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState(null);
   const [selectedBill, setSelectedBill] = useState(null);
-  const [sortByAmount, setSortByAmount] = useState(false);
+  const [sortByAmount, setSortByAmount] = useState(true);
 
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://apib.theblackforestcakes.com";
 
@@ -159,8 +158,8 @@ const BranchBillsManagementPage = ({ branchId: propBranchId }) => {
   };
 
   const handlePrint = () => {
-    const data = viewMode === "summary" ? getSummaryData() : getDetailedData();
-    const title = viewMode === "summary" ? "Branch Bills Summary" : "Branch Bills Detailed";
+    const data = getSummaryData();
+    const title = "Branch Bills Summary";
     const branchTitle = branchFilter === "All" ? "All Branches" : branches.find((b) => b._id === branchFilter)?.name || branchFilter;
     const currentDate = dayjs().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss");
 
@@ -188,37 +187,21 @@ const BranchBillsManagementPage = ({ branchId: propBranchId }) => {
           <table>
             <thead>
               <tr>
-                ${viewMode === "summary" ? `
-                  <th>SNo</th>
-                  <th>Branch Name</th>
-                  <th>Total Amount</th>
-                  <th>Total Bills</th>
-                  <th>Billing Days</th>
-                ` : `
-                  <th>SNo</th>
-                  <th>Waiter Name</th>
-                  <th>Bill No</th>
-                  <th>Branch Name</th>
-                  <th>Total Amount</th>
-                  <th>Date</th>
-                `}
+                <th>SNo</th>
+                <th>Branch Name</th>
+                <th>Total Amount</th>
+                <th>Total Bills</th>
+                <th>Billing Days</th>
               </tr>
             </thead>
             <tbody>
               ${data.map((item) => `
                 <tr>
                   <td>${item.sno}</td>
-                  <td>${viewMode === "summary" ? item.branchName : item.waiterName}</td>
-                  ${viewMode === "summary" ? `
-                    <td>₹${(item.totalAmount || 0).toFixed(2)}</td>
-                    <td>${item.totalBills}</td>
-                    <td>${item.attendance}</td>
-                  ` : `
-                    <td>${item.billNo}</td>
-                    <td>${item.branchName}</td>
-                    <td>₹${(item.totalAmount || 0).toFixed(2)}</td>
-                    <td>${item.date}</td>
-                  `}
+                  <td>${item.branchName}</td>
+                  <td>₹${(item.totalAmount || 0).toFixed(2)}</td>
+                  <td>${item.totalBills}</td>
+                  <td>${item.attendance}</td>
                 </tr>
               `).join("")}
             </tbody>
@@ -237,12 +220,7 @@ const BranchBillsManagementPage = ({ branchId: propBranchId }) => {
     setBranchFilter("All");
     setDateFilter("Today");
     setCustomDateRange([dayjs().startOf("day"), dayjs().endOf("day")]);
-    setSortByAmount(false);
     message.success("Filters cleared");
-  };
-
-  const handleTopBranchToggle = () => {
-    setSortByAmount(!sortByAmount);
   };
 
   const handleBranchClick = (record) => {
@@ -355,30 +333,6 @@ const BranchBillsManagementPage = ({ branchId: propBranchId }) => {
     return summaryData;
   };
 
-  const getDetailedData = () => {
-    let detailedData = filteredOrders.map((order, index) => ({
-      key: order._id,
-      sno: index + 1,
-      waiterName: order.waiterId?.name || "Unknown",
-      totalAmount: order.totalWithGST || 0,
-      billNo: order.billNo || "N/A",
-      branchName: order.branchId?.name || "Unknown",
-      branchId: order.branchId?._id || "unknown",
-      date: order.createdAt ? dayjs(order.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss") : "N/A",
-      createdAt: order.createdAt,
-      products: order.products || [],
-      paymentMethod: order.paymentMethod || "N/A",
-      totalItems: order.products?.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0,
-    }));
-
-    if (sortByAmount) {
-      detailedData.sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
-      detailedData = detailedData.map((item, index) => ({ ...item, sno: index + 1 }));
-    }
-
-    return detailedData;
-  };
-
   const waiterModalColumns = [
     { title: "Waiter Name", dataIndex: "waiterName", width: 200 },
     {
@@ -430,35 +384,6 @@ const BranchBillsManagementPage = ({ branchId: propBranchId }) => {
       title: "Billing Days",
       dataIndex: "attendance",
       sorter: (a, b) => (a.attendance || 0) - (b.attendance || 0),
-      width: 150,
-    },
-  ];
-
-  const detailedColumns = [
-    { title: "SNo", dataIndex: "sno", width: 80 },
-    { title: "Waiter Name", dataIndex: "waiterName", width: 200 },
-    {
-      title: "Bill No",
-      dataIndex: "billNo",
-      sorter: (a, b) => (a.billNo || "").localeCompare(b.billNo || ""),
-      width: 150,
-    },
-    {
-      title: "Branch Name",
-      dataIndex: "branchName",
-      width: 150,
-    },
-    {
-      title: "Total Amount",
-      dataIndex: "totalAmount",
-      render: (text, record) => <a onClick={() => handleTotalAmountClick(record)}>₹{(text || 0).toFixed(2)}</a>,
-      sorter: (a, b) => (a.totalAmount || 0) - (b.totalAmount || 0),
-      width: 150,
-    },
-    {
-      title: "Date",
-      dataIndex: "date",
-      sorter: (a, b) => new Date(a.date || 0) - new Date(b.date || 0),
       width: 150,
     },
   ];
@@ -545,34 +470,6 @@ const BranchBillsManagementPage = ({ branchId: propBranchId }) => {
             </Space>
           </Space>
           <Space direction="vertical">
-            <Text strong>View Mode:</Text>
-            <Switch
-              checked={viewMode === "detailed"}
-              onChange={(checked) => setViewMode(checked ? "detailed" : "summary")}
-              checkedChildren="Detailed"
-              unCheckedChildren="Summary"
-              style={{ width: 100 }}
-            />
-          </Space>
-          <Space direction="vertical">
-            <Text strong>Sort:</Text>
-            <Button
-              type="primary"
-              onClick={handleTopBranchToggle}
-              style={{
-                backgroundColor: sortByAmount ? "#52c41a" : "#1890ff",
-                borderColor: sortByAmount ? "#52c41a" : "#1890ff",
-                width: 100,
-                height: 32,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              {viewMode === "summary" ? "Top Branch" : "Top Bills"}
-            </Button>
-          </Space>
-          <Space direction="vertical">
             <Text strong>Actions:</Text>
             <Space>
               <Button
@@ -591,64 +488,34 @@ const BranchBillsManagementPage = ({ branchId: propBranchId }) => {
           </Space>
         </Space>
 
-        {viewMode === "summary" ? (
-          <Table
-            columns={summaryColumns}
-            dataSource={getSummaryData()}
-            loading={loading}
-            pagination={{ pageSize: 10 }}
-            rowKey="key"
-            scroll={{ x: 600 }}
-            summary={() => {
-              const summaryData = getSummaryData();
-              const totalAmount = summaryData.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-              const totalBills = summaryData.reduce((sum, item) => sum + (item.totalBills || 0), 0);
-              return (
-                <Table.Summary fixed>
-                  <Table.Summary.Row>
-                    <Table.Summary.Cell index={0} style={{ fontWeight: "bold" }}></Table.Summary.Cell>
-                    <Table.Summary.Cell index={1} style={{ fontWeight: "bold" }}>Overall Total</Table.Summary.Cell>
-                    <Table.Summary.Cell index={2} style={{ fontWeight: "bold" }}>
-                      ₹{totalAmount.toFixed(2)}
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={3} style={{ fontWeight: "bold" }}>
-                      {totalBills}
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={4} style={{ fontWeight: "bold" }}></Table.Summary.Cell>
-                  </Table.Summary.Row>
-                </Table.Summary>
-              );
-            }}
-          />
-        ) : (
-          <Table
-            columns={detailedColumns}
-            dataSource={getDetailedData()}
-            loading={loading}
-            pagination={{ pageSize: 10 }}
-            rowKey="key"
-            scroll={{ x: 800 }}
-            summary={() => {
-              const detailedData = getDetailedData();
-              const totalAmount = detailedData.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-              const totalBills = detailedData.length;
-              return (
-                <Table.Summary fixed>
-                  <Table.Summary.Row>
-                    <Table.Summary.Cell index={0} style={{ fontWeight: "bold" }}></Table.Summary.Cell>
-                    <Table.Summary.Cell index={1} style={{ fontWeight: "bold" }}></Table.Summary.Cell>
-                    <Table.Summary.Cell index={2} style={{ fontWeight: "bold" }}>{totalBills}</Table.Summary.Cell>
-                    <Table.Summary.Cell index={3} style={{ fontWeight: "bold" }}></Table.Summary.Cell>
-                    <Table.Summary.Cell index={4} style={{ fontWeight: "bold" }}>
-                      ₹{totalAmount.toFixed(2)}
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={5} style={{ fontWeight: "bold" }}></Table.Summary.Cell>
-                  </Table.Summary.Row>
-                </Table.Summary>
-              );
-            }}
-          />
-        )}
+        <Table
+          columns={summaryColumns}
+          dataSource={getSummaryData()}
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+          rowKey="key"
+          scroll={{ x: 600 }}
+          summary={() => {
+            const summaryData = getSummaryData();
+            const totalAmount = summaryData.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+            const totalBills = summaryData.reduce((sum, item) => sum + (item.totalBills || 0), 0);
+            return (
+              <Table.Summary fixed>
+                <Table.Summary.Row>
+                  <Table.Summary.Cell index={0} style={{ fontWeight: "bold" }}></Table.Summary.Cell>
+                  <Table.Summary.Cell index={1} style={{ fontWeight: "bold" }}>Overall Total</Table.Summary.Cell>
+                  <Table.Summary.Cell index={2} style={{ fontWeight: "bold" }}>
+                    ₹{totalAmount.toFixed(2)}
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={3} style={{ fontWeight: "bold" }}>
+                    {totalBills}
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={4} style={{ fontWeight: "bold" }}></Table.Summary.Cell>
+                </Table.Summary.Row>
+              </Table.Summary>
+            );
+          }}
+        />
       </Space>
 
       <Modal
