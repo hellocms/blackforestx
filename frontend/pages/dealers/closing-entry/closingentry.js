@@ -700,10 +700,6 @@ const ClosingEntry = () => {
     message.success('Form cleared successfully');
   };
 
-  const handleEdit = (entry) => {
-    router.push(`/dealers/closing-entry/closingentry?id=${entry._id}`, undefined, { shallow: true });
-  };
-
   const columns = [
     {
       title: 'S.No',
@@ -769,24 +765,6 @@ const ClosingEntry = () => {
       key: 'createdAt',
       render: (date) => dayjs(date).format('YYYY-MM-DD hh:mm A'),
       width: 160,
-    },
-    {
-      title: 'Action',
-      key: 'action',
-      render: (text, record) => {
-        const entryDate = dayjs(record.date).format('YYYY-MM-DD');
-        const today = dayjs().format('YYYY-MM-DD');
-        return entryDate === today && !record.isFinalized ? (
-          <Button
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            style={{ color: '#1890ff' }}
-          >
-            Edit
-          </Button>
-        ) : null;
-      },
-      width: 100,
     },
   ];
 
