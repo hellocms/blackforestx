@@ -46,9 +46,7 @@ const ClosingEntry = () => {
   const [manualSales, setManualSales] = useState('');
   const [onlineSales, setOnlineSales] = useState('');
   const [expenses, setExpenses] = useState('');
-  const [expenseDetails, setExpenseDetails] = useState([
-    { serialNo: 1, reason: '', recipient: '', amount: '' },
-  ]);
+  const [expenseDetails, setExpenseDetails] = useState([]);
   const [creditCardPayment, setCreditCardPayment] = useState('');
   const [upiPayment, setUpiPayment] = useState('');
   const [cashPayment, setCashPayment] = useState('');
@@ -169,14 +167,12 @@ const ClosingEntry = () => {
     setOnlineSales(entry.onlineSales || '');
     setExpenses(entry.expenses || '');
     setExpenseDetails(
-      entry.expenseDetails.length > 0
-        ? entry.expenseDetails.map((detail, index) => ({
-            serialNo: index + 1,
-            reason: detail.reason || '',
-            recipient: detail.recipient || '',
-            amount: detail.amount || '',
-          }))
-        : [{ serialNo: 1, reason: '', recipient: '', amount: '' }]
+      entry.expenseDetails ? entry.expenseDetails.map((detail, index) => ({
+        serialNo: index + 1,
+        reason: detail.reason || '',
+        recipient: detail.recipient || '',
+        amount: detail.amount || '',
+      })) : []
     );
     setCreditCardPayment(entry.creditCardPayment || '');
     setUpiPayment(entry.upiPayment || '');
@@ -417,16 +413,17 @@ const ClosingEntry = () => {
   }, [closingEntries]);
 
   const handleAddExpense = () => {
-    setExpenseDetails([...expenseDetails, { serialNo: expenseDetails.length + 1, reason: '', recipient: '', amount: '' }]);
+    const newSerialNo = expenseDetails.length + 1;
+    setExpenseDetails([...expenseDetails, { serialNo: newSerialNo, reason: '', recipient: '', amount: '' }]);
   };
 
   const handleRemoveExpense = (index) => {
-    if (expenseDetails.length === 1) {
-      setExpenseDetails([{ serialNo: 1, reason: '', recipient: '', amount: '' }]);
-      message.success('Expense entry reset to default.');
+    const updatedDetails = expenseDetails.filter((_, i) => i !== index);
+    if (updatedDetails.length === 0) {
+      setExpenseDetails([]);
+      message.success('All expense entries removed.');
       return;
     }
-    const updatedDetails = expenseDetails.filter((_, i) => i !== index);
     const reindexedDetails = updatedDetails.map((detail, i) => ({
       ...detail,
       serialNo: i + 1,
@@ -472,10 +469,6 @@ const ClosingEntry = () => {
     }
     if (onlineSales === '' || onlineSales === null || onlineSales === undefined) {
       message.error('Please enter online sales');
-      return;
-    }
-    if (expenses === '' || expenses === null || expenses === undefined) {
-      message.error('Please enter expenses');
       return;
     }
     for (const detail of expenseDetails) {
@@ -682,7 +675,7 @@ const ClosingEntry = () => {
     setManualSales('');
     setOnlineSales('');
     setExpenses('');
-    setExpenseDetails([{ serialNo: 1, reason: '', recipient: '', amount: '' }]);
+    setExpenseDetails([]);
     setCreditCardPayment('');
     setUpiPayment('');
     setCashPayment('');
@@ -1016,14 +1009,20 @@ const ClosingEntry = () => {
                     }}
                     hoverable
                   >
-                    <Table
-                      columns={expenseColumns}
-                      dataSource={expenseDetails}
-                      pagination={false}
-                      bordered
-                      rowKey={(record, index) => index}
-                      style={{ marginBottom: '10px' }}
-                    />
+                    {expenseDetails.length === 0 ? (
+                      <Text style={{ display: 'block', textAlign: 'center', padding: '20px' }}>
+                        No expense details added.
+                      </Text>
+                    ) : (
+                      <Table
+                        columns={expenseColumns}
+                        dataSource={expenseDetails}
+                        pagination={false}
+                        bordered
+                        rowKey={(record, index) => index}
+                        style={{ marginBottom: '10px' }}
+                      />
+                    )}
                     <Button
                       icon={<PlusOutlined />}
                       onClick={handleAddExpense}
@@ -1038,7 +1037,7 @@ const ClosingEntry = () => {
                         marginRight: 'auto',
                       }}
                     >
-                      Add Expense
+                      Add Expenses
                     </Button>
                   </Card>
 

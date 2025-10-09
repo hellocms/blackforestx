@@ -74,34 +74,37 @@ exports.createClosingEntry = async (req, res) => {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
-    // Validate expenseDetails
-    if (!expenseDetails || !Array.isArray(expenseDetails) || expenseDetails.length === 0) {
-      return res.status(400).json({ success: false, message: 'Expense details are required' });
-    }
+    // Validate expenseDetails if provided
+    if (expenseDetails && Array.isArray(expenseDetails)) {
+      for (const detail of expenseDetails) {
+        if (
+          detail.serialNo === undefined ||
+          (detail.amount > 0 && (!detail.reason || !detail.recipient)) ||
+          detail.amount === undefined
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: 'All expense details fields (serialNo, reason, recipient, amount) are required when amount is greater than 0',
+          });
+        }
+        if (detail.amount < 0) {
+          return res.status(400).json({ success: false, message: 'Expense amounts must be non-negative' });
+        }
+      }
 
-    for (const detail of expenseDetails) {
-      if (
-        detail.serialNo === undefined ||
-        (detail.amount > 0 && (!detail.reason || !detail.recipient)) ||
-        detail.amount === undefined
-      ) {
+      // Validate that the sum of expenseDetails amounts matches the expenses total
+      const totalExpenseDetails = expenseDetails.reduce((sum, detail) => sum + detail.amount, 0);
+      if (totalExpenseDetails !== expenses) {
         return res.status(400).json({
           success: false,
-          message: 'All expense details fields (serialNo, reason, recipient, amount) are required when amount is greater than 0',
+          message: `Total expenses from details (₹${totalExpenseDetails}) must match the expenses total (₹${expenses})`,
         });
       }
-      if (detail.amount < 0) {
-        return res.status(400).json({ success: false, message: 'Expense amounts must be non-negative' });
+    } else {
+      // If no expenseDetails provided, ensure expenses is 0
+      if (expenses !== 0) {
+        return res.status(400).json({ success: false, message: 'Expenses must be 0 if no expense details are provided' });
       }
-    }
-
-    // Validate that the sum of expenseDetails amounts matches the expenses total
-    const totalExpenseDetails = expenseDetails.reduce((sum, detail) => sum + detail.amount, 0);
-    if (totalExpenseDetails !== expenses) {
-      return res.status(400).json({
-        success: false,
-        message: `Total expenses from details (₹${totalExpenseDetails}) must match the expenses total (₹${expenses})`,
-      });
     }
 
     // Validate non-negative values
@@ -203,7 +206,7 @@ exports.createClosingEntry = async (req, res) => {
       manualSales,
       onlineSales,
       expenses,
-      expenseDetails,
+      expenseDetails: expenseDetails || [],
       netResult,
       creditCardPayment,
       upiPayment,
@@ -400,34 +403,37 @@ exports.updateClosingEntry = async (req, res) => {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
-    // Validate expenseDetails
-    if (!expenseDetails || !Array.isArray(expenseDetails) || expenseDetails.length === 0) {
-      return res.status(400).json({ success: false, message: 'Expense details are required' });
-    }
+    // Validate expenseDetails if provided
+    if (expenseDetails && Array.isArray(expenseDetails)) {
+      for (const detail of expenseDetails) {
+        if (
+          detail.serialNo === undefined ||
+          (detail.amount > 0 && (!detail.reason || !detail.recipient)) ||
+          detail.amount === undefined
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: 'All expense details fields (serialNo, reason, recipient, amount) are required when amount is greater than 0',
+          });
+        }
+        if (detail.amount < 0) {
+          return res.status(400).json({ success: false, message: 'Expense amounts must be non-negative' });
+        }
+      }
 
-    for (const detail of expenseDetails) {
-      if (
-        detail.serialNo === undefined ||
-        (detail.amount > 0 && (!detail.reason || !detail.recipient)) ||
-        detail.amount === undefined
-      ) {
+      // Validate that the sum of expenseDetails amounts matches the expenses total
+      const totalExpenseDetails = expenseDetails.reduce((sum, detail) => sum + detail.amount, 0);
+      if (totalExpenseDetails !== expenses) {
         return res.status(400).json({
           success: false,
-          message: 'All expense details fields (serialNo, reason, recipient, amount) are required when amount is greater than 0',
+          message: `Total expenses from details (₹${totalExpenseDetails}) must match the expenses total (₹${expenses})`,
         });
       }
-      if (detail.amount < 0) {
-        return res.status(400).json({ success: false, message: 'Expense amounts must be non-negative' });
+    } else {
+      // If no expenseDetails provided, ensure expenses is 0
+      if (expenses !== 0) {
+        return res.status(400).json({ success: false, message: 'Expenses must be 0 if no expense details are provided' });
       }
-    }
-
-    // Validate that the sum of expenseDetails amounts matches the expenses total
-    const totalExpenseDetails = expenseDetails.reduce((sum, detail) => sum + detail.amount, 0);
-    if (totalExpenseDetails !== expenses) {
-      return res.status(400).json({
-        success: false,
-        message: `Total expenses from details (₹${totalExpenseDetails}) must match the expenses total (₹${expenses})`,
-      });
     }
 
     // Validate non-negative values
@@ -700,7 +706,7 @@ exports.updateClosingEntry = async (req, res) => {
         manualSales,
         onlineSales,
         expenses,
-        expenseDetails,
+        expenseDetails: expenseDetails || [],
         netResult,
         creditCardPayment,
         upiPayment,
