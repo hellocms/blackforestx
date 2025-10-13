@@ -404,7 +404,9 @@ const OrderListPage = ({ branchId: propBranchId }) => {
     const gstRatio = record.subtotal > 0 ? confirmedSubtotal / record.subtotal : 0;
     const confirmedTotalGST = record.totalGST * gstRatio;
     const summary = {
-      totalQty: confirmedProducts.reduce((sum, p) => sum + (p.sendingQty || p.quantity || 0), 0),
+      totalQty: confirmedProducts.reduce((sum, p) => sum + (p.quantity || 0), 0),
+      sendingQtyTotal: confirmedProducts.reduce((sum, p) => sum + (p.sendingQty || 0), 0),
+      receivedQtyTotal: confirmedProducts.reduce((sum, p) => sum + (p.receivedQty || 0), 0),
       totalItems: confirmedProducts.length,
       subtotal: confirmedSubtotal,
       sgst: confirmedTotalGST / 2,
@@ -424,13 +426,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
   const handleConfirm = async (record) => {
     const isConfirmedState = ["completed", "delivered", "received"].includes(record.status);
     const newStatus = isConfirmedState ? "pending" : "completed";
-    if (newStatus === "completed") {
-      const unconfirmedCount = record.products.filter(p => !p.confirmed).length;
-      if (unconfirmedCount > 0) {
-        message.error(`Cannot confirm Bill No: ${record.billNo}. ${unconfirmedCount} product(s) are not confirmed.`);
-        return;
-      }
-    }
     if (["delivered", "received"].includes(record.status)) {
       message.warning("Order is already delivered or received; status cannot be reverted here.");
       return;
@@ -1100,6 +1095,8 @@ const OrderListPage = ({ branchId: propBranchId }) => {
   const printReceipt = (order, summary, branch, assignment, confirmedProducts) => {
     const {
       totalQty,
+      sendingQtyTotal,
+      receivedQtyTotal,
       totalItems,
       subtotal,
       sgst,
@@ -1123,39 +1120,39 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         <head>
           <title>Invoice</title>
           <style>
-            body { font-family: 'Courier New', monospace; width: 302px; margin: 0; padding: 5px; font-size: 10px; line-height: 1.2; }
-            h2 { text-align: center; font-size: 14px; font-weight: bold; margin: 0 0 5px 0; }
-            p { margin: 2px 0; overflow: hidden; text-overflow: ellipsis; }
-            table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-            th, td { padding: 2px; text-align: left; font-size: 10px; border: 1px solid #d9d9d9; }
-            th { font-weight: bold; }
-            .divider { border-top: 1px dashed #000; margin: 5px 0; }
-            .summary { margin-top: 5px; }
-            .summary div { display: flex; justify-content: space-between; }
-            .payment-details { margin-top: 5px; }
-            @media print { @page { margin: 0; size: 80mm auto; } body { margin: 0; padding: 5px; } }
+            body { font-family: Arial, sans-serif; width: 210mm; margin: 20mm; font-size: 12pt; line-height: 1.5; }
+            h2 { text-align: center; font-size: 18pt; font-weight: bold; margin: 0 0 10mm 0; }
+            p { margin: 2mm 0; text-align: center; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10mm; }
+            th, td { padding: 4mm; text-align: left; font-size: 12pt; border: 1px solid #000; }
+            th { font-weight: bold; background-color: #f0f0f0; }
+            .divider { border-top: 1px solid #000; margin: 10mm 0; }
+            .summary { margin-top: 10mm; }
+            .summary div { display: flex; justify-content: space-between; margin-bottom: 2mm; }
+            .payment-details { margin-top: 10mm; }
+            @media print { @page { size: A4; margin: 20mm; } body { margin: 0; } }
           </style>
         </head>
         <body>
-          <h2>${branch?.name?.slice(0, 3).toUpperCase() || order.branchId?.name?.slice(0, 3).toUpperCase() || "Unknown Branch"} Invoice</h2>
-          <p style="text-align: center;">${branch?.address || "Address Not Available"}</p>
-          <p style="text-align: center;">${branch?.phoneNo || "Phone Not Available"}</p>
-          <p style="text-align: center;">Bill No: ${order.billNo || "N/A"}</p>
-          <p style="text-align: center;">Waiter: ${order.waiterId?.name || "N/A"}</p>
-          <p style="text-align: center;">Manager: ${assignment.managerId?.name || "N/A"} | Cashier: ${assignment.cashierId?.name || "N/A"}</p>
-          <p style="text-align: center;">Created: ${createdDate}</p>
-          <p style="text-align: center;">Delivery: ${deliveryDate}</p>
+          <h2>${branch?.name || order.branchId?.name || "Unknown Branch"} Invoice</h2>
+          <p>${branch?.address || "Address Not Available"}</p>
+          <p>${branch?.phoneNo || "Phone Not Available"}</p>
+          <p>Bill No: ${order.billNo || "N/A"}</p>
+          <p>Waiter: ${order.waiterId?.name || "N/A"}</p>
+          <p>Manager: ${assignment.managerId?.name || "N/A"} | Cashier: ${assignment.cashierId?.name || "N/A"}</p>
+          <p>Created: ${createdDate}</p>
+          <p>Delivery: ${deliveryDate}</p>
           <div class="divider"></div>
           <table>
             <thead>
               <tr>
-                <th style="width: 10%;">SL</th>
+                <th style="width: 5%;">SL</th>
                 <th style="width: 30%;">Description</th>
                 <th style="width: 10%;">Qty</th>
-                <th style="width: 10%;">Sending Qty</th>
-                <th style="width: 10%;">Received Qty</th>
-                <th style="width: 15%;">MRP</th>
-                <th style="width: 20%;">Amount</th>
+                <th style="width: 15%;">Sending Qty</th>
+                <th style="width: 15%;">Received Qty</th>
+                <th style="width: 10%;">MRP</th>
+                <th style="width: 15%;">Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -1166,9 +1163,7 @@ const OrderListPage = ({ branchId: propBranchId }) => {
                         (product, index) => `
                 <tr>
                   <td>${index + 1}</td>
-                  <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    ${product.name || "Unknown"} ${product.unit ? `(${product.unit})` : ''}
-                  </td>
+                  <td>${product.name || "Unknown"} ${product.unit ? `(${product.unit})` : ''}</td>
                   <td>${product.quantity || 0}</td>
                   <td>${product.sendingQty || 0}</td>
                   <td>${product.receivedQty || 0}</td>
@@ -1185,6 +1180,8 @@ const OrderListPage = ({ branchId: propBranchId }) => {
           <div class="divider"></div>
           <div class="summary">
             <div><span>Tot Qty:</span><span>${totalQty.toFixed(2)}</span></div>
+            <div><span>Tot Sending Qty:</span><span>${sendingQtyTotal.toFixed(2)}</span></div>
+            <div><span>Tot Received Qty:</span><span>${receivedQtyTotal.toFixed(2)}</span></div>
             <div><span>Tot Items:</span><span>${totalItems}</span></div>
             <div><span>Total Amount:</span><span>₹${subtotal.toFixed(2)}</span></div>
             <div><span>SGST:</span><span>₹${sgst.toFixed(2)}</span></div>
