@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { jwtDecode } from "jwt-decode";
@@ -6,14 +7,11 @@ import { EditOutlined, EyeOutlined, PrinterOutlined, CheckCircleFilled, EyeFille
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-
 dayjs.extend(utc);
 dayjs.extend(timezone);
-
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
-
 const OrderListPage = ({ branchId: propBranchId }) => {
   const router = useRouter();
   const [token, setToken] = useState(null);
@@ -42,9 +40,7 @@ const OrderListPage = ({ branchId: propBranchId }) => {
   const [visibleModal, setVisibleModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [kotData, setKotData] = useState(null);
-
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://apib.theblackforestcakes.com";
-
   const computeDateRange = () => {
     let start, end;
     if (dateFilter === "Today") {
@@ -65,16 +61,13 @@ const OrderListPage = ({ branchId: propBranchId }) => {
     }
     return [start ? start.toISOString() : null, end ? end.toISOString() : null];
   };
-
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     setToken(storedToken);
-
     if (!storedToken) {
       router.replace("/login");
       return;
     }
-
     try {
       const decoded = jwtDecode(storedToken);
       const role = decoded.role;
@@ -87,15 +80,12 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       router.replace("/login");
       return;
     }
-
     if (propBranchId) {
       setBranchFilter(propBranchId);
     }
   }, [router, propBranchId]);
-
   useEffect(() => {
     if (!token) return;
-
     const fetchBranchesAsync = async () => {
       try {
         const response = await fetch(`${BACKEND_URL}/api/branches`, {
@@ -112,7 +102,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         console.error(error);
       }
     };
-
     const fetchCategoriesAsync = async () => {
       try {
         const response = await fetch(`${BACKEND_URL}/api/categories/list-categories`, {
@@ -131,7 +120,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         setCategories([]);
       }
     };
-
     const fetchProductsAsync = async () => {
       try {
         const response = await fetch(`${BACKEND_URL}/api/products`, {
@@ -148,7 +136,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         message.error("Error fetching product catalog");
       }
     };
-
     const fetchDepartmentsAsync = async () => {
       try {
         const response = await fetch(`${BACKEND_URL}/api/departments/list-departments`, {
@@ -167,21 +154,17 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         setDepartments([]);
       }
     };
-
     fetchBranchesAsync();
     fetchCategoriesAsync();
     fetchProductsAsync();
     fetchDepartmentsAsync();
   }, [token]);
-
   useEffect(() => {
     if (!token) return;
-
     const dateRangeISO = computeDateRange();
     const currentBranchId = branchFilter !== "All" ? branchFilter : (propBranchId || undefined);
     fetchOrders(token, activeTab, currentBranchId, dateRangeISO[0], dateRangeISO[1]);
   }, [token, activeTab, branchFilter, dateFilter, customDateRange, propBranchId]);
-
   const fetchOrders = async (token, tabParam, branchIdParam, startDate, endDate) => {
     setLoading(true);
     try {
@@ -208,7 +191,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
     }
     setLoading(false);
   };
-
   const fetchAssignment = async (branchId, date) => {
     try {
       const formattedDate = dayjs(date).format("YYYY-MM-DD");
@@ -227,7 +209,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       return {};
     }
   };
-
   const handleClearFilters = () => {
     setSearchQuery("");
     setBranchFilter("All");
@@ -241,7 +222,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
     setKotFilterType("Department");
     message.success("Filters cleared");
   };
-
   const getDateRangeAndOrderIds = () => {
     if (filteredOrders.length === 0) {
       return { earliestCreated: null, latestDelivery: null, orderIds: "" };
@@ -265,7 +245,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       orderIds,
     };
   };
-
   const handleSendingQtyChange = async (index, value) => {
     if (!selectedOrder) return;
     const updatedProducts = [...selectedOrder.products];
@@ -296,14 +275,41 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       console.error(error);
     }
   };
-
+  const handleReceivedQtyChange = async (index, value) => {
+    if (!selectedOrder) return;
+    const updatedProducts = [...selectedOrder.products];
+    updatedProducts[index].receivedQty = value !== null ? value : 0;
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/orders/${selectedOrder._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ products: updatedProducts }),
+      });
+      if (response.ok) {
+        setSelectedOrder({ ...selectedOrder, products: updatedProducts });
+        setOrders((prev) =>
+          prev.map((o) => (o._id === selectedOrder._id ? { ...o, products: updatedProducts } : o))
+        );
+        setFilteredOrders((prev) =>
+          prev.map((o) => (o._id === selectedOrder._id ? { ...o, products: updatedProducts } : o))
+        );
+        message.success("Received quantity updated successfully");
+      } else {
+        message.error("Failed to update received quantity");
+      }
+    } catch (error) {
+      message.error("Error updating received quantity");
+      console.error(error);
+    }
+  };
   useEffect(() => {
     applyFilters();
   }, [searchQuery, statusFilter, productFilter, categoryFilter, departmentFilter, dateFilter, customDateRange, dateFilterMode, orders]);
-
   const applyFilters = () => {
     let filtered = [...orders];
-
     if (searchQuery) {
       filtered = filtered.filter((order) =>
         order.billNo && typeof order.billNo === "string"
@@ -311,19 +317,16 @@ const OrderListPage = ({ branchId: propBranchId }) => {
           : false
       );
     }
-
     if (statusFilter !== "All") {
       filtered = filtered.filter((order) =>
         order.status && order.status.toLowerCase() === statusFilter.toLowerCase()
       );
     }
-
     if (productFilter !== "All") {
       filtered = filtered.filter((order) =>
         order.products.some((p) => p.name === productFilter)
       );
     }
-
     if (categoryFilter !== "All") {
       filtered = filtered.filter((order) =>
         order.products.some((p) => {
@@ -332,7 +335,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         })
       );
     }
-
     if (departmentFilter !== "All") {
       filtered = filtered.filter((order) =>
         order.products.some((p) => {
@@ -342,11 +344,9 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         })
       );
     }
-
     const dateRangeISO = computeDateRange();
     const startDate = dateRangeISO[0] ? dayjs(dateRangeISO[0]) : null;
     const endDate = dateRangeISO[1] ? dayjs(dateRangeISO[1]) : null;
-
     if (startDate) {
       filtered = filtered.filter((order) => {
         const createdDate = order.createdAt ? dayjs(order.createdAt) : null;
@@ -379,45 +379,48 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         return false;
       });
     }
-
     filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     setFilteredOrders(filtered);
   };
-
   const handleEdit = async (record) => {
     const assignment = await fetchAssignment(record.branchId._id, record.createdAt);
     setSelectedOrder({ ...record, assignment });
     setEditingOrderId(record._id);
     setIsEditMode(true);
   };
-
   const handleView = async (record) => {
     const assignment = await fetchAssignment(record.branchId._id, record.createdAt);
     setSelectedOrder({ ...record, assignment });
     setIsEditMode(false);
     setVisibleModal(true);
   };
-
   const handlePrint = async (record) => {
+    const confirmedProducts = record.products.filter(p => p.confirmed);
+    if (confirmedProducts.length === 0) {
+      message.info("No confirmed products to print.");
+      return;
+    }
+    const confirmedSubtotal = confirmedProducts.reduce((sum, p) => sum + ((p.sendingQty || p.quantity || 0) * (p.price || 0)), 0);
+    const gstRatio = record.subtotal > 0 ? confirmedSubtotal / record.subtotal : 0;
+    const confirmedTotalGST = record.totalGST * gstRatio;
     const summary = {
-      totalQty: record.products.reduce((sum, p) => sum + p.quantity, 0),
-      totalItems: record.totalItems,
-      subtotal: record.subtotal,
-      sgst: record.totalGST / 2,
-      cgst: record.totalGST / 2,
-      totalWithGST: record.totalWithGST,
-      totalWithGSTRounded: Math.round(record.totalWithGST),
-      roundOff: Math.round(record.totalWithGST) - record.totalWithGST,
+      totalQty: confirmedProducts.reduce((sum, p) => sum + (p.sendingQty || p.quantity || 0), 0),
+      totalItems: confirmedProducts.length,
+      subtotal: confirmedSubtotal,
+      sgst: confirmedTotalGST / 2,
+      cgst: confirmedTotalGST / 2,
+      totalWithGST: confirmedSubtotal + confirmedTotalGST,
+      totalWithGSTRounded: Math.round(confirmedSubtotal + confirmedTotalGST),
+      roundOff: Math.round(confirmedSubtotal + confirmedTotalGST) - (confirmedSubtotal + confirmedTotalGST),
       paymentMethod: record.paymentMethod,
-      tenderAmount: Math.round(record.totalWithGST),
+      tenderAmount: Math.round(confirmedSubtotal + confirmedTotalGST),
       balance: 0,
     };
     const branch = branches.find((b) => b._id === (record.branchId._id || record.branchId));
     const assignment = await fetchAssignment(record.branchId._id, record.createdAt);
-    printReceipt(record, summary, branch, assignment);
-    message.success("Receipt printed");
+    printReceipt(record, summary, branch, assignment, confirmedProducts);
+    message.success("Invoice printed for confirmed products");
   };
-
   const handleConfirm = async (record) => {
     const isConfirmedState = ["completed", "delivered", "received"].includes(record.status);
     const newStatus = isConfirmedState ? "pending" : "completed";
@@ -458,7 +461,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       console.error(error);
     }
   };
-
   const handleDelivery = async (record) => {
     try {
       const response = await fetch(`${BACKEND_URL}/api/orders/${record._id}`, {
@@ -488,9 +490,24 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       console.error(error);
     }
   };
-
   const handleReceived = async (record) => {
     try {
+      const updatedProducts = record.products.map(p => ({
+        ...p,
+        receivedQty: p.receivedQty ?? p.sendingQty ?? p.quantity
+      }));
+      const productResponse = await fetch(`${BACKEND_URL}/api/orders/${record._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ products: updatedProducts }),
+      });
+      if (!productResponse.ok) {
+        message.error("Failed to update products for received");
+        return;
+      }
       const response = await fetch(`${BACKEND_URL}/api/orders/${record._id}`, {
         method: "PATCH",
         headers: {
@@ -500,13 +517,14 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         body: JSON.stringify({ status: "received" }),
       });
       if (response.ok) {
+        const updatedOrder = { ...record, status: "received", products: updatedProducts };
         setOrders((prev) =>
-          prev.map((o) => (o._id === record._id ? { ...o, status: "received" } : o))
+          prev.map((o) => (o._id === record._id ? updatedOrder : o))
         );
         setFilteredOrders((prev) =>
-          prev.map((o) => (o._id === record._id ? { ...o, status: "received" } : o))
+          prev.map((o) => (o._id === record._id ? updatedOrder : o))
         );
-        setSelectedOrder((prev) => (prev && prev._id === record._id ? { ...prev, status: "received" } : prev));
+        setSelectedOrder((prev) => (prev && prev._id === record._id ? updatedOrder : prev));
         message.success("Order marked as received");
       } else {
         message.error("Failed to mark order as received");
@@ -516,7 +534,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       console.error(error);
     }
   };
-
   const handleDelete = async (record) => {
     if (!window.confirm(`Are you sure you want to delete order ${record.billNo || 'N/A'}?`)) {
       return;
@@ -540,7 +557,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       console.error(error);
     }
   };
-
   const handleToggleProductConfirm = async (productIndex) => {
     if (!selectedOrder) return;
     const isOrderConfirmed = ["completed", "delivered", "received"].includes(selectedOrder.status);
@@ -602,7 +618,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       console.error(error);
     }
   };
-
   const getKOTData = () => {
     const isAllBranches = branchFilter === "All";
     if (kotFilterType === "Branch") {
@@ -724,7 +739,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       return { type: "Department", departments: departmentsData, hasData };
     }
   };
-
   const handlePreview = async () => {
     const kotResult = getKOTData();
     if (!kotResult.hasData) {
@@ -745,7 +759,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
     setFilteredOrders(updatedOrders);
     setPreviewModalVisible(true);
   };
-
   const handlePrintCombined = () => {
     const kotResult = getKOTData();
     if (!kotResult.hasData) {
@@ -999,7 +1012,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
     printWindow.print();
     printWindow.close();
   };
-
   const columns = [
     { title: "Serial No", render: (_, __, index) => index + 1, width: 80 },
     {
@@ -1063,24 +1075,29 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       width: 100,
     },
     {
+      title: "Invoice",
+      render: (record) => (
+        <Button icon={<PrinterOutlined />} onClick={() => handlePrint(record)} />
+      ),
+      width: 100,
+    },
+    {
       title: "Actions",
       render: (record) => (
         <Space>
           <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} />
           <Button icon={<EyeOutlined />} onClick={() => handleView(record)} />
-          <Button icon={<PrinterOutlined />} onClick={() => handlePrint(record)} />
-          <Button 
-            icon={<CloseCircleFilled style={{ color: 'red' }} />} 
-            onClick={() => handleDelete(record)} 
+          <Button
+            icon={<CloseCircleFilled style={{ color: 'red' }} />}
+            onClick={() => handleDelete(record)}
             danger
           />
         </Space>
       ),
-      width: 180, // Increased width to accommodate new button
+      width: 150,
     },
   ];
-
-  const printReceipt = (order, summary, branch, assignment) => {
+  const printReceipt = (order, summary, branch, assignment, confirmedProducts) => {
     const {
       totalQty,
       totalItems,
@@ -1095,7 +1112,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       balance,
     } = summary;
     const printWindow = window.open("", "_blank");
-
     const createdDate = order.createdAt
       ? dayjs(order.createdAt).tz("Asia/Kolkata").format("DD/MM/YYYY")
       : "N/A";
@@ -1105,7 +1121,7 @@ const OrderListPage = ({ branchId: propBranchId }) => {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Receipt</title>
+          <title>Invoice</title>
           <style>
             body { font-family: 'Courier New', monospace; width: 302px; margin: 0; padding: 5px; font-size: 10px; line-height: 1.2; }
             h2 { text-align: center; font-size: 14px; font-weight: bold; margin: 0 0 5px 0; }
@@ -1121,7 +1137,7 @@ const OrderListPage = ({ branchId: propBranchId }) => {
           </style>
         </head>
         <body>
-          <h2>${branch?.name?.slice(0, 3).toUpperCase() || order.branchId?.name?.slice(0, 3).toUpperCase() || "Unknown Branch"}</h2>
+          <h2>${branch?.name?.slice(0, 3).toUpperCase() || order.branchId?.name?.slice(0, 3).toUpperCase() || "Unknown Branch"} Invoice</h2>
           <p style="text-align: center;">${branch?.address || "Address Not Available"}</p>
           <p style="text-align: center;">${branch?.phoneNo || "Phone Not Available"}</p>
           <p style="text-align: center;">Bill No: ${order.billNo || "N/A"}</p>
@@ -1134,31 +1150,35 @@ const OrderListPage = ({ branchId: propBranchId }) => {
             <thead>
               <tr>
                 <th style="width: 10%;">SL</th>
-                <th style="width: 45%;">Description</th>
-                <th style="width: 15%;">MRP</th>
+                <th style="width: 30%;">Description</th>
                 <th style="width: 10%;">Qty</th>
+                <th style="width: 10%;">Sending Qty</th>
+                <th style="width: 10%;">Received Qty</th>
+                <th style="width: 15%;">MRP</th>
                 <th style="width: 20%;">Amount</th>
               </tr>
             </thead>
             <tbody>
               ${
-                order.products && Array.isArray(order.products)
-                  ? order.products
+                confirmedProducts && Array.isArray(confirmedProducts)
+                  ? confirmedProducts
                       .map(
                         (product, index) => `
                 <tr>
                   <td>${index + 1}</td>
                   <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    ${product.name || "Unknown"} (${product.quantity || 0}${product.unit || ""})
+                    ${product.name || "Unknown"} ${product.unit ? `(${product.unit})` : ''}
                   </td>
-                  <td>₹${(product.price || 0).toFixed(2)}</td>
                   <td>${product.quantity || 0}</td>
-                  <td>₹${(product.productTotal || 0).toFixed(2)}</td>
+                  <td>${product.sendingQty || 0}</td>
+                  <td>${product.receivedQty || 0}</td>
+                  <td>₹${(product.price || 0).toFixed(2)}</td>
+                  <td>₹${((product.sendingQty || product.quantity || 0) * (product.price || 0)).toFixed(2)}</td>
                 </tr>
               `
                       )
                       .join("")
-                  : "<tr><td colspan='5'>No products</td></tr>"
+                  : "<tr><td colspan='7'>No confirmed products</td></tr>"
               }
             </tbody>
           </table>
@@ -1187,7 +1207,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
     printWindow.print();
     printWindow.close();
   };
-
   const editModalColumns = [
     {
       title: "Product Name",
@@ -1235,6 +1254,19 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         </Space.Compact>
       ),
       width: 100,
+    },
+    {
+      title: "Received Qty",
+      dataIndex: "receivedQty",
+      render: (text, record, index) => (
+        <InputNumber
+          min={0}
+          value={text !== undefined ? text : 0}
+          onChange={(value) => handleReceivedQtyChange(index, value)}
+          disabled={!(selectedOrder.status === "delivered" && record.confirmed)}
+        />
+      ),
+      width: 120,
     },
     {
       title: "Difference",
@@ -1295,7 +1327,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       width: 150,
     },
   ];
-
   const viewModalColumns = [
     { title: "Product", dataIndex: "name", render: (value) => value || "Unknown" },
     {
@@ -1328,6 +1359,26 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         </Space>
       ),
     },
+    {
+      title: "Received Qty",
+      dataIndex: "receivedQty",
+      render: (value, record) => (
+        <Space>
+          <span>{value || 0}</span>
+          {value !== undefined && record.sendingQty !== undefined && value !== record.sendingQty && (
+            value > record.sendingQty ? (
+              <span style={{ color: 'green' }}>
+                [↑ {value - record.sendingQty}]
+              </span>
+            ) : (
+              <span style={{ color: 'red' }}>
+                [↓ {record.sendingQty - value}]
+              </span>
+            )
+          )}
+        </Space>
+      ),
+    },
     { title: "Unit", dataIndex: "unit", render: (value) => value || "" },
     { title: "Price", dataIndex: "price", render: (value) => `₹${(value || 0).toFixed(2)}` },
     {
@@ -1342,17 +1393,16 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       ),
     },
   ];
-
   const calculateTotals = (products) => {
     return {
       quantity: products.reduce((sum, p) => sum + (p.quantity || 0), 0),
       bminstock: products.reduce((sum, p) => sum + (p.bminstock || 0), 0) || "N/A",
       sendingQty: products.reduce((sum, p) => sum + (p.sendingQty || 0), 0),
+      receivedQty: products.reduce((sum, p) => sum + (p.receivedQty || 0), 0),
       price: products.reduce((sum, p) => sum + (p.price || 0), 0),
       total: products.reduce((sum, p) => sum + ((p.sendingQty || 0) * (p.price || 0)), 0),
     };
   };
-
   const modalFooter = (products) => {
     const totals = calculateTotals(products || []);
     return (
@@ -1361,13 +1411,13 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         <td style={{ border: "1px solid #d9d9d9" }}>{totals.quantity}</td>
         <td style={{ border: "1px solid #d9d9d9" }}>{totals.bminstock}</td>
         <td style={{ border: "1px solid #d9d9d9" }}>{totals.sendingQty}</td>
+        <td style={{ border: "1px solid #d9d9d9" }}>{totals.receivedQty}</td>
         <td style={{ border: "1px solid #d9d9d9" }}>N/A</td>
         <td style={{ border: "1px solid #d9d9d9" }}>₹{totals.price.toFixed(2)}</td>
         <td style={{ border: "1px solid #d9d9d9" }}>₹{totals.total.toFixed(2)}</td>
       </tr>
     );
   };
-
   const tableSummary = () => {
     const totalItems = filteredOrders.reduce((sum, o) => sum + (o.totalItems || 0), 0);
     const totalCompleted = filteredOrders.reduce((sum, o) => sum + (o.totalItems - o.products.filter(p => !p.confirmed).length), 0);
@@ -1386,10 +1436,10 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totalSending.toFixed(2)}</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }} />
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }} />
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }} />
       </Table.Summary.Row>
     );
   };
-
   const viewModalSummary = () => {
     if (!selectedOrder || !selectedOrder.products) return null;
     const totals = calculateTotals(selectedOrder.products);
@@ -1399,6 +1449,7 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.quantity}</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.bminstock}</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.sendingQty}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.receivedQty}</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>N/A</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totals.price.toFixed(2)}</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totals.total.toFixed(2)}</Table.Summary.Cell>
@@ -1406,7 +1457,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       </Table.Summary.Row>
     );
   };
-
   const editSummary = () => {
     if (!selectedOrder || !selectedOrder.products) return null;
     const totals = calculateTotals(selectedOrder.products);
@@ -1416,6 +1466,7 @@ const OrderListPage = ({ branchId: propBranchId }) => {
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.quantity}</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.bminstock}</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.sendingQty}</Table.Summary.Cell>
+        <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>{totals.receivedQty}</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>N/A</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>N/A</Table.Summary.Cell>
         <Table.Summary.Cell style={{ border: "1px solid #d9d9d9" }}>₹{totals.price.toFixed(2)}</Table.Summary.Cell>
@@ -1423,7 +1474,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       </Table.Summary.Row>
     );
   };
-
   const kotProductColumns = [
     {
       title: "Product Name",
@@ -1448,7 +1498,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
       align: "right",
     },
   ];
-
   return (
     <div style={{ padding: "20px" }}>
       <Space direction="vertical" style={{ width: "100%", marginBottom: "20px" }}>
@@ -1637,7 +1686,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
             </Space>
           </Space>
         </Space>
-
         <Table
           columns={columns}
           dataSource={filteredOrders}
@@ -1649,7 +1697,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
           bordered
           size="small"
         />
-
         {editingOrderId && selectedOrder && (
           <div style={{ marginTop: 20, border: "1px solid #d9d9d9", padding: 16, position: "relative" }}>
             <Button
@@ -1762,7 +1809,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
             />
           </div>
         )}
-
         <Modal
           title={
             selectedOrder ? (
@@ -1881,7 +1927,6 @@ const OrderListPage = ({ branchId: propBranchId }) => {
             </div>
           )}
         </Modal>
-
         <Modal
           title={
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
@@ -2080,16 +2125,13 @@ const OrderListPage = ({ branchId: propBranchId }) => {
     </div>
   );
 };
-
 export async function getServerSideProps(context) {
   const { query } = context;
   const { branchId } = query;
-
   return {
     props: {
       branchId: branchId || null,
     },
   };
 }
-
 export default OrderListPage;
